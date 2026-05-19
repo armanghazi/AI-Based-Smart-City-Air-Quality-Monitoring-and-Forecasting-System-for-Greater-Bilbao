@@ -409,7 +409,7 @@ Portfolio:
 
 This project was developed as part of the training program:
 
-**Laborlan – IA & Data Tech: Inteligencia Artificial y Gestión de Proyectos Tecnológicos**
+**Laborlan 2026 – IA & Data Tech: Inteligencia Artificial y Gestión de Proyectos Tecnológicos**
 
 Organized by:
 
