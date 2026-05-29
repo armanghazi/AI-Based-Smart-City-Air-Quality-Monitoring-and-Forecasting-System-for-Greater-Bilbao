@@ -339,8 +339,8 @@ Potential findings:
 ## 🚀 Installation
 
 ```bash
-git clone https://github.com/yourusername/smart-city-air-quality.git
-cd smart-city-air-quality
+git clone https://github.com/armanghazi/AI-Based-Smart-City-Air-Quality-Monitoring-and-Forecasting-System-for-Greater-Bilbao.git
+cd AI-Based-Smart-City-Air-Quality-Monitoring-and-Forecasting-System-for-Greater-Bilbao
 pip install -r requirements.txt
 ```
 
