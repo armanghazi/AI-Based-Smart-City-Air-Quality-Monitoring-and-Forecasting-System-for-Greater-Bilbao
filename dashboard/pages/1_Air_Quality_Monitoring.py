@@ -30,11 +30,12 @@ df = load_data()
 # Thresholds per pollutant
 # WHO / EU guideline–based thresholds
 # -----------------------
-THRESHOLDS = {
-    "PM2.5": {"low": 15,  "mid": 25},   # µg/m³
-    "PM10":  {"low": 30,  "mid": 50},   # µg/m³
-    "NO2":   {"low": 40,  "mid": 100},  # µg/m³
-    "SO2":   {"low": 20,  "mid": 80},   # µg/m³
+THRESHOLDS = { 
+    "PM2.5": {"low": 10, "mid": 25},
+    "PM10":  {"low": 25, "mid": 50},
+    "NO2":   {"low": 20, "mid": 40},
+    "SO2":   {"low": 20, "mid": 40},
+
 }
 
 def get_color(value, pollutant):

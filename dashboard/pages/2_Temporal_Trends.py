@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 from config import DATA_FILE
 
@@ -162,37 +163,54 @@ st.subheader("🦠 COVID Impact")
 
 covid_df = df_plot.copy()
 
-covid_df["Period"] = "Post-COVID"
+covid_df["Period"] = np.select(
+    [
+        covid_df["Year"] <= 2019,
+        covid_df["Year"].between(2020, 2021),
+        covid_df["Year"] >= 2022
+    ],
+    [
+        "Pre-COVID",
+        "COVID",
+        "Post-COVID"
+    ],
+    default="Unknown"
+)
 
-covid_df.loc[
-    covid_df["Year"] <= 2019,
-    "Period"
-] = "Pre-COVID"
+period_order = ["Pre-COVID", "COVID", "Post-COVID"]
+covid_df["Period"] = pd.Categorical(
+    covid_df["Period"],
+    categories=period_order,
+    ordered=True
+)
 
-covid_df.loc[
-    covid_df["Year"].between(2020, 2021),
-    "Period"
-] = "COVID"
-
-covid_summary = (
-    covid_df
-    .groupby("Period")[pollutant]
+covid_mean = (
+    covid_df.groupby("Period", as_index=False)[pollutant]
     .mean()
-    .reset_index()
+    .sort_values("Period")
 )
 
 fig4 = px.bar(
-    covid_summary,
+    covid_mean,
     x="Period",
-    y=pollutant
+    y=pollutant,
+    color="Period",
+    category_orders={"Period": period_order},
+    title=f"Average {pollutant} by Period"
 )
 
-st.plotly_chart(
-    fig4,
-    use_container_width=True
+st.plotly_chart(fig4, use_container_width=True)
+st.dataframe(covid_mean, use_container_width=True)
+
+covid_stats = (
+    covid_df.groupby("Period", as_index=False)
+    .agg(
+        mean_value=(pollutant, "mean"),
+        median_value=(pollutant, "median"),
+        std_value=(pollutant, "std"),
+        count_value=(pollutant, "count")
+    )
+    .sort_values("Period")
 )
 
-st.dataframe(
-    covid_summary,
-    use_container_width=True
-)
+st.dataframe(covid_stats, use_container_width=True)
