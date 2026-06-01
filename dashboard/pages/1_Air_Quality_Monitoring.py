@@ -2,20 +2,8 @@ import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
-from pathlib import Path
+from config import DATA_FILE
 
-# Base directory: folder where app.py lives  (dashboard/)
-
-from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
-DATA_FILE = (
-    BASE_DIR /
-    "data" /
-    "processed" /
-    "final_air_quality.parquet"
-)
 
 # -----------------------
 # Page Config

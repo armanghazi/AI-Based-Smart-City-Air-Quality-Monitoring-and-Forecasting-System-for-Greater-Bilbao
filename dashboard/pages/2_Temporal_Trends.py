@@ -1,20 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from pathlib import Path
-
-# -----------------------
-# Load Data
-# -----------------------
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
-DATA_FILE = (
-    BASE_DIR /
-    "data" /
-    "processed" /
-    "final_air_quality.parquet"
-)
+from config import DATA_FILE
 
 @st.cache_data
 def load_data():
