@@ -164,25 +164,23 @@ for _, row in station_mean.iterrows():
     label = get_quality_label(value, pollutant)
     radius = max(8, min(22, value / 2))
 
-    popup_html = f"""
-    <div style="font-family:sans-serif; min-width:180px;">
-        <b style="font-size:14px;">{row['station']}</b><br>
-        <span style="color:#555;">{row['Town']}</span>
-        <hr style="margin:4px 0">
-        <b>{pollutant}:</b> {value:.2f} µg/m³<br>
-        <span style="
-            background:{color};color:white;
-            padding:2px 10px;border-radius:10px;font-size:12px;
-        ">{label}</span>
-        <hr style="margin:4px 0">
-        <span style="font-size:11px;color:#888;">Period: {period_label}</span>
-    </div>
-    """
+    # Popup: use iframe=True to avoid HTML parsing issues in streamlit-folium
+    popup_html = (
+        f"<div style='font-family:sans-serif;min-width:180px;padding:4px'>"
+        f"<b style='font-size:14px'>{row['station']}</b><br>"
+        f"<span style='color:#555'>{row['Town']}</span><br>"
+        f"<hr style='margin:4px 0'>"
+        f"<b>{pollutant}:</b> {value:.2f} &micro;g/m&sup3;<br>"
+        f"<span style='background:{color};color:white;"
+        f"padding:2px 10px;border-radius:10px;font-size:12px'>{label}</span><br>"
+        f"<span style='font-size:11px;color:#888'>Period: {period_label}</span>"
+        f"</div>"
+    )
 
     folium.CircleMarker(
         location=[row["Latitude"], row["Longitude"]],
         radius=radius,
-        popup=folium.Popup(popup_html, max_width=240),
+        popup=folium.Popup(popup_html, max_width=240, parse_html=False),
         tooltip=f"{row['station'].split('_')[0]} – {value:.1f} µg/m³ ({label})",
         color="white",
         weight=2,
@@ -218,7 +216,13 @@ legend_html = f"""
 """
 m.get_root().html.add_child(folium.Element(legend_html))
 
-st_folium(m, width=None, height=600, returned_objects=[])
+st_folium(
+    m,
+    width=None,
+    height=600,
+    returned_objects=[],
+    key=f"map_{pollutant}_{selected_year}"
+)
 
 # -----------------------
 # Ranking Table
