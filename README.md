@@ -1,424 +1,305 @@
-# 🌍 Smart City Air Quality Monitoring and Forecasting for Greater Bilbao
+# 🌍 GeoAI Smart City Platform for Air Quality Monitoring and Forecasting in Greater Bilbao (Under Development)
 
-An end-to-end Data Science, GIS, and Machine Learning project for analyzing and forecasting urban air pollution in the metropolitan area of Bilbao, Spain.
+## Overview
 
----
+This project is an end-to-end GeoAI and Spatial Data Science platform designed to monitor, analyze, visualize, and forecast urban air quality across the Greater Bilbao Metropolitan Area.
 
-## 📌 Project Overview
-
-This project integrates historical air quality measurements from multiple monitoring stations across **Greater Bilbao (Gran Bilbao)** to build a Smart City analytics platform capable of:
-
-- Monitoring air pollution trends.
-- Comparing pollution levels across urban, coastal, and industrial zones.
-- Detecting seasonal patterns.
-- Forecasting pollutant concentrations.
-- Visualizing results through interactive maps and dashboards.
+The platform integrates Environmental Data Science, Geographic Information Systems (GIS), Machine Learning, and Interactive Dashboards to support Smart City decision-making and sustainable urban planning.
 
 The project combines:
 
-- 🐍 Python
-- 📊 Data Analysis
-- 🗺️ GIS
-- 🤖 Machine Learning
-- 🌐 Streamlit Dashboard
+- Spatial Data Analysis
+- Air Quality Monitoring
+- GeoAI & Machine Learning
+- Interactive GIS Dashboards
+- Urban Risk Assessment
+- Environmental Intelligence
 
 ---
 
-## 🎯 Objectives
+## Project Objectives
 
-1. Consolidate and clean multi-source air quality data.
-2. Perform exploratory spatial and temporal analysis.
-3. Engineer features for forecasting models.
-4. Train machine learning models to predict pollutant concentrations.
-5. Build an interactive dashboard for visualization.
+The main goals of the project are:
 
----
-
-## 📍 Study Area
-
-The study area covers **Greater Bilbao**, located in the Basque Country, Spain.
-
-Selected monitoring stations include:
-
-- ALGORTA (Getxo)
-- BARAKALDO
-- BASAURI
-- ERANDIO
-- LEIOA
-- MUSKIZ
-- SANTURTZI
-
-These stations represent different environmental contexts:
-
-- Urban areas
-- Industrial zones
-- Coastal locations
+- Monitor air pollution patterns across Greater Bilbao.
+- Identify spatial hotspots and pollution clusters.
+- Analyze long-term temporal trends.
+- Assess urban environmental risk using WHO guidelines.
+- Forecast future air quality conditions using Machine Learning.
+- Provide decision-support tools for Smart City stakeholders.
 
 ---
 
-## 📂 Data Sources
+## Study Area
 
-### 1. Air Quality Data
+Greater Bilbao Metropolitan Area (Bizkaia, Basque Country, Spain)
 
-- World Air Quality Index (WAQI)
-- Calidad del Aire en Euskadi
+Monitoring stations included:
 
-### 2. Station Metadata
-
-- Official station information from `estaciones2026.xlsx`
-
-### 3. Temporal Coverage
-
-- 2015–2026
-
-### 4. Temporal Resolution
-
-- Daily observations
+- Algorta
+- Barakaldo
+- Basauri
+- Erandio
+- Mazarredo
+- Muskiz
+- Santurtzi
 
 ---
 
-## 🧪 Selected Pollutants
+## Dataset
 
-The following pollutants were retained for the core analysis:
+Air quality observations collected between:
 
-- NO₂ (Nitrogen Dioxide)
-- PM10
-- PM2.5
-- SO₂
+**2015 – 2026**
 
-### Excluded Variables
+Main pollutants:
 
-The following variables were excluded due to high missing values and inconsistent coverage across stations:
+| Pollutant | Description               |
+| --------- | ------------------------- |
+| PM2.5     | Fine particulate matter   |
+| PM10      | Coarse particulate matter |
+| NO₂       | Nitrogen dioxide          |
+| SO₂       | Sulfur dioxide            |
 
-- O₃
-- CO
-- CO 8h
-- VOCs (Benzene, Toluene, Xylenes, etc.)
+Additional spatial attributes:
 
----
+- Station
+- Municipality
+- Coordinates (Latitude / Longitude)
+- Province
+- Date
 
-## 🧾 Final Dataset Structure
+Final dataset:
 
-| Column    | Description                 |
-| --------- | --------------------------- |
-| Date      | Observation date            |
-| year      | Year                        |
-| station   | Monitoring station          |
-| NO2       | Nitrogen dioxide            |
-| PM10      | Particulate matter < 10 μm  |
-| PM2_5     | Particulate matter < 2.5 μm |
-| SO2       | Sulfur dioxide              |
-| Province  | Province                    |
-| Town      | Municipality                |
-| Address   | Station address             |
-| Latitude  | Latitude                    |
-| Longitude | Longitude                   |
+- ~27,800 daily observations
+- 7 monitoring stations
+- Cleaned and validated data
+- Stored in Parquet format
 
 ---
 
-## 🏗️ Project Architecture
+## Technologies
 
-```text
-Raw CSV Files (150+ files)
-        +
-Station Metadata (Excel)
-        │
-        ▼
-ETL Pipeline (Pandas)
-        │
-        ▼
-Clean Unified Dataset
-        │
-        ├── Data Cleaning
-        ├── Exploratory Data Analysis
-        ├── GIS Mapping
-        ├── Feature Engineering
-        ├── Machine Learning
-        └── Streamlit Dashboard
-```
+### GIS & Spatial Analysis
 
----
-
-## 📁 Repository Structure
-
-```text
-smart-city-air-quality/
-│
-├── data/
-│   ├── raw/
-│   ├── metadata/
-│   └── processed/
-│
-├── notebooks/
-│   ├── 01_data_loading.ipynb
-│   ├── 02_data_cleaning.ipynb
-│   ├── 03_eda.ipynb
-│   ├── 04_feature_engineering.ipynb
-│   ├── 05_modeling.ipynb
-│   └── 06_dashboard.ipynb
-│
-├── src/
-│   ├── etl.py
-│   ├── preprocessing.py
-│   ├── features.py
-│   └── modeling.py
-│
-├── dashboard/
-│   └── app.py
-│
-├── reports/
-│   ├── figures/
-│   └── presentation.pptx
-│
-├── README.md
-├── requirements.txt
-└── .gitignore
-```
-
----
-
-## 🔄 Methodology
-
-### 1. Data Acquisition
-
-- Download historical CSV files for each station.
-- Collect official metadata.
-
-### 2. ETL Pipeline
-
-- Merge all CSV files.
-- Standardize column names.
-- Add station metadata.
-
-### 3. Data Cleaning
-
-- Handle missing values.
-- Remove low-quality variables.
-- Convert data types.
-
-### 4. Exploratory Data Analysis
-
-- Annual trends.
-- Monthly seasonality.
-- Station comparisons.
-- Correlation analysis.
-
-### 5. GIS Analysis
-
-- Station maps.
-- Pollution heatmaps.
-- Spatial comparisons.
-
-### 6. Feature Engineering
-
-- Month, season, day of week.
-- Lag variables.
-- Rolling averages.
-
-### 7. Machine Learning
-
-- Forecast next-day NO₂ or PM2.5.
-- Compare multiple models.
-
-### 8. Dashboard Development
-
-- Interactive visualizations.
-- Map-based exploration.
-
----
-
-## 📊 Exploratory Data Analysis Highlights
-
-The EDA investigates:
-
-- Long-term pollution trends.
-- Seasonal variability.
-- Spatial differences among stations.
-- Relationships among pollutants.
-
-Typical insights include:
-
-- Higher NO₂ concentrations in winter.
-- Elevated PM10 levels near industrial areas.
-- Cleaner air at coastal stations.
-- Overall improvement in air quality over time.
-
----
-
-## 🗺️ GIS Analysis
-
-Spatial analysis includes:
-
-- Monitoring station locations.
-- Average pollutant concentrations on maps.
-- Heatmaps of air pollution.
-- Urban vs. industrial comparisons.
-
-Tools:
-
+- QGIS
 - GeoPandas
+- Shapely
+- Contextily
 - Folium
-- Plotly
 
----
-
-## 🤖 Machine Learning
-
-### Target Variables
-
-- Next-day NO₂
-- Next-day PM2.5
-
-### Models
-
-- Linear Regression
-- Random Forest Regressor
-- XGBoost Regressor
-
-### Evaluation Metrics
-
-- RMSE
-- MAE
-- R²
-
----
-
-## 🌐 Interactive Dashboard
-
-The Streamlit dashboard includes:
-
-- Pollutant selector.
-- Station selector.
-- Time-series charts.
-- Interactive map.
-- Forecast results.
-
----
-
-## 📈 Example Results
-
-Potential findings:
-
-- Muskiz exhibits the highest PM10 concentrations.
-- NO₂ peaks during winter months.
-- Coastal stations show lower average pollution.
-- Forecast models achieve strong predictive performance.
-
----
-
-## 🛠️ Technologies Used
-
-### Data Processing
+### Data Science
 
 - Python
 - Pandas
 - NumPy
-
-### Visualization
-
-- Matplotlib
-- Plotly
-- Seaborn
-
-### GIS
-
-- GeoPandas
-- Folium
+- Scikit-Learn
 
 ### Machine Learning
 
-- Scikit-learn
-- XGBoost
+- Random Forest
+- XGBoost (planned)
+- Spatial Feature Engineering
 
-### Dashboard
+### Dashboard Development
 
 - Streamlit
+- Plotly
+- Folium
 
 ---
 
-## 🚀 Installation
+## Project Architecture
 
-```bash
-git clone https://github.com/armanghazi/AI-Based-Smart-City-Air-Quality-Monitoring-and-Forecasting-System-for-Greater-Bilbao.git
-cd AI-Based-Smart-City-Air-Quality-Monitoring-and-Forecasting-System-for-Greater-Bilbao
-pip install -r requirements.txt
+```text
+project/
+│
+├── data/
+│   ├── raw/
+│   ├── interim/
+│   └── processed/
+│
+├── notebooks/
+│   ├── 01_data_understanding.ipynb
+│   ├── 02_data_cleaning.ipynb
+│   ├── 03_eda.ipynb
+│   ├── 04_spatial_analysis.ipynb
+│   └── 05_forecasting.ipynb
+│
+├── src/
+│   ├── data_processing.py
+│   ├── feature_engineering.py
+│   ├── train_model.py
+│   └── predict.py
+│
+├── dashboard/
+│   ├── app.py
+│   ├── config.py
+│   └── pages/
+│       ├── 1_Air_Quality_Monitoring.py
+│       ├── 2_Temporal_Trends.py
+│       ├── 3_Urban_Risk_Index.py
+│       ├── 4_Forecasting.py
+│       └── 5_Decision_Support.py
+│
+└── README.md
 ```
 
 ---
 
-## ▶️ Usage
+## Exploratory Data Analysis (EDA)
 
-### Run notebooks
+Key findings:
 
-```bash
-jupyter lab
-```
+### PM2.5
 
-### Launch dashboard
+- Stable long-term decrease.
+- Higher concentrations in urban stations.
+- Strong seasonality.
 
-```bash
-streamlit run dashboard/app.py
-```
+### PM10
 
----
+- Greater variability.
+- Influenced by dust events and meteorological conditions.
+- Strong correlation with PM2.5.
 
-## 📌 Key Skills Demonstrated
+### NO₂
 
-- ETL pipeline design
-- Data cleaning
-- Exploratory Data Analysis
-- GIS and geospatial visualization
-- Time series feature engineering
-- Machine learning
-- Dashboard development
-- Technical documentation
+- Strong urban traffic signature.
+- Significant reduction over time.
+- Highest levels in central urban stations.
 
----
+### SO₂
 
-## 📄 CV Description
-
-> Developed an end-to-end Smart City analytics platform for Greater Bilbao, integrating multi-station air quality data with GIS and machine learning to analyze and forecast urban pollution patterns.
+- Low overall concentrations.
+- Industrial and port-related influence.
+- Independent behavior compared to other pollutants.
 
 ---
 
-## 🔮 Future Improvements
+## Spatial Analysis Results
 
-- Integrate meteorological variables.
-- Use hourly data.
-- Multi-day forecasting.
-- Cloud deployment.
-- Real-time API integration.
+Three environmental zones were identified:
 
----
+### 🏭 Industrial Corridor
 
-## 👤 Author
+Stations:
 
-**Arman Ghaziaskari Naeini**
+- Barakaldo
+- Basauri
 
-- GIS & Remote Sensing Specialist
-- Data Scientist
-- Python Developer
+Characteristics:
 
-Portfolio:
-
-- [https://armanghazi.github.io/portfolio/](https://armanghazi.github.io/portfolio/)
+- High PM2.5
+- High PM10
+- Elevated NO₂
 
 ---
 
-## 🙏 Acknowledgements
+### 🚗 Urban Core
 
-This project was developed as part of the training program:
+Stations:
 
-**Laborlan 2026 – IA & Data Tech: Inteligencia Artificial y Gestión de Proyectos Tecnológicos**
+- Mazarredo
+- Erandio
 
-Organized by:
+Characteristics:
 
-- GAIA
-- DEMA
-- C2B
+- Highest NO₂ concentrations
+- Strong traffic influence
+- Urban canyon effects
 
 ---
 
-## ⭐ If You Like This Project
+### 🌊 Coastal Buffer Zone
 
-If you find this project useful, please consider giving it a star ⭐ on GitHub.
+Stations:
+
+- Algorta
+- Muskiz
+- Santurtzi
+
+Characteristics:
+
+- Better atmospheric dispersion
+- Lower NO₂ concentrations
+- Marine influence on PM10
+
+---
+
+## Interactive Dashboard
+
+Current modules:
+
+### Page 1 — Air Quality Monitoring
+
+- Interactive GIS Map
+- Station-level pollutant visualization
+- Spatial exploration
+
+### Page 2 — Temporal Trends
+
+- Long-term trends
+- Annual evolution
+- Seasonal analysis
+
+### Page 3 — Urban Risk Index
+
+- WHO Guideline comparison
+- Pollution risk ranking
+- Station benchmarking
+
+### Page 4 — Forecasting (In Development)
+
+- Random Forest models
+- XGBoost models
+- Time-series forecasting
+
+### Page 5 — Smart City Decision Support (Planned)
+
+- Urban environmental intelligence
+- Risk prioritization
+- Strategic planning support
+
+---
+
+## Future Development
+
+Planned GeoAI enhancements:
+
+- Spatial interpolation
+- Land Use Regression (LUR)
+- Random Forest Spatial Models
+- XGBoost Spatial Prediction
+- Satellite-derived indicators (NDVI)
+- DEM integration
+- Meteorological variables
+- Smart City Environmental Risk Maps
+
+Inspired by modern GeoAI ecosystems integrating advanced GIS technologies with cloud-based analytical platforms and next-generation spatial data infrastructures.
+
+---
+
+## Live Dashboard
+
+Dashboard:
+
+https://geoai-dashboard.streamlit.app/
+
+---
+
+## Portfolio
+
+More projects:
+
+https://armanghazi.github.io/portfolio/projects
+
+---
+
+## Author
+
+Arman Ghaziaskari Naeini
+
+GIS & Remote Sensing Specialist | Spatial Data Scientist | GeoAI Enthusiast
+
+Bilbao, Spain
