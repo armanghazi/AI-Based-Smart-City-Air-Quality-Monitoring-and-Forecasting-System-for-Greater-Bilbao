@@ -409,7 +409,8 @@ for idx, module in enumerate(NAV_MODULES):
 
 st.divider()
 st.caption(
-    "Data: Basque Government Air Quality Network · "
-    "7 monitoring stations · ~27k daily records · "
-    "WHO 2021 guidelines applied"
+    "Source: Basque Government Air Quality Network (Red de Control de Calidad del Aire) · "
+    "7 stations in Greater Bilbao area · ~27k daily records · "
+    "WHO 2021 guidelines applied · "
+    "Data: © Gobierno Vasco — CC BY 4.0"
 )
