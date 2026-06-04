@@ -412,5 +412,6 @@ st.caption(
     "Source: Basque Government Air Quality Network (Red de Control de Calidad del Aire) · "
     "7 stations in Greater Bilbao area · ~27k daily records · "
     "WHO 2021 guidelines applied · "
+    
     "Data: © Gobierno Vasco — CC BY 4.0"
 )
