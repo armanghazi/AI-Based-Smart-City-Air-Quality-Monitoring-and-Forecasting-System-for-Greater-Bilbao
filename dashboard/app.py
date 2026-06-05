@@ -41,9 +41,9 @@ POLLUTANT_COLOR = {
 ZONE_MAP = {
     "Barakaldo": "Industrial Corridor",
     "Basauri":   "Industrial Corridor",
-    "Bilbao": "Urban Core",
+    "Mazarredo": "Urban Core",
     "Erandio":   "Urban Core",
-    "Getxo":   "Coastal Buffer Zone",
+    "Algorta":   "Coastal Buffer Zone",
     "Muskiz":    "Coastal Buffer Zone",
     "Santurtzi": "Coastal Buffer Zone",
 }
@@ -341,18 +341,18 @@ with col_right:
 st.divider()
 
 # -----------------------
-# Navigation Cards — with st.button
+# Navigation Cards — کلیک‌پذیر با st.button
 # -----------------------
 
 st.markdown("### 🧭 Navigate to Module")
-st.caption("Click on any card to go to that section")
+st.caption("روی هر کارت کلیک کنید تا به آن بخش بروید")
 
 NAV_MODULES = [
     {
         "icon":        "🗺️",
         "title":       "Air Quality Monitoring",
         "description": "Interactive map · Station comparison · WHO risk levels",
-        "page":        "pages/1_air_quality_monitoring.py",
+        "page":        "pages/1_Air_Quality_Monitoring.py",
         "color":       "#2980b9",
         "border":      "#1a6fa0",
     },
@@ -360,7 +360,7 @@ NAV_MODULES = [
         "icon":        "📈",
         "title":       "Temporal Trends",
         "description": "Annual trends · Seasonality · COVID impact analysis",
-        "page":        "pages/2_temporal_trend.py",
+        "page":        "pages/2_Temporal_Trends.py",
         "color":       "#27ae60",
         "border":      "#1e8449",
     },
@@ -368,13 +368,21 @@ NAV_MODULES = [
         "icon":        "🌍",
         "title":       "Urban Risk Index",
         "description": "WHO-based risk scoring · Heatmaps · Station rankings",
-        "page":        "pages/3_urban_risk_index.py",
+        "page":        "pages/3_Urban_Risk_Index.py",
         "color":       "#c0392b",
         "border":      "#a93226",
     },
+    {
+        "icon":        "🌤️",
+        "title":       "Weather Correlation",
+        "description": "Wind · Rain · Temperature impact · Zone weather profiles",
+        "page":        "pages/4_Weather_Correlation.py",
+        "color":       "#d35400",
+        "border":      "#b94600",
+    },
 ]
 
-nav_cols = st.columns(3)
+nav_cols = st.columns(4)
 
 for idx, module in enumerate(NAV_MODULES):
     with nav_cols[idx]:
@@ -409,9 +417,9 @@ for idx, module in enumerate(NAV_MODULES):
 
 st.divider()
 st.caption(
-    "Source: Basque Government Air Quality Network (Red de Control de Calidad del Aire) · "
-    "7 stations in Greater Bilbao area · ~27k daily records · "
-    "WHO 2021 guidelines applied · "
-    
-    "Data: © Gobierno Vasco — CC BY 4.0"
+    "Air quality data: Basque Government Air Quality Network "
+    "(Red de Control de Calidad del Aire) · "
+    "7 stations in Greater Bilbao · © Gobierno Vasco — CC BY 4.0 · "
+    "Meteorological data: Open-Meteo (open-meteo.com) · "
+    "~29k daily records · WHO 2021 guidelines applied"
 )
