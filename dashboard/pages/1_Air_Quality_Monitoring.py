@@ -1,8 +1,20 @@
+from config import (
+    DATA_FILE, load_data,
+    WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
+    POLLUTANT_COLOR, MONTH_NAMES, RISK_COLORS, RISK_ORDER,
+    ZONE_MAP, ZONE_META, get_zone,
+    classify_core_risk, risk_color, short_term_flag,
+    who_ratio_label, who_delta,
+)
 import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
-from config import DATA_FILE
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import numpy as np
+
 
 # -----------------------
 # Page Config
@@ -17,50 +29,8 @@ st.markdown("Greater Bilbao Air Quality Monitoring System")
 # -----------------------
 # Load Data
 # -----------------------
-@st.cache_data
-def load_data():
-    df = pd.read_parquet(DATA_FILE)
-    df["Date"] = pd.to_datetime(df["Date"])
-    df["Year"]  = df["Date"].dt.year
-    df["Month"] = df["Date"].dt.month
-    df["Day"]   = df["Date"].dt.date
-    return df
-
 df = load_data()
 
-# -----------------------
-# Zone Classification
-# -----------------------
-ZONE_MAP = {
-    "Barakaldo": "Industrial Corridor",
-    "Basauri":   "Industrial Corridor",
-    "Bilbao": "Urban Core",
-    "Erandio":   "Urban Core",
-    "Getxo":   "Coastal Buffer Zone",
-    "Muskiz":    "Coastal Buffer Zone",
-    "Santurtzi": "Coastal Buffer Zone",
-}
-
-ZONE_META = {
-    "Industrial Corridor": {
-        "icon": "🏭",
-        "color": "#e67e22",
-        "description": "High PM2.5, High PM10, Elevated NO₂",
-        "border": "#d35400",
-    },
-    "Urban Core": {
-        "icon": "🚗",
-        "color": "#8e44ad",
-        "description": "Highest NO₂, Strong traffic influence, Urban canyon effects",
-        "border": "#6c3483",
-    },
-    "Coastal Buffer Zone": {
-        "icon": "🌊",
-        "color": "#1abc9c",
-        "description": "Better dispersion, Lower NO₂, Marine influence on PM10",
-        "border": "#148f77",
-    },
-}
 
 ZONE_MARKER_COLOR = {
     "Industrial Corridor": "#e67e22",

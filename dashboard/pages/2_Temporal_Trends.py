@@ -1,69 +1,28 @@
+from config import (
+    DATA_FILE, load_data,
+    WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
+    POLLUTANT_COLOR, MONTH_NAMES, RISK_COLORS, RISK_ORDER,
+    ZONE_MAP, ZONE_META, get_zone,
+    classify_core_risk, risk_color, short_term_flag,
+    who_ratio_label, who_delta,
+)
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from config import DATA_FILE
+
 
 # -----------------------
 # Constants
 # -----------------------
 
-WHO_ANNUAL = {"PM2.5": 5.0, "PM10": 15.0, "NO2": 10.0}
-
-POLLUTANT_COLOR = {
-    "NO2": "#e74c3c", "PM10": "#e67e22",
-    "PM2.5": "#9b59b6", "SO2": "#3498db"
-}
-
-MONTH_NAMES = {
-    1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr",
-    5: "May", 6: "Jun", 7: "Jul", 8: "Aug",
-    9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec"
-}
-
 COVID_PERIODS = ["Pre-COVID", "COVID", "Post-COVID"]
-
-# -----------------------
-# Zone Classification
-# -----------------------
-
-ZONE_MAP = {
-    "Barakaldo": "Industrial Corridor",
-    "Basauri":   "Industrial Corridor",
-    "Bilbao": "Urban Core",
-    "Erandio":   "Urban Core",
-    "Getxo":   "Coastal Buffer Zone",
-    "Muskiz":    "Coastal Buffer Zone",
-    "Santurtzi": "Coastal Buffer Zone",
-}
-
-
-ZONE_META = {
-    "Industrial Corridor": {"icon": "🏭", "color": "#e67e22"},
-    "Urban Core":          {"icon": "🚗", "color": "#8e44ad"},
-    "Coastal Buffer Zone": {"icon": "🌊", "color": "#1abc9c"},
-}
-
-def get_zone(town: str) -> str:
-    for key in ZONE_MAP:
-        if key.lower() in town.lower():
-            return ZONE_MAP[key]
-    return "Unknown"
 
 # -----------------------
 # Load Data
 # -----------------------
-
-@st.cache_data
-def load_data():
-    df = pd.read_parquet(DATA_FILE)
-    df["Date"]  = pd.to_datetime(df["Date"])
-    df["Year"]  = df["Date"].dt.year
-    df["Month"] = df["Date"].dt.month
-    df["Day"]   = df["Date"].dt.date
-    df["Zone"]  = df["Town"].apply(get_zone)
-    return df
 
 df = load_data()
 

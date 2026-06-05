@@ -1,14 +1,20 @@
+from config import (
+    DATA_FILE, load_data,
+    WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
+    POLLUTANT_COLOR, MONTH_NAMES, RISK_COLORS, RISK_ORDER,
+    ZONE_MAP, ZONE_META, get_zone,
+    classify_core_risk, risk_color, short_term_flag,
+    who_ratio_label, who_delta,
+)
 import streamlit as st
 import pandas as pd
-import numpy as np
+import folium
+from streamlit_folium import st_folium
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import folium
-from folium.plugins import HeatMap
-from streamlit_folium import st_folium
+import numpy as np
 
-from config import DATA_FILE
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -41,109 +47,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------
-# CONSTANTS
-# --------------------------------------------------
-
-WHO_ANNUAL      = {"PM2.5": 5.0, "PM10": 15.0, "NO2": 10.0}
-WHO_SO2_DAILY   = 40.0
-CORE_POLLUTANTS = ["PM2.5", "PM10", "NO2"]
-
-POLLUTANT_COLOR = {
-    "NO2": "#e74c3c", "PM10": "#e67e22",
-    "PM2.5": "#9b59b6", "SO2": "#3498db"
-}
-
-RISK_COLORS = {
-    "Below WHO guideline": "#2ecc71",
-    "1–2× WHO guideline":  "#f39c12",
-    ">2× WHO guideline":   "#e74c3c"
-}
-RISK_ORDER = ["Below WHO guideline", "1–2× WHO guideline", ">2× WHO guideline"]
-
-MONTH_NAMES = {
-    1:"Jan", 2:"Feb", 3:"Mar", 4:"Apr", 5:"May",  6:"Jun",
-    7:"Jul", 8:"Aug", 9:"Sep",10:"Oct",11:"Nov",12:"Dec"
-}
-
-# --------------------------------------------------
-# ZONE CLASSIFICATION
-# --------------------------------------------------
-
-ZONE_MAP = {
-    "Barakaldo": "Industrial Corridor",
-    "Basauri":   "Industrial Corridor",
-    "Bilbao": "Urban Core",
-    "Erandio":   "Urban Core",
-    "Getxo":   "Coastal Buffer Zone",
-    "Muskiz":    "Coastal Buffer Zone",
-    "Santurtzi": "Coastal Buffer Zone",
-}
-
-ZONE_META = {
-    "Industrial Corridor": {
-        "icon":        "🏭",
-        "color":       "#e67e22",
-        "border":      "#d35400",
-        "description": "High PM2.5, High PM10, Elevated NO₂",
-    },
-    "Urban Core": {
-        "icon":        "🚗",
-        "color":       "#8e44ad",
-        "border":      "#6c3483",
-        "description": "Highest NO₂, Strong traffic influence, Urban canyon effects",
-    },
-    "Coastal Buffer Zone": {
-        "icon":        "🌊",
-        "color":       "#1abc9c",
-        "border":      "#148f77",
-        "description": "Better dispersion, Lower NO₂, Marine influence on PM10",
-    },
-}
-
-def get_zone(town: str) -> str:
-    for key, zone in ZONE_MAP.items():
-        if key.lower() in town.lower():
-            return zone
-    return "Unknown"
-
-# --------------------------------------------------
-# HELPERS
-# --------------------------------------------------
-
-def classify_core_risk(score):
-    if score < 100:  return "Below WHO guideline"
-    elif score < 200: return "1–2× WHO guideline"
-    return ">2× WHO guideline"
-
-def risk_color(score):
-    if score < 100:   return "#2ecc71"
-    elif score < 200: return "#f39c12"
-    return "#e74c3c"
-
-def short_term_flag(rate):
-    if rate == 0:       return "No exceedance"
-    elif rate < 0.05:   return "Occasional"
-    return "Frequent"
-
-def who_ratio_label(val, pollutant):
-    limit = WHO_ANNUAL.get(pollutant)
-    if not limit: return "—"
-    return f"{val / limit:.1f}×"
-
-# --------------------------------------------------
 # LOAD DATA
 # --------------------------------------------------
-
-@st.cache_data
-def load_data():
-    df = pd.read_parquet(DATA_FILE)
-    df["Date"]       = pd.to_datetime(df["Date"])
-    df["Year"]       = df["Date"].dt.year
-    df["Month"]      = df["Date"].dt.month
-    df["Day"]        = df["Date"].dt.date
-    df["YearMonth"]  = df["Date"].dt.to_period("M").dt.to_timestamp()
-    df["Zone"]       = df["Town"].apply(get_zone)
-    return df
 
 df           = load_data()
 all_stations = sorted(df["station"].unique().tolist())
@@ -956,12 +861,17 @@ with tab_seasonal:
     pivot.columns = [MONTH_NAMES[c] for c in pivot.columns]
 
     # Sort rows by zone
-    zone_order = {s: list(ZONE_META.keys()).index(
-        daily_df[daily_df["station"] == s]["Zone"].iloc[0]
-        if not daily_df[daily_df["station"] == s].empty else "Unknown"
-    ) for s in pivot.index if daily_df[daily_df["station"] == s]["Zone"].nunique() > 0}
-    pivot = pivot.loc[sorted(pivot.index, key=lambda s: zone_order.get(s, 99))]
+    zone_keys = list(ZONE_META.keys())
 
+    def _zone_order(station: str) -> int:
+        rows = daily_df[daily_df["station"] == station]
+        if rows.empty:
+            return 99
+        zone = rows["Zone"].iloc[0]
+        return zone_keys.index(zone) if zone in zone_keys else 99
+
+    pivot = pivot.loc[sorted(pivot.index, key=_zone_order)]
+    
     fig_hm = px.imshow(
         pivot,
         color_continuous_scale=["#2ecc71", "#f9ca24", "#e74c3c"],
