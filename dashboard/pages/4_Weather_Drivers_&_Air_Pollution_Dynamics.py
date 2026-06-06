@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from config import (
-    DATA_FILE,
+    DATA_FILE, load_data,
     WHO_ANNUAL, CORE_POLLUTANTS,
     POLLUTANT_COLOR, MONTH_NAMES,
     ZONE_META, get_zone,
@@ -84,17 +84,6 @@ LAG_MAP = {
 # --------------------------------------------------
 # LOAD DATA
 # --------------------------------------------------
-
-@st.cache_data
-def load_data():
-    df = pd.read_parquet(DATA_FILE)
-    df["Date"]  = pd.to_datetime(df["Date"])
-    df["Zone"]  = df["Town"].apply(get_zone)
-    # Normalise column names (parquet has lowercase year/month/day)
-    for old, new in [("year","Year"),("month","Month"),("day","Day")]:
-        if old in df.columns and new not in df.columns:
-            df[new] = df[old]
-    return df
 
 df = load_data()
 
