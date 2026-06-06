@@ -345,7 +345,7 @@ st.divider()
 # -----------------------
 
 st.markdown("### 🧭 Navigate to Module")
-st.caption("روی هر کارت کلیک کنید تا به آن بخش بروید")
+st.caption("Explore detailed analyses: Air Quality Monitoring, Temporal Trends, Urban Risk Index, Weather Drivers & Air Pollution Dynamics")
 
 NAV_MODULES = [
     {
@@ -374,7 +374,7 @@ NAV_MODULES = [
     },
     {
         "icon":        "🌤️",
-        "title":       "Weather Correlation",
+        "title":       "Weather Drivers & Air Pollution Dynamics",
         "description": "Wind · Rain · Temperature impact · Zone weather profiles",
         "page":        "pages/4_Weather_Correlation.py",
         "color":       "#d35400",
@@ -424,7 +424,7 @@ with col_s1:
         "**🌬️ Air Quality Data**  \n"
         "Basque Government Air Quality Network  \n"
         "*(Red de Control de Calidad del Aire)*  \n"
-        "7 stations · Greater Bilbao · © Gobierno Vasco · CC BY 4.0"
+        "7 stations · Greater Bilbao ·  WHO 2021 guidelines applied © Gobierno Vasco · CC BY 4.0"
     )
 
 with col_s2:
@@ -432,5 +432,5 @@ with col_s2:
         "**🌤️ Meteorological Data**  \n"
         "Open-Meteo · [open-meteo.com](https://open-meteo.com)  \n"
         "Historical Weather API · CC BY 4.0  \n"
-        "~29k daily records · WHO 2021 guidelines applied"
+        "~29k daily records ·"
     )

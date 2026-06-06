@@ -9,7 +9,7 @@ import streamlit as st
 # --------------------------------------------------
 _ROOT = Path(__file__).parent
 
-DATA_FILE = _ROOT.parent / "data" / "processed" / "air_quality_weather.parquet"
+DATA_FILE = _ROOT.parent / "data" / "processed" / "forecasting_dataset.parquet"
 
 # --------------------------------------------------
 # WHO GUIDELINES (2021)
