@@ -2,19 +2,21 @@ from __future__ import annotations
 from pathlib import Path
 import pandas as pd
 import streamlit as st
-
-
+ 
 # --------------------------------------------------
-# DATA FILE PATH   
+# DATA FILE PATH — مسیر نسبت به محل config.py
 # --------------------------------------------------
+ 
+# ROOT = پوشه‌ای که config.py در آن قرار دارد (یعنی dashboard/)
 _ROOT = Path(__file__).parent
-
+ 
+# مسیر واقعی فایل parquet را اینجا تنظیم کن:
 DATA_FILE = _ROOT.parent / "data" / "processed" / "forecasting_dataset.parquet"
-
+ 
 # --------------------------------------------------
 # WHO GUIDELINES (2021)
 # --------------------------------------------------
-
+ 
 WHO_ANNUAL: dict[str, float] = {
     "PM2.5": 5.0,
     "PM10":  15.0,
@@ -22,50 +24,50 @@ WHO_ANNUAL: dict[str, float] = {
 }
 WHO_SO2_DAILY: float = 40.0          # µg/m³ — 24-hour guideline
 CORE_POLLUTANTS: list[str] = ["PM2.5", "PM10", "NO2"]
-
+ 
 # --------------------------------------------------
 # VISUAL CONSTANTS
 # --------------------------------------------------
-
+ 
 POLLUTANT_COLOR: dict[str, str] = {
     "NO2":   "#e74c3c",
     "PM10":  "#e67e22",
     "PM2.5": "#9b59b6",
     "SO2":   "#3498db",
 }
-
+ 
 MONTH_NAMES: dict[int, str] = {
     1: "Jan",  2: "Feb",  3: "Mar",  4: "Apr",
     5: "May",  6: "Jun",  7: "Jul",  8: "Aug",
     9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec",
 }
-
+ 
 RISK_COLORS: dict[str, str] = {
     "Below WHO guideline": "#2ecc71",
     "1–2× WHO guideline":  "#f39c12",
     ">2× WHO guideline":   "#e74c3c",
 }
-
+ 
 RISK_ORDER: list[str] = [
     "Below WHO guideline",
     "1–2× WHO guideline",
     ">2× WHO guideline",
 ]
-
+ 
 # --------------------------------------------------
 # ZONE CLASSIFICATION
 # --------------------------------------------------
-
+ 
 ZONE_MAP: dict[str, str] = {
     "Barakaldo": "Industrial Corridor",
     "Basauri":   "Industrial Corridor",
-    "Bilbao": "Urban Core",
+    "Mazarredo": "Urban Core",
     "Erandio":   "Urban Core",
     "Algorta":   "Coastal Buffer Zone",
     "Muskiz":    "Coastal Buffer Zone",
     "Santurtzi": "Coastal Buffer Zone",
 }
-
+ 
 ZONE_META: dict[str, dict] = {
     "Industrial Corridor": {
         "icon":         "🏭",
@@ -89,38 +91,38 @@ ZONE_META: dict[str, dict] = {
         "key_pollutant": "PM10",
     },
 }
-
+ 
 def get_zone(town: str) -> str:
     """Map a town name to its environmental zone."""
     for key, zone in ZONE_MAP.items():
         if key.lower() in str(town).lower():
             return zone
     return "Unknown"
-
+ 
 # --------------------------------------------------
 # RISK HELPERS
 # --------------------------------------------------
-
+ 
 def classify_core_risk(score: float) -> str:
     if score < 100:   return "Below WHO guideline"
     elif score < 200: return "1–2× WHO guideline"
     return ">2× WHO guideline"
-
+ 
 def risk_color(score: float) -> str:
     if score < 100:   return "#2ecc71"
     elif score < 200: return "#f39c12"
     return "#e74c3c"
-
+ 
 def short_term_flag(rate: float) -> str:
     if rate == 0:      return "No exceedance"
     elif rate < 0.05:  return "Occasional"
     return "Frequent"
-
+ 
 def who_ratio_label(val: float, pollutant: str) -> str:
     limit = WHO_ANNUAL.get(pollutant)
     if not limit: return "—"
     return f"{val / limit:.1f}×"
-
+ 
 def who_delta(val: float, pollutant: str) -> tuple[str | None, str]:
     """Returns (delta_label, delta_color) for st.metric."""
     limit = WHO_ANNUAL.get(pollutant)
@@ -128,18 +130,36 @@ def who_delta(val: float, pollutant: str) -> tuple[str | None, str]:
         return None, "off"
     ratio = val / limit
     return f"{ratio:.1f}× WHO limit", "inverse" if ratio > 1 else "normal"
-
+ 
 # --------------------------------------------------
 # SHARED DATA LOADER
 # --------------------------------------------------
-
+ 
 @st.cache_data
 def load_data() -> pd.DataFrame:
     df = pd.read_parquet(DATA_FILE)
     df["Date"]      = pd.to_datetime(df["Date"])
+    df["Zone"]      = df["Town"].apply(get_zone)
+ 
+    # Always derive time columns fresh — avoids lowercase/uppercase mismatch on Cloud
     df["Year"]      = df["Date"].dt.year
     df["Month"]     = df["Date"].dt.month
     df["Day"]       = df["Date"].dt.date
     df["YearMonth"] = df["Date"].dt.to_period("M").dt.to_timestamp()
-    df["Zone"]      = df["Town"].apply(get_zone)
+ 
+    # Normalise season column — parquet may use lowercase or different casing
+    if "season" in df.columns and "Season" not in df.columns:
+        df["season"] = df["season"].str.capitalize()
+    elif "Season" in df.columns and "season" not in df.columns:
+        df["season"] = df["Season"].str.capitalize()
+    elif "season" not in df.columns:
+        # Derive from month if missing entirely
+        month_to_season = {
+            12: "Winter", 1: "Winter", 2: "Winter",
+            3: "Spring",  4: "Spring", 5: "Spring",
+            6: "Summer",  7: "Summer", 8: "Summer",
+            9: "Autumn", 10: "Autumn", 11: "Autumn",
+        }
+        df["season"] = df["Month"].map(month_to_season)
+ 
     return df
