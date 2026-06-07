@@ -2,18 +2,20 @@
 
 ## Overview
 
-This project is an end-to-end GeoAI and Spatial Data Science platform designed to monitor, analyze, visualize, and forecast urban air quality across the Greater Bilbao Metropolitan Area.
+This project is an end-to-end GeoAI and Spatial Data Science platform designed to monitor, analyze, visualize, and forecast urban air quality across the Greater Bilbao Metropolitan Area (Basque Country, Spain).
 
-The platform integrates Environmental Data Science, Geographic Information Systems (GIS), Machine Learning, and Interactive Dashboards to support Smart City decision-making and sustainable urban planning.
+The platform integrates:
 
-The project combines:
+* Geographic Information Systems (GIS)
+* Environmental Data Science
+* GeoAI & Machine Learning
+* Spatial Analysis
+* Meteorological Intelligence
+* Urban Risk Assessment
+* Interactive Dashboards
+* Smart City Decision Support
 
-- Spatial Data Analysis
-- Air Quality Monitoring
-- GeoAI & Machine Learning
-- Interactive GIS Dashboards
-- Urban Risk Assessment
-- Environmental Intelligence
+The objective is to transform environmental monitoring data into actionable intelligence for sustainable urban planning and smart city governance.
 
 ---
 
@@ -21,60 +23,141 @@ The project combines:
 
 The main goals of the project are:
 
-- Monitor air pollution patterns across Greater Bilbao.
-- Identify spatial hotspots and pollution clusters.
-- Analyze long-term temporal trends.
-- Assess urban environmental risk using WHO guidelines.
-- Forecast future air quality conditions using Machine Learning.
-- Provide decision-support tools for Smart City stakeholders.
+* Monitor air pollution patterns across Greater Bilbao.
+* Identify spatial hotspots and environmental risk zones.
+* Analyze temporal trends and seasonal dynamics.
+* Evaluate air quality against WHO guidelines.
+* Understand meteorological drivers of pollution.
+* Develop GeoAI forecasting models.
+* Support evidence-based Smart City decision making.
 
 ---
 
 ## Study Area
 
-Greater Bilbao Metropolitan Area (Bizkaia, Basque Country, Spain)
+Greater Bilbao Metropolitan Area
+
+Bizkaia, Basque Country, Spain
 
 Monitoring stations included:
 
-- Algorta
-- Barakaldo
-- Basauri
-- Erandio
-- Mazarredo
-- Muskiz
-- Santurtzi
+| Station   | Environmental Class |
+| --------- | ------------------- |
+| Mazarredo | Urban               |
+| Erandio   | Urban               |
+| Basauri   | Industrial          |
+| Barakaldo | Industrial          |
+| Santurtzi | Port                |
+| Algorta   | Coastal             |
+| Muskiz    | Refinery            |
 
 ---
 
 ## Dataset
 
-Air quality observations collected between:
+### Air Quality Dataset
+
+Period:
 
 **2015 – 2026**
 
-Main pollutants:
+Monitoring stations:
+
+**7 Stations**
+
+Total observations:
+
+**29,000+ daily records**
+
+Pollutants monitored:
 
 | Pollutant | Description               |
 | --------- | ------------------------- |
-| PM2.5     | Fine particulate matter   |
-| PM10      | Coarse particulate matter |
-| NO₂       | Nitrogen dioxide          |
-| SO₂       | Sulfur dioxide            |
+| PM2.5     | Fine Particulate Matter   |
+| PM10      | Coarse Particulate Matter |
+| NO₂       | Nitrogen Dioxide          |
+| SO₂       | Sulfur Dioxide            |
 
-Additional spatial attributes:
+Spatial attributes:
 
-- Station
-- Municipality
-- Coordinates (Latitude / Longitude)
-- Province
-- Date
+* Station
+* Municipality
+* Province
+* Latitude
+* Longitude
 
-Final dataset:
+---
 
-- ~27,800 daily observations
-- 7 monitoring stations
-- Cleaned and validated data
-- Stored in Parquet format
+### Meteorological Dataset
+
+Weather variables integrated into the platform:
+
+| Variable       | Description                |
+| -------------- | -------------------------- |
+| Temperature    | Air Temperature            |
+| Humidity       | Relative Humidity          |
+| Precipitation  | Daily Rainfall             |
+| Wind Speed     | Wind Intensity             |
+| Wind Direction | Wind Bearing (degrees)     |
+| Wind U         | East-West Wind Component   |
+| Wind V         | North-South Wind Component |
+
+Meteorological information is used to explain pollution dynamics and improve forecasting performance.
+
+---
+
+## Feature Engineering
+
+The forecasting dataset includes:
+
+### Temporal Features
+
+* Year
+* Month
+* Day
+* Day of Week
+* Week of Year
+* Day of Year
+* Season
+
+### Lag Features
+
+Generated for:
+
+* PM2.5
+* PM10
+* NO₂
+* SO₂
+
+Lag windows:
+
+* 1 day
+* 3 days
+* 7 days
+* 14 days
+* 30 days
+* 90 days
+* 365 days
+
+### Rolling Statistics
+
+Generated rolling averages:
+
+* 7 days
+* 14 days
+* 30 days
+* 90 days
+* 365 days
+
+### Meteorological Features
+
+* Temperature
+* Humidity
+* Precipitation
+* Wind Speed
+* Wind Direction
+* Wind U Component
+* Wind V Component
 
 ---
 
@@ -82,30 +165,36 @@ Final dataset:
 
 ### GIS & Spatial Analysis
 
-- QGIS
-- GeoPandas
-- Shapely
-- Contextily
-- Folium
+* QGIS
+* GeoPandas
+* Folium
+* Shapely
+* Contextily
 
 ### Data Science
 
-- Python
-- Pandas
-- NumPy
-- Scikit-Learn
+* Python
+* Pandas
+* NumPy
+* Scikit-Learn
 
 ### Machine Learning
 
-- Random Forest
-- XGBoost (planned)
-- Spatial Feature Engineering
+* Random Forest
+* XGBoost
+* Gradient Boosting
+* Spatial Feature Engineering
 
 ### Dashboard Development
 
-- Streamlit
-- Plotly
-- Folium
+* Streamlit
+* Plotly
+* Folium
+
+### Data Storage
+
+* Parquet
+* GeoDataFrames
 
 ---
 
@@ -124,7 +213,8 @@ project/
 │   ├── 02_data_cleaning.ipynb
 │   ├── 03_eda.ipynb
 │   ├── 04_spatial_analysis.ipynb
-│   └── 05_forecasting.ipynb
+│   ├── 05_feature_engineering.ipynb
+│   └── 06_forecasting.ipynb
 │
 ├── src/
 │   ├── data_processing.py
@@ -139,8 +229,9 @@ project/
 │       ├── 1_Air_Quality_Monitoring.py
 │       ├── 2_Temporal_Trends.py
 │       ├── 3_Urban_Risk_Index.py
-│       ├── 4_Forecasting.py
-│       └── 5_Decision_Support.py
+│       ├── 4_Weather_Drivers.py
+│       ├── 5_Forecasting.py
+│       └── 6_Decision_Support.py
 │
 └── README.md
 ```
@@ -149,117 +240,135 @@ project/
 
 ## Exploratory Data Analysis (EDA)
 
-Key findings:
+Main findings:
 
 ### PM2.5
 
-- Stable long-term decrease.
-- Higher concentrations in urban stations.
-- Strong seasonality.
+* Strong urban-industrial signature.
+* Seasonal variability.
+* Higher concentrations during stable atmospheric conditions.
 
 ### PM10
 
-- Greater variability.
-- Influenced by dust events and meteorological conditions.
-- Strong correlation with PM2.5.
+* Influenced by industrial activity and marine aerosols.
+* Higher variability than PM2.5.
 
 ### NO₂
 
-- Strong urban traffic signature.
-- Significant reduction over time.
-- Highest levels in central urban stations.
+* Strong traffic-related pollutant.
+* Highest concentrations in urban environments.
 
 ### SO₂
 
-- Low overall concentrations.
-- Industrial and port-related influence.
-- Independent behavior compared to other pollutants.
+* Associated with refinery and port activities.
+* Lower concentrations overall but spatially differentiated.
 
 ---
 
 ## Spatial Analysis Results
 
-Three environmental zones were identified:
+GIS-based spatial assessment identified six environmental station typologies.
 
-### 🏭 Industrial Corridor
+### 🚗 Urban Stations
 
-Stations:
+#### Mazarredo
 
-- Barakaldo
-- Basauri
+* Dense urban core
+* Strong traffic influence
+* Highest NO₂ levels
+* Urban canyon effect
 
-Characteristics:
+#### Erandio
 
-- High PM2.5
-- High PM10
-- Elevated NO₂
-
----
-
-### 🚗 Urban Core
-
-Stations:
-
-- Mazarredo
-- Erandio
-
-Characteristics:
-
-- Highest NO₂ concentrations
-- Strong traffic influence
-- Urban canyon effects
+* Metropolitan urban area
+* Traffic and residential influence
+* Transitional urban-industrial environment
 
 ---
 
-### 🌊 Coastal Buffer Zone
+### 🏭 Industrial Stations
 
-Stations:
+#### Basauri
 
-- Algorta
-- Muskiz
-- Santurtzi
+* Historical industrial zone
+* Elevated PM2.5 and PM10
+* Valley confinement effects
 
-Characteristics:
+#### Barakaldo
 
-- Better atmospheric dispersion
-- Lower NO₂ concentrations
-- Marine influence on PM10
+* Industrial-logistics corridor
+* High particulate concentrations
+* Major transport hub
+
+---
+
+### ⚓ Port Station
+
+#### Santurtzi
+
+* Maritime activities
+* Shipping emissions
+* Port-related pollution dynamics
+
+---
+
+### 🌊 Coastal Station
+
+#### Algorta
+
+* Marine influence
+* Strong atmospheric dispersion
+* Sea-salt contribution to PM10
+
+---
+
+### 🛢️ Refinery Station
+
+#### Muskiz
+
+* Petronor refinery influence
+* Energy sector emissions
+* Coastal dispersion environment
 
 ---
 
 ## Interactive Dashboard
 
-Current modules:
-
 ### Page 1 — Air Quality Monitoring
 
-- Interactive GIS Map
-- Station-level pollutant visualization
-- Spatial exploration
+* Interactive GIS map
+* Pollutant visualization
+* Spatial exploration
 
 ### Page 2 — Temporal Trends
 
-- Long-term trends
-- Annual evolution
-- Seasonal analysis
+* Long-term trends
+* Seasonal analysis
+* Historical evolution
 
 ### Page 3 — Urban Risk Index
 
-- WHO Guideline comparison
-- Pollution risk ranking
-- Station benchmarking
+* WHO guideline assessment
+* Station ranking
+* Environmental risk scoring
 
-### Page 4 — Forecasting (In Development)
+### Page 4 — Weather Drivers & Air Pollution Dynamics
 
-- Random Forest models
-- XGBoost models
-- Time-series forecasting
+* Pollution-weather relationships
+* Correlation analysis
+* Wind and precipitation effects
 
-### Page 5 — Smart City Decision Support (Planned)
+### Page 5 — Forecasting
 
-- Urban environmental intelligence
-- Risk prioritization
-- Strategic planning support
+* Random Forest models
+* XGBoost models
+* Future pollutant prediction
+
+### Page 6 — Smart City Decision Support
+
+* Environmental intelligence
+* Risk prioritization
+* Urban planning support
 
 ---
 
@@ -267,16 +376,18 @@ Current modules:
 
 Planned GeoAI enhancements:
 
-- Spatial interpolation
-- Land Use Regression (LUR)
-- Random Forest Spatial Models
-- XGBoost Spatial Prediction
-- Satellite-derived indicators (NDVI)
-- DEM integration
-- Meteorological variables
-- Smart City Environmental Risk Maps
+* Spatial interpolation
+* Land Use Regression (LUR)
+* Random Forest Spatial Models
+* XGBoost Spatial Prediction
+* Weather-based forecasting
+* NDVI integration
+* DEM integration
+* Satellite remote sensing
+* Real-time API integration
+* Smart City Environmental Intelligence System
 
-Inspired by modern GeoAI ecosystems integrating advanced GIS technologies with cloud-based analytical platforms and next-generation spatial data infrastructures.
+The long-term vision is to create a GeoAI-powered Smart City platform combining GIS, environmental monitoring, machine learning, and decision-support capabilities.
 
 ---
 
@@ -293,6 +404,18 @@ https://geoai-dashboard.streamlit.app/
 More projects:
 
 https://armanghazi.github.io/portfolio/projects
+
+---
+
+## Acknowledgements
+
+This project was developed during the AI & Data Tech training pathway and has benefited from the support, guidance, and learning ecosystem provided by:
+
+* GAIA Cluster ICTA
+* DEMA – Agencia de Empleo y Emprendimiento
+* C2B 
+
+Special thanks to GAIA for promoting innovation in Artificial Intelligence, Data Science, and Digital Transformation, and for providing an environment that encouraged the development of applied GeoAI and Smart City solutions.
 
 ---
 
