@@ -11,7 +11,7 @@ import streamlit as st
 _ROOT = Path(__file__).parent
 
 # مسیر واقعی فایل parquet را اینجا تنظیم کن:
-DATA_FILE = _ROOT.parent / "data" / "processed" / "bilbao_air_quality.parquet"
+DATA_FILE = _ROOT.parent / "data" / "processed" / "air_quality_weather.parquet"
 
 # --------------------------------------------------
 # WHO GUIDELINES (2021)
