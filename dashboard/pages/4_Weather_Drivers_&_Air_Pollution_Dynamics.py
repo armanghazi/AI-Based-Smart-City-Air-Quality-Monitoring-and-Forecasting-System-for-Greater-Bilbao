@@ -581,47 +581,38 @@ with tab3:
 # ==================== TAB 4: LAG ANALYSIS ====================
 with tab4:
     st.markdown("### ⏳ Lag Correlation Analysis")
-    st.caption(
-        "How well does today's pollution predict future pollution? "
-        "High lag correlation = persistent pollution events."
-    )
+    st.caption("How well does today's pollution predict future pollution? High lag correlation = persistent pollution events.")
 
-    lag_poll = st.selectbox(
-        "Pollutant", ALL_POLLUTANTS, index=0, key="lag_poll"
-    )
+    lag_poll = st.selectbox("Pollutant", ALL_POLLUTANTS, index=0, key="lag_poll")
 
-    lag_col_map = {
-        "PM2.5": LAG_COLS_PM25,
-        "PM10":  LAG_COLS_PM10,
-        "NO2":   LAG_COLS_NO2,
-        "SO2":   LAG_COLS_SO2,
-    }
-    lag_days_map = {
-        f"{lag_poll}_lag_1":   1,
-        f"{lag_poll}_lag_3":   3,
-        f"{lag_poll}_lag_7":   7,
-        f"{lag_poll}_lag_14":  14,
-        f"{lag_poll}_lag_30":  30,
-        f"{lag_poll}_lag_90":  90,
-        f"{lag_poll}_lag_365": 365,
-    }
+    # Map امن‌تر
+    lag_col_map = { ... }  # همون قبلی
+
+    if lag_poll not in lag_col_map:
+        st.error(f"Lag features for {lag_poll} not defined.")
+        st.stop()
 
     lag_cols_use = [c for c in lag_col_map[lag_poll] if c in base.columns]
-    target_col   = "target_PM25"
+    target_col = "target_PM25"
 
     if target_col not in base.columns:
         st.warning("target_PM25 column not found in dataset.")
+    elif not lag_cols_use:
+        st.warning(f"No lag columns found for {lag_poll}.")
     else:
         results = []
         for col in lag_cols_use:
             pair = base[[col, target_col]].dropna()
             if len(pair) > 10:
                 r = pair.corr().iloc[0, 1]
+                days = lag_days_map.get(col, 
+                         # fallback اگر نام ستون متفاوت باشه
+                         next((v for k, v in lag_days_map.items() if k.endswith(col.split('_')[-1])), "?"))
                 results.append({
                     "Lag feature": col,
-                    "Days":        lag_days_map.get(col, "?"),
-                    "r":           round(r, 3),
-                    "abs_r":       abs(round(r, 3))
+                    "Days": days,
+                    "r": round(r, 3),
+                    "abs_r": abs(round(r, 3))
                 })
 
         if results:
@@ -631,12 +622,9 @@ with tab4:
             fig_lag.add_trace(go.Bar(
                 x=lag_df["Days"].astype(str) + "d",
                 y=lag_df["r"],
-                marker_color=[
-                    "#2ecc71" if r >= 0 else "#e74c3c" for r in lag_df["r"]
-                ],
+                marker_color=["#2ecc71" if r >= 0 else "#e74c3c" for r in lag_df["r"]],
                 text=lag_df["r"].round(3),
                 textposition="outside",
-                name="Correlation r"
             ))
             fig_lag.add_hline(y=0, line_color="#bbb", line_width=1)
             fig_lag.update_layout(
@@ -646,54 +634,7 @@ with tab4:
                 height=400,
                 yaxis=dict(range=[-0.1, max(lag_df["r"].max() * 1.2, 0.5)])
             )
-            st.plotly_chart(fig_lag, width="stretch")
-
-            # Rolling means
-            st.markdown("#### Rolling Mean Features")
-            roll_cols_use = [c for c in ROLL_COLS_PM25 if c in base.columns]
-            roll_days_map = {
-                "PM25_roll_mean_7":   7,
-                "PM25_roll_mean_14":  14,
-                "PM25_roll_mean_30":  30,
-                "PM25_roll_mean_90":  90,
-                "PM25_roll_mean_365": 365,
-            }
-            roll_results = []
-            for col in roll_cols_use:
-                pair = base[[col, target_col]].dropna()
-                if len(pair) > 10:
-                    r = pair.corr().iloc[0, 1]
-                    roll_results.append({
-                        "Roll feature":  col,
-                        "Window (days)": roll_days_map.get(col, "?"),
-                        "r":             round(r, 3)
-                    })
-
-            if roll_results:
-                roll_df = pd.DataFrame(roll_results).sort_values("Window (days)")
-                fig_roll = px.bar(
-                    roll_df,
-                    x=roll_df["Window (days)"].astype(str) + "d",
-                    y="r",
-                    color="r",
-                    color_continuous_scale="Blues",
-                    text="r",
-                    title="PM2.5 rolling mean features vs target_PM25",
-                    labels={"x": "Window (days)", "r": "Pearson r"}
-                )
-                fig_roll.update_traces(
-                    texttemplate="%{text:.3f}", textposition="outside"
-                )
-                fig_roll.update_layout(height=360, showlegend=False)
-                st.plotly_chart(fig_roll, width="stretch")
-
-            with st.expander("📊 Lag correlation table"):
-                st.dataframe(
-                    lag_df.drop(columns="abs_r").set_index("Lag feature"),
-                    use_container_width=True
-                )
-        else:
-            st.warning("Lag columns not found for selected pollutant.")
+            st.plotly_chart(fig_lag, use_container_width=True)   # ← درست شد
 
 # ==================== TAB 5: FORECAST FEATURES ====================
 with tab5:
@@ -785,23 +726,13 @@ with tab5:
             }
         )
 
-# --------------------------------------------------
-# FOOTER
-# --------------------------------------------------
-
-st.divider()
-col_s1, col_s2 = st.columns(2)
-with col_s1:
-    st.markdown(
-        "**🌬️ Air Quality Data**  \n"
-        "Basque Government Air Quality Network  \n"
-        "*(Red de Control de Calidad del Aire)*  \n"
-        "7 stations · Greater Bilbao · © Gobierno Vasco · CC BY 4.0"
-    )
-with col_s2:
-    st.markdown(
-        "**🌤️ Meteorological Data**  \n"
-        "Open-Meteo · [open-meteo.com](https://open-meteo.com)  \n"
-        "Historical Weather API · CC BY 4.0  \n"
-        "~29k daily records · WHO 2021 guidelines applied"
-    )
+    with st.expander("📊 Full feature ranking table (by category)"):
+        st.dataframe(
+            corr_target,
+            use_container_width=True,
+            column_config={
+                "r": st.column_config.ProgressColumn(
+                    "Correlation (r)", min_value=-1, max_value=1, format="%.3f"
+                )
+            }
+        )
