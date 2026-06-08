@@ -783,23 +783,3 @@ with tab5:
             }
         )
 
-# --------------------------------------------------
-# FOOTER
-# --------------------------------------------------
-
-st.divider()
-col_s1, col_s2 = st.columns(2)
-with col_s1:
-    st.markdown(
-        "**🌬️ Air Quality Data**  \n"
-        "Basque Government Air Quality Network  \n"
-        "*(Red de Control de Calidad del Aire)*  \n"
-        "7 stations · Greater Bilbao · © Gobierno Vasco · CC BY 4.0"
-    )
-with col_s2:
-    st.markdown(
-        "**🌤️ Meteorological Data**  \n"
-        "Open-Meteo · [open-meteo.com](https://open-meteo.com)  \n"
-        "Historical Weather API · CC BY 4.0  \n"
-        "~29k daily records · WHO 2021 guidelines applied"
-    )
