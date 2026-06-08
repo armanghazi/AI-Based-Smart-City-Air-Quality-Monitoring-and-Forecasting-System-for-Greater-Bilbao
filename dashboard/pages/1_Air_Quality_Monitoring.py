@@ -1,20 +1,13 @@
-from config import (
-    DATA_FILE, load_data,
-    WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
-    POLLUTANT_COLOR, MONTH_NAMES, RISK_COLORS, RISK_ORDER,
-    ZONE_MAP, ZONE_META, get_zone,
-    classify_core_risk, risk_color, short_term_flag,
-    who_ratio_label, who_delta,
-)
 import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import numpy as np
 
+from config import (
+    load_data,
+    WHO_ANNUAL, POLLUTANT_COLOR, MONTH_NAMES,
+    ZONE_MAP, ZONE_META, get_zone,
+)
 
 # -----------------------
 # Page Config
@@ -31,19 +24,6 @@ st.markdown("Greater Bilbao Air Quality Monitoring System")
 # -----------------------
 df = load_data()
 
-
-ZONE_MARKER_COLOR = {
-    "Industrial Corridor": "#e67e22",
-    "Urban Core":          "#8e44ad",
-    "Coastal Buffer Zone": "#1abc9c",
-}
-
-def get_zone(town: str) -> str:
-    for key in ZONE_MAP:
-        if key.lower() in town.lower():
-            return ZONE_MAP[key]
-    return "Unknown"
-
 # -----------------------
 # Thresholds
 # -----------------------
@@ -56,18 +36,14 @@ THRESHOLDS = {
 
 def get_color(value, pollutant):
     t = THRESHOLDS[pollutant]
-    if value <= t["low"]:
-        return "#2ecc71"
-    elif value <= t["mid"]:
-        return "#f39c12"
+    if value <= t["low"]:   return "#2ecc71"
+    elif value <= t["mid"]: return "#f39c12"
     return "#e74c3c"
 
 def get_quality_label(value, pollutant):
     t = THRESHOLDS[pollutant]
-    if value <= t["low"]:
-        return "Good"
-    elif value <= t["mid"]:
-        return "Moderate"
+    if value <= t["low"]:   return "Good"
+    elif value <= t["mid"]: return "Moderate"
     return "Poor"
 
 # -----------------------
@@ -90,71 +66,61 @@ time_mode = st.sidebar.radio(
     horizontal=True
 )
 
-# ---- Year mode ----
+MONTH_NAMES_FULL = {
+    1: "January",  2: "February", 3: "March",    4: "April",
+    5: "May",      6: "June",     7: "July",      8: "August",
+    9: "September",10: "October", 11: "November", 12: "December"
+}
+
 if time_mode == "Year":
-    year_options = ["All"] + sorted(df["Year"].dropna().unique().tolist())
+    year_options  = ["All"] + sorted(df["Year"].dropna().unique().tolist())
     selected_year = st.sidebar.selectbox("Select Year", year_options, index=0)
 
     if selected_year == "All":
-        filtered = df.copy()
+        filtered     = df.copy()
         period_label = "All Years (2015–2026)"
     else:
-        filtered = df[df["Year"] == int(selected_year)].copy()
+        filtered     = df[df["Year"] == int(selected_year)].copy()
         period_label = str(selected_year)
 
-# ---- Month mode ----
 elif time_mode == "Month":
-    year_options = sorted(df["Year"].dropna().unique().tolist())
-    selected_year_m = st.sidebar.selectbox("Select Year", year_options, index=len(year_options)-1)
-
-    month_names = {
-        1: "January", 2: "February", 3: "March", 4: "April",
-        5: "May", 6: "June", 7: "July", 8: "August",
-        9: "September", 10: "October", 11: "November", 12: "December"
-    }
+    year_options    = sorted(df["Year"].dropna().unique().tolist())
+    selected_year_m = st.sidebar.selectbox("Select Year", year_options,
+                                           index=len(year_options) - 1)
     available_months = sorted(
         df[df["Year"] == selected_year_m]["Month"].dropna().unique().tolist()
     )
-    month_options = ["All"] + [month_names[m] for m in available_months]
+    month_options       = ["All"] + [MONTH_NAMES_FULL[m] for m in available_months]
     selected_month_label = st.sidebar.selectbox("Select Month", month_options, index=0)
 
     if selected_month_label == "All":
-        filtered = df[df["Year"] == selected_year_m].copy()
+        filtered     = df[df["Year"] == selected_year_m].copy()
         period_label = f"All months of {selected_year_m}"
     else:
-        month_num = {v: k for k, v in month_names.items()}[selected_month_label]
-        filtered = df[
+        month_num    = {v: k for k, v in MONTH_NAMES_FULL.items()}[selected_month_label]
+        filtered     = df[
             (df["Year"] == selected_year_m) & (df["Month"] == month_num)
         ].copy()
         period_label = f"{selected_month_label} {selected_year_m}"
 
-# ---- Day mode ----
-else:
-    year_options = sorted(df["Year"].dropna().unique().tolist())
-    selected_year_d = st.sidebar.selectbox("Select Year", year_options, index=len(year_options)-1)
-
-    month_names = {
-        1: "January", 2: "February", 3: "March", 4: "April",
-        5: "May", 6: "June", 7: "July", 8: "August",
-        9: "September", 10: "October", 11: "November", 12: "December"
-    }
+else:  # Day
+    year_options    = sorted(df["Year"].dropna().unique().tolist())
+    selected_year_d = st.sidebar.selectbox("Select Year", year_options,
+                                           index=len(year_options) - 1)
     available_months_d = sorted(
         df[df["Year"] == selected_year_d]["Month"].dropna().unique().tolist()
     )
-    month_options_d = [month_names[m] for m in available_months_d]
+    month_options_d      = [MONTH_NAMES_FULL[m] for m in available_months_d]
     selected_month_label_d = st.sidebar.selectbox("Select Month", month_options_d, index=0)
-    month_num_d = {v: k for k, v in month_names.items()}[selected_month_label_d]
+    month_num_d          = {v: k for k, v in MONTH_NAMES_FULL.items()}[selected_month_label_d]
 
-    df_month = df[
-        (df["Year"] == selected_year_d) & (df["Month"] == month_num_d)
-    ]
+    df_month      = df[(df["Year"] == selected_year_d) & (df["Month"] == month_num_d)]
     available_days = sorted(df_month["Day"].dropna().unique().tolist())
-    selected_day = st.sidebar.selectbox(
-        "Select Day",
-        available_days,
-        format_func=lambda d: d.strftime("%d %b %Y")
+    selected_day  = st.sidebar.selectbox(
+        "Select Day", available_days,
+        format_func=lambda d: pd.Timestamp(d).strftime("%d %b %Y")
     )
-    filtered = df[df["Day"] == selected_day].copy()
+    filtered     = df[df["Day"] == selected_day].copy()
     period_label = pd.Timestamp(selected_day).strftime("%d %B %Y")
 
 # -----------------------
@@ -202,7 +168,6 @@ if station_mean.empty:
     st.warning("No station data after aggregation.")
     st.stop()
 
-# Assign zone
 station_mean["Zone"] = station_mean["Town"].apply(get_zone)
 
 # -----------------------
@@ -211,9 +176,12 @@ station_mean["Zone"] = station_mean["Town"].apply(get_zone)
 avg_value     = station_mean[pollutant].mean()
 worst_station = station_mean.loc[station_mean[pollutant].idxmax()]
 best_station  = station_mean.loc[station_mean[pollutant].idxmin()]
-good_count    = int((station_mean[pollutant].apply(lambda v: get_quality_label(v, pollutant)) == "Good").sum())
-mod_count     = int((station_mean[pollutant].apply(lambda v: get_quality_label(v, pollutant)) == "Moderate").sum())
-poor_count    = int((station_mean[pollutant].apply(lambda v: get_quality_label(v, pollutant)) == "Poor").sum())
+good_count    = int((station_mean[pollutant].apply(
+    lambda v: get_quality_label(v, pollutant)) == "Good").sum())
+mod_count     = int((station_mean[pollutant].apply(
+    lambda v: get_quality_label(v, pollutant)) == "Moderate").sum())
+poor_count    = int((station_mean[pollutant].apply(
+    lambda v: get_quality_label(v, pollutant)) == "Poor").sum())
 
 # -----------------------
 # KPI Cards
@@ -221,7 +189,6 @@ poor_count    = int((station_mean[pollutant].apply(lambda v: get_quality_label(v
 st.subheader(f"{pollutant} Mean Values — {period_label}")
 
 c1, c2, c3, c4, c5 = st.columns(5)
-
 c1.metric(f"Avg {pollutant}", f"{avg_value:.1f} µg/m³")
 c2.metric(
     "Most Polluted",
@@ -238,63 +205,92 @@ c4.metric("🟢 Good / 🟡 Moderate", f"{good_count} / {mod_count}")
 c5.metric("🔴 Poor stations", poor_count)
 
 # -----------------------
-# Zone Summary Cards
+# Zone Summary Cards — 5 zones, 2 rows
 # -----------------------
 st.markdown("---")
 st.subheader("🗺️ Environmental Zone Summary")
 
-zone_cols = st.columns(3)
+zones_list  = list(ZONE_META.items())
+# row 1: first 3 zones, row 2: remaining zones
+row1 = zones_list[:3]
+row2 = zones_list[3:]
 
-for idx, (zone_name, meta) in enumerate(ZONE_META.items()):
+def zone_card(zone_name, meta, station_mean, pollutant):
     zone_stations = station_mean[station_mean["Zone"] == zone_name]
-
     if zone_stations.empty:
-        zone_avg = "N/A"
-        zone_worst = "N/A"
+        zone_avg     = "N/A"
+        zone_worst   = "N/A"
         zone_quality = "–"
-        n_stations = 0
+        n_stations   = 0
     else:
-        zone_avg = f"{zone_stations[pollutant].mean():.1f} µg/m³"
+        zone_avg       = f"{zone_stations[pollutant].mean():.1f} µg/m³"
         zone_worst_row = zone_stations.loc[zone_stations[pollutant].idxmax()]
-        zone_worst = f"{zone_worst_row['station'].split('_')[0]} ({zone_worst_row[pollutant]:.1f})"
-        zone_q_vals = zone_stations[pollutant].apply(lambda v: get_quality_label(v, pollutant))
-        zone_quality = zone_q_vals.mode()[0] if not zone_q_vals.empty else "–"
-        n_stations = len(zone_stations)
-
-    with zone_cols[idx]:
-        st.markdown(
-            f"""
-            <div style="
-                border-left: 5px solid {meta['border']};
-                background: linear-gradient(135deg, {meta['color']}18, {meta['color']}06);
-                border-radius: 10px;
-                padding: 16px 18px;
-                margin-bottom: 8px;
-            ">
-                <div style="font-size:22px; margin-bottom:4px">{meta['icon']} <strong>{zone_name}</strong></div>
-                <div style="color:#555; font-size:12px; margin-bottom:10px">{meta['description']}</div>
-                <table style="width:100%; font-size:13px; border-collapse:collapse">
-                    <tr>
-                        <td style="color:#777; padding:3px 0">Stations</td>
-                        <td style="text-align:right; font-weight:600">{n_stations}</td>
-                    </tr>
-                    <tr>
-                        <td style="color:#777; padding:3px 0">Avg {pollutant}</td>
-                        <td style="text-align:right; font-weight:600">{zone_avg}</td>
-                    </tr>
-                    <tr>
-                        <td style="color:#777; padding:3px 0">Highest station</td>
-                        <td style="text-align:right; font-weight:600">{zone_worst}</td>
-                    </tr>
-                    <tr>
-                        <td style="color:#777; padding:3px 0">Typical quality</td>
-                        <td style="text-align:right; font-weight:600">{zone_quality}</td>
-                    </tr>
-                </table>
-            </div>
-            """,
-            unsafe_allow_html=True
+        zone_worst     = (
+            f"{zone_worst_row['station'].split('_')[0]} "
+            f"({zone_worst_row[pollutant]:.1f})"
         )
+        zone_q_vals  = zone_stations[pollutant].apply(
+            lambda v: get_quality_label(v, pollutant)
+        )
+        zone_quality = zone_q_vals.mode()[0] if not zone_q_vals.empty else "–"
+        n_stations   = len(zone_stations)
+
+    st.markdown(
+        f"""
+        <div style="
+            border-left: 5px solid {meta['border']};
+            background: linear-gradient(135deg, {meta['color']}18, {meta['color']}06);
+            border-radius: 10px;
+            padding: 16px 18px;
+            margin-bottom: 8px;
+            height: 100%;
+        ">
+            <div style="font-size:20px; margin-bottom:4px">
+                {meta['icon']} <strong>{zone_name}</strong>
+            </div>
+            <div style="color:#555; font-size:11px; margin-bottom:10px">
+                {meta['description']}
+            </div>
+            <table style="width:100%; font-size:12px; border-collapse:collapse">
+                <tr>
+                    <td style="color:#777; padding:3px 0">Stations</td>
+                    <td style="text-align:right; font-weight:600">{n_stations}</td>
+                </tr>
+                <tr>
+                    <td style="color:#777; padding:3px 0">Avg {pollutant}</td>
+                    <td style="text-align:right; font-weight:600">{zone_avg}</td>
+                </tr>
+                <tr>
+                    <td style="color:#777; padding:3px 0">Highest station</td>
+                    <td style="text-align:right; font-weight:600">{zone_worst}</td>
+                </tr>
+                <tr>
+                    <td style="color:#777; padding:3px 0">Typical quality</td>
+                    <td style="text-align:right; font-weight:600">{zone_quality}</td>
+                </tr>
+            </table>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+# Row 1 — 3 cards
+cols_r1 = st.columns(3)
+for idx, (zone_name, meta) in enumerate(row1):
+    with cols_r1[idx]:
+        zone_card(zone_name, meta, station_mean, pollutant)
+
+# Row 2 — remaining cards (centred)
+if row2:
+    n_rem     = len(row2)
+    pad       = (3 - n_rem) // 2
+    spacers   = [None] * pad + [z for z in row2] + [None] * (3 - n_rem - pad)
+    cols_r2   = st.columns(3)
+    card_idx  = 0
+    for i, item in enumerate(spacers):
+        if item is not None:
+            with cols_r2[i]:
+                zone_card(item[0], item[1], station_mean, pollutant)
 
 st.markdown("---")
 
@@ -312,27 +308,26 @@ m = folium.Map(
     tiles="CartoDB positron"
 )
 
-# Draw light zone boundary hints using FeatureGroup per zone
 for zone_name, meta in ZONE_META.items():
     zone_stations = station_mean[station_mean["Zone"] == zone_name]
     if zone_stations.empty:
         continue
 
-    fg = folium.FeatureGroup(name=f"Zone: {zone_name}")
+    fg      = folium.FeatureGroup(name=f"{meta['icon']} {zone_name}")
+    z_color = meta["color"]
 
     for _, row in zone_stations.iterrows():
-        value   = row[pollutant]
-        color   = get_color(value, pollutant)
-        label   = get_quality_label(value, pollutant)
-        radius  = max(8, min(22, value / 2))
-        z_color = ZONE_MARKER_COLOR[zone_name]
+        value  = row[pollutant]
+        color  = get_color(value, pollutant)
+        label  = get_quality_label(value, pollutant)
+        radius = max(8, min(22, value / 2))
 
         popup_html = (
             f"<div style='font-family:sans-serif;min-width:190px;padding:4px'>"
             f"<b style='font-size:14px'>{row['station']}</b><br>"
             f"<span style='color:#555'>{row['Town']}</span><br>"
             f"<span style='background:{z_color};color:white;padding:1px 8px;"
-            f"border-radius:8px;font-size:11px'>{zone_name}</span><br>"
+            f"border-radius:8px;font-size:11px'>{meta['icon']} {zone_name}</span><br>"
             f"<hr style='margin:4px 0'>"
             f"<b>{pollutant}:</b> {value:.2f} &micro;g/m&sup3;<br>"
             f"<span style='background:{color};color:white;"
@@ -345,15 +340,18 @@ for zone_name, meta in ZONE_META.items():
             location=[row["Latitude"], row["Longitude"]],
             radius=radius,
             popup=folium.Popup(popup_html, max_width=250, parse_html=False),
-            tooltip=f"{row['station'].split('_')[0]} | {zone_name} | {value:.1f} µg/m³ ({label})",
-            color=z_color,       # zone color as border
+            tooltip=(
+                f"{row['station'].split('_')[0]} | "
+                f"{meta['icon']} {zone_name} | "
+                f"{value:.1f} µg/m³ ({label})"
+            ),
+            color=z_color,
             weight=3,
             fill=True,
-            fill_color=color,    # air quality color as fill
+            fill_color=color,
             fill_opacity=0.88,
         ).add_to(fg)
 
-        # Station name label
         folium.Marker(
             location=[row["Latitude"] + 0.003, row["Longitude"]],
             icon=folium.DivIcon(
@@ -370,13 +368,19 @@ for zone_name, meta in ZONE_META.items():
 
 folium.LayerControl(collapsed=False).add_to(m)
 
-# Legend
+# Legend — dynamic from ZONE_META
+zone_legend_items = "".join([
+    f'<span style="color:{meta["color"]};">●</span> '
+    f'{meta["icon"]} {zone_name}<br>'
+    for zone_name, meta in ZONE_META.items()
+])
+
 legend_html = f"""
 <div style="
     position:fixed; bottom:30px; left:30px; z-index:1000;
     background:white; border-radius:10px; padding:14px 18px;
     box-shadow:0 2px 12px rgba(0,0,0,0.2);
-    font-family:sans-serif; font-size:13px; line-height:2; max-width:220px;
+    font-family:sans-serif; font-size:13px; line-height:2; max-width:240px;
 ">
     <b style="font-size:14px;">Air Quality — {pollutant}</b><br>
     <span style="color:#2ecc71;">●</span> Good &nbsp;(≤ {t['low']} µg/m³)<br>
@@ -384,9 +388,7 @@ legend_html = f"""
     <span style="color:#e74c3c;">●</span> Poor &nbsp;(> {t['mid']} µg/m³)<br>
     <hr style="margin:6px 0">
     <b style="font-size:12px;">Zone (border color)</b><br>
-    <span style="color:#e67e22;">●</span> Industrial Corridor<br>
-    <span style="color:#8e44ad;">●</span> Urban Core<br>
-    <span style="color:#1abc9c;">●</span> Coastal Buffer Zone<br>
+    {zone_legend_items}
     <span style="color:#888;font-size:11px;">Fill = Air quality · Border = Zone</span>
 </div>
 """
@@ -401,15 +403,11 @@ st_folium(
 )
 
 # -----------------------
-# Ranking Table — with Zone column
+# Ranking Table
 # -----------------------
 st.subheader(f"🏆 Station Ranking — {pollutant} — {period_label}")
 
-ranking = (
-    station_mean
-    .sort_values(pollutant, ascending=False)
-    .reset_index(drop=True)
-)
+ranking       = station_mean.sort_values(pollutant, ascending=False).reset_index(drop=True)
 ranking.index = ranking.index + 1
 ranking["Quality"] = ranking[pollutant].apply(lambda v: get_quality_label(v, pollutant))
 
@@ -447,3 +445,23 @@ with st.expander("📊 Zone Comparison Table"):
         .reset_index()
     )
     st.dataframe(zone_summary, use_container_width=True)
+
+# -----------------------
+# Footer
+# -----------------------
+st.divider()
+col_s1, col_s2 = st.columns(2)
+with col_s1:
+    st.markdown(
+        "**🌬️ Air Quality Data**  \n"
+        "Basque Government Air Quality Network  \n"
+        "*(Red de Control de Calidad del Aire)*  \n"
+        "7 stations · Greater Bilbao · © Gobierno Vasco · CC BY 4.0"
+    )
+with col_s2:
+    st.markdown(
+        "**🌤️ Meteorological Data**  \n"
+        "Open-Meteo · [open-meteo.com](https://open-meteo.com)  \n"
+        "Historical Weather API · CC BY 4.0  \n"
+        "~29k daily records · WHO 2021 guidelines applied"
+    )

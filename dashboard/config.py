@@ -4,13 +4,11 @@ import pandas as pd
 import streamlit as st
 
 # --------------------------------------------------
-# DATA FILE PATH — مسیر نسبت به محل config.py
-# --------------------------------------------------
+# DATA FILE PATH py# --------------------------------------------------
 
-# ROOT = پوشه‌ای که config.py در آن قرار دارد (یعنی dashboard/)
+
 _ROOT = Path(__file__).parent
 
-# مسیر واقعی فایل parquet را اینجا تنظیم کن:
 DATA_FILE = _ROOT.parent / "data" / "processed" / "air_quality_weather.parquet"
 
 # --------------------------------------------------
