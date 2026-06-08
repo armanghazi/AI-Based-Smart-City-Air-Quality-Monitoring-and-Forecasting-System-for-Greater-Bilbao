@@ -652,7 +652,6 @@ with tab4:
             roll_cols_use = [c for c in ROLL_COLS_PM25 if c in base.columns]
             roll_days_map = {
                 "PM25_roll_mean_7":   7,
-                "PM25_roll_mean_14":  14,
                 "PM25_roll_mean_30":  30,
                 "PM25_roll_mean_90":  90,
                 "PM25_roll_mean_365": 365,
