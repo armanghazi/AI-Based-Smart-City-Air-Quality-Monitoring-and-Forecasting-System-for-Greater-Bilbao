@@ -73,15 +73,15 @@ SEASON_COLOR = {
 }
 
 LAG_COLS_PM25  = ["PM25_lag_1","PM25_lag_3","PM25_lag_7",
-                   "PM25_lag_14","PM25_lag_30","PM25_lag_90","PM25_lag_365"]
+                  ,"PM25_lag_30","PM25_lag_90","PM25_lag_365"]
 LAG_COLS_PM10  = ["PM10_lag_1","PM10_lag_3","PM10_lag_7",
-                   "PM10_lag_14","PM10_lag_30","PM10_lag_90","PM10_lag_365"]
+                   "PM10_lag_30","PM10_lag_90","PM10_lag_365"]
 LAG_COLS_NO2   = ["NO2_lag_1","NO2_lag_3","NO2_lag_7",
-                   "NO2_lag_14","NO2_lag_30","NO2_lag_90","NO2_lag_365"]
+                   "NO2_lag_30","NO2_lag_90","NO2_lag_365"]
 LAG_COLS_SO2   = ["SO2_lag_1","SO2_lag_3","SO2_lag_7",
-                   "SO2_lag_14","SO2_lag_30","SO2_lag_90","SO2_lag_365"]
+                   "SO2_lag_30","SO2_lag_90","SO2_lag_365"]
 
-ROLL_COLS_PM25 = ["PM25_roll_mean_7","PM25_roll_mean_14","PM25_roll_mean_30",
+ROLL_COLS_PM25 = ["PM25_roll_mean_7","PM25_roll_mean_30",
                    "PM25_roll_mean_90","PM25_roll_mean_365"]
 
 # --------------------------------------------------
