@@ -4,11 +4,13 @@ import pandas as pd
 import streamlit as st
 
 # --------------------------------------------------
-# DATA FILE PATH py# --------------------------------------------------
+# DATA FILE PATH — مسیر نسبت به محل config.py
+# --------------------------------------------------
 
-
+# ROOT = پوشه‌ای که config.py در آن قرار دارد (یعنی dashboard/)
 _ROOT = Path(__file__).parent
 
+# مسیر واقعی فایل parquet را اینجا تنظیم کن:
 DATA_FILE = _ROOT.parent / "data" / "processed" / "air_quality_weather.parquet"
 
 # --------------------------------------------------
@@ -178,5 +180,31 @@ def load_data() -> pd.DataFrame:
     for old, new in [("wind_u", "Wind_X"), ("wind_v", "Wind_Y")]:
         if old in df.columns and new not in df.columns:
             df[new] = df[old]
+
+    # --------------------------------------------------
+    # Feature Engineering — lag, rolling, target
+    # computed at runtime, no need to store in parquet
+    # --------------------------------------------------
+    df = df.sort_values(["station", "Date"]).copy()
+
+    # Target: next-day PM2.5 per station
+    df["target_PM25"] = df.groupby("station")["PM2.5"].shift(-1)
+
+    # Lag features
+    LAG_DAYS = [1, 3, 7, 30, 90, 365]
+    for pollutant in ["PM2.5", "PM10", "NO2", "SO2"]:
+        prefix = pollutant.replace(".", "")
+        for d in LAG_DAYS:
+            df[f"{prefix}_lag_{d}"] = df.groupby("station")[pollutant].shift(d)
+
+    # Rolling mean features
+    ROLL_WINDOWS = [7, 14, 30, 90, 365]
+    for pollutant in ["PM2.5", "PM10", "NO2", "SO2"]:
+        prefix = pollutant.replace(".", "")
+        for w in ROLL_WINDOWS:
+            df[f"{prefix}_roll_mean_{w}"] = (
+                df.groupby("station")[pollutant]
+                .transform(lambda x: x.shift(1).rolling(w, min_periods=1).mean())
+            )
 
     return df
