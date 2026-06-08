@@ -600,7 +600,6 @@ with tab4:
         f"{lag_poll}_lag_1":   1,
         f"{lag_poll}_lag_3":   3,
         f"{lag_poll}_lag_7":   7,
-        f"{lag_poll}_lag_14":  14,
         f"{lag_poll}_lag_30":  30,
         f"{lag_poll}_lag_90":  90,
         f"{lag_poll}_lag_365": 365,
