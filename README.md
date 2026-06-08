@@ -6,14 +6,14 @@ This project is an end-to-end GeoAI and Spatial Data Science platform designed t
 
 The platform integrates:
 
-* Geographic Information Systems (GIS)
-* Environmental Data Science
-* GeoAI & Machine Learning
-* Spatial Analysis
-* Meteorological Intelligence
-* Urban Risk Assessment
-* Interactive Dashboards
-* Smart City Decision Support
+- Geographic Information Systems (GIS)
+- Environmental Data Science
+- GeoAI & Machine Learning
+- Spatial Analysis
+- Meteorological Intelligence
+- Urban Risk Assessment
+- Interactive Dashboards
+- Smart City Decision Support
 
 The objective is to transform environmental monitoring data into actionable intelligence for sustainable urban planning and smart city governance.
 
@@ -23,13 +23,13 @@ The objective is to transform environmental monitoring data into actionable inte
 
 The main goals of the project are:
 
-* Monitor air pollution patterns across Greater Bilbao.
-* Identify spatial hotspots and environmental risk zones.
-* Analyze temporal trends and seasonal dynamics.
-* Evaluate air quality against WHO guidelines.
-* Understand meteorological drivers of pollution.
-* Develop GeoAI forecasting models.
-* Support evidence-based Smart City decision making.
+- Monitor air pollution patterns across Greater Bilbao.
+- Identify spatial hotspots and environmental risk zones.
+- Analyze temporal trends and seasonal dynamics.
+- Evaluate air quality against WHO guidelines.
+- Understand meteorological drivers of pollution.
+- Develop GeoAI forecasting models.
+- Support evidence-based Smart City decision making.
 
 ---
 
@@ -80,11 +80,11 @@ Pollutants monitored:
 
 Spatial attributes:
 
-* Station
-* Municipality
-* Province
-* Latitude
-* Longitude
+- Station
+- Municipality
+- Province
+- Latitude
+- Longitude
 
 ---
 
@@ -112,52 +112,50 @@ The forecasting dataset includes:
 
 ### Temporal Features
 
-* Year
-* Month
-* Day
-* Day of Week
-* Week of Year
-* Day of Year
-* Season
+- Year
+- Month
+- Day
+- Day of Week
+- Week of Year
+- Day of Year
+- Season
 
 ### Lag Features
 
 Generated for:
 
-* PM2.5
-* PM10
-* NO₂
-* SO₂
+- PM2.5
+- PM10
+- NO₂
+- SO₂
 
 Lag windows:
 
-* 1 day
-* 3 days
-* 7 days
-* 14 days
-* 30 days
-* 90 days
-* 365 days
+- 1 day
+- 3 days
+- 7 days
+- 30 days
+- 90 days
+- 365 days
 
 ### Rolling Statistics
 
 Generated rolling averages:
 
-* 7 days
-* 14 days
-* 30 days
-* 90 days
-* 365 days
+- 7 days
+- 30 days
+- 90 days
+- 365 days
 
 ### Meteorological Features
 
-* Temperature
-* Humidity
-* Precipitation
-* Wind Speed
-* Wind Direction
-* Wind U Component
-* Wind V Component
+- Temperature
+- Humidity
+- Precipitation
+- Wind Speed
+- Wind Direction
+- Wind U Component
+- Wind V Component
 
 ---
 
@@ -165,36 +163,36 @@ Generated rolling averages:
 
 ### GIS & Spatial Analysis
 
-* QGIS
-* GeoPandas
-* Folium
-* Shapely
-* Contextily
+- QGIS
+- GeoPandas
+- Folium
+- Shapely
+- Contextily
 
 ### Data Science
 
-* Python
-* Pandas
-* NumPy
-* Scikit-Learn
+- Python
+- Pandas
+- NumPy
+- Scikit-Learn
 
 ### Machine Learning
 
-* Random Forest
-* XGBoost
-* Gradient Boosting
-* Spatial Feature Engineering
+- Random Forest
+- XGBoost
+- Gradient Boosting
+- Spatial Feature Engineering
 
 ### Dashboard Development
 
-* Streamlit
-* Plotly
-* Folium
+- Streamlit
+- Plotly
+- Folium
 
 ### Data Storage
 
-* Parquet
-* GeoDataFrames
+- Parquet
+- GeoDataFrames
 
 ---
 
@@ -244,24 +242,24 @@ Main findings:
 
 ### PM2.5
 
-* Strong urban-industrial signature.
-* Seasonal variability.
-* Higher concentrations during stable atmospheric conditions.
+- Strong urban-industrial signature.
+- Seasonal variability.
+- Higher concentrations during stable atmospheric conditions.
 
 ### PM10
 
-* Influenced by industrial activity and marine aerosols.
-* Higher variability than PM2.5.
+- Influenced by industrial activity and marine aerosols.
+- Higher variability than PM2.5.
 
 ### NO₂
 
-* Strong traffic-related pollutant.
-* Highest concentrations in urban environments.
+- Strong traffic-related pollutant.
+- Highest concentrations in urban environments.
 
 ### SO₂
 
-* Associated with refinery and port activities.
-* Lower concentrations overall but spatially differentiated.
+- Associated with refinery and port activities.
+- Lower concentrations overall but spatially differentiated.
 
 ---
 
@@ -273,16 +271,16 @@ GIS-based spatial assessment identified six environmental station typologies.
 
 #### Mazarredo
 
-* Dense urban core
-* Strong traffic influence
-* Highest NO₂ levels
-* Urban canyon effect
+- Dense urban core
+- Strong traffic influence
+- Highest NO₂ levels
+- Urban canyon effect
 
 #### Erandio
 
-* Metropolitan urban area
-* Traffic and residential influence
-* Transitional urban-industrial environment
+- Metropolitan urban area
+- Traffic and residential influence
+- Transitional urban-industrial environment
 
 ---
 
@@ -290,15 +288,15 @@ GIS-based spatial assessment identified six environmental station typologies.
 
 #### Basauri
 
-* Historical industrial zone
-* Elevated PM2.5 and PM10
-* Valley confinement effects
+- Historical industrial zone
+- Elevated PM2.5 and PM10
+- Valley confinement effects
 
 #### Barakaldo
 
-* Industrial-logistics corridor
-* High particulate concentrations
-* Major transport hub
+- Industrial-logistics corridor
+- High particulate concentrations
+- Major transport hub
 
 ---
 
@@ -306,9 +304,9 @@ GIS-based spatial assessment identified six environmental station typologies.
 
 #### Santurtzi
 
-* Maritime activities
-* Shipping emissions
-* Port-related pollution dynamics
+- Maritime activities
+- Shipping emissions
+- Port-related pollution dynamics
 
 ---
 
@@ -316,9 +314,9 @@ GIS-based spatial assessment identified six environmental station typologies.
 
 #### Algorta
 
-* Marine influence
-* Strong atmospheric dispersion
-* Sea-salt contribution to PM10
+- Marine influence
+- Strong atmospheric dispersion
+- Sea-salt contribution to PM10
 
 ---
 
@@ -326,9 +324,9 @@ GIS-based spatial assessment identified six environmental station typologies.
 
 #### Muskiz
 
-* Petronor refinery influence
-* Energy sector emissions
-* Coastal dispersion environment
+- Petronor refinery influence
+- Energy sector emissions
+- Coastal dispersion environment
 
 ---
 
@@ -336,39 +334,39 @@ GIS-based spatial assessment identified six environmental station typologies.
 
 ### Page 1 — Air Quality Monitoring
 
-* Interactive GIS map
-* Pollutant visualization
-* Spatial exploration
+- Interactive GIS map
+- Pollutant visualization
+- Spatial exploration
 
 ### Page 2 — Temporal Trends
 
-* Long-term trends
-* Seasonal analysis
-* Historical evolution
+- Long-term trends
+- Seasonal analysis
+- Historical evolution
 
 ### Page 3 — Urban Risk Index
 
-* WHO guideline assessment
-* Station ranking
-* Environmental risk scoring
+- WHO guideline assessment
+- Station ranking
+- Environmental risk scoring
 
 ### Page 4 — Weather Drivers & Air Pollution Dynamics
 
-* Pollution-weather relationships
-* Correlation analysis
-* Wind and precipitation effects
+- Pollution-weather relationships
+- Correlation analysis
+- Wind and precipitation effects
 
 ### Page 5 — Forecasting
 
-* Random Forest models
-* XGBoost models
-* Future pollutant prediction
+- Random Forest models
+- XGBoost models
+- Future pollutant prediction
 
 ### Page 6 — Smart City Decision Support
 
-* Environmental intelligence
-* Risk prioritization
-* Urban planning support
+- Environmental intelligence
+- Risk prioritization
+- Urban planning support
 
 ---
 
@@ -376,16 +374,16 @@ GIS-based spatial assessment identified six environmental station typologies.
 
 Planned GeoAI enhancements:
 
-* Spatial interpolation
-* Land Use Regression (LUR)
-* Random Forest Spatial Models
-* XGBoost Spatial Prediction
-* Weather-based forecasting
-* NDVI integration
-* DEM integration
-* Satellite remote sensing
-* Real-time API integration
-* Smart City Environmental Intelligence System
+- Spatial interpolation
+- Land Use Regression (LUR)
+- Random Forest Spatial Models
+- XGBoost Spatial Prediction
+- Weather-based forecasting
+- NDVI integration
+- DEM integration
+- Satellite remote sensing
+- Real-time API integration
+- Smart City Environmental Intelligence System
 
 The long-term vision is to create a GeoAI-powered Smart City platform combining GIS, environmental monitoring, machine learning, and decision-support capabilities.
 
@@ -411,9 +409,9 @@ https://armanghazi.github.io/portfolio/projects
 
 This project was developed during the AI & Data Tech training pathway and has benefited from the support, guidance, and learning ecosystem provided by:
 
-* GAIA Cluster ICTA
-* DEMA – Agencia de Empleo y Emprendimiento
-* C2B 
+- GAIA Cluster ICTA
+- DEMA – Agencia de Empleo y Emprendimiento
+- C2B
 
 Special thanks to GAIA for promoting innovation in Artificial Intelligence, Data Science, and Digital Transformation, and for providing an environment that encouraged the development of applied GeoAI and Smart City solutions.
 

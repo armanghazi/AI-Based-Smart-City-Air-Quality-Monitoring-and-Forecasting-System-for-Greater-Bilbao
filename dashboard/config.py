@@ -59,36 +59,59 @@ RISK_ORDER: list[str] = [
 # --------------------------------------------------
  
 ZONE_MAP: dict[str, str] = {
-    "Barakaldo": "Industrial Corridor",
-    "Basauri":   "Industrial Corridor",
-    "Mazarredo": "Urban Core",
-    "Erandio":   "Urban Core",
-    "Algorta":   "Coastal Buffer Zone",
-    "Muskiz":    "Coastal Buffer Zone",
-    "Santurtzi": "Coastal Buffer Zone",
+    "Bilbao": "Urban",
+    "Erandio": "Urban",
+
+    "Basauri": "Industrial",
+    "Barakaldo": "Industrial",
+
+    "Santurtzi": "Port",
+
+    "Getxo": "Coastal",
+
+    "Muskiz": "Refinery",
 }
  
 ZONE_META: dict[str, dict] = {
-    "Industrial Corridor": {
-        "icon":         "🏭",
-        "color":        "#e67e22",
-        "border":       "#d35400",
-        "description":  "High PM2.5, High PM10, Elevated NO₂",
-        "key_pollutant": "PM2.5",
-    },
-    "Urban Core": {
-        "icon":         "🚗",
-        "color":        "#8e44ad",
-        "border":       "#6c3483",
-        "description":  "Highest NO₂, Strong traffic influence, Urban canyon effects",
+
+    "Urban": {
+        "icon": "🚗",
+        "color": "#8e44ad",
+        "border": "#6c3483",
+        "description": "Dense urban environment, traffic emissions, high NO₂ concentrations",
         "key_pollutant": "NO2",
     },
-    "Coastal Buffer Zone": {
-        "icon":         "🌊",
-        "color":        "#1abc9c",
-        "border":       "#148f77",
-        "description":  "Better dispersion, Lower NO₂, Marine influence on PM10",
+
+    "Industrial": {
+        "icon": "🏭",
+        "color": "#e67e22",
+        "border": "#d35400",
+        "description": "Industrial activities, elevated PM2.5 and PM10 concentrations",
+        "key_pollutant": "PM2.5",
+    },
+
+    "Port": {
+        "icon": "⚓",
+        "color": "#2980b9",
+        "border": "#1f618d",
+        "description": "Shipping activity, maritime transport emissions, mixed industrial influence",
+        "key_pollutant": "SO2",
+    },
+
+    "Coastal": {
+        "icon": "🌊",
+        "color": "#1abc9c",
+        "border": "#148f77",
+        "description": "Marine ventilation, lower NO₂ concentrations, sea-salt contribution to PM10",
         "key_pollutant": "PM10",
+    },
+
+    "Refinery": {
+        "icon": "🛢️",
+        "color": "#c0392b",
+        "border": "#922b21",
+        "description": "Refinery-related emissions, energy sector influence, SO₂ sensitivity",
+        "key_pollutant": "SO2",
     },
 }
  

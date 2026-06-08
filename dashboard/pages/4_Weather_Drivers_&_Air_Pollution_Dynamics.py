@@ -26,14 +26,22 @@ st.set_page_config(
 # CONSTANTS
 # --------------------------------------------------
 
-WEATHER_VARS = ["Temperature", "Humidity", "Precipitation", "WindSpeed", "WindDirection"]
+WEATHER_VARS = [
+    "Temperature",
+    "Humidity",
+    "Precipitation",
+    "WindSpeed",
+    "Wind_X",
+    "Wind_Y",
+]
 
 WEATHER_UNIT = {
     "Temperature":   "°C",
     "Humidity":      "%",
     "Precipitation": "mm",
     "WindSpeed":     "km/h",
-    "WindDirection": "°",
+    "Wind_X":        "m/s",
+    "Wind_Y":        "m/s",
 }
 
 WEATHER_ICON = {
@@ -41,7 +49,8 @@ WEATHER_ICON = {
     "Humidity":      "💧",
     "Precipitation": "🌧️",
     "WindSpeed":     "💨",
-    "WindDirection": "🧭",
+    "Wind_X":        "➡️",
+    "Wind_Y":        "⬆️",
 }
 
 WEATHER_COLOR = {
@@ -49,7 +58,8 @@ WEATHER_COLOR = {
     "Humidity":      "#3498db",
     "Precipitation": "#1abc9c",
     "WindSpeed":     "#95a5a6",
-    "WindDirection": "#f39c12",
+    "Wind_X":        "#34495e",
+    "Wind_Y":        "#16a085",
 }
 
 ALL_POLLUTANTS = ["PM2.5", "PM10", "NO2", "SO2"]
@@ -73,13 +83,6 @@ LAG_COLS_SO2   = ["SO2_lag_1","SO2_lag_3","SO2_lag_7",
 
 ROLL_COLS_PM25 = ["PM25_roll_mean_7","PM25_roll_mean_14","PM25_roll_mean_30",
                    "PM25_roll_mean_90","PM25_roll_mean_365"]
-
-LAG_MAP = {
-    "PM2.5": (LAG_COLS_PM25,  "target_PM25"),
-    "PM10":  (LAG_COLS_PM10,  "target_PM25"),
-    "NO2":   (LAG_COLS_NO2,   "target_PM25"),
-    "SO2":   (LAG_COLS_SO2,   "target_PM25"),
-}
 
 # --------------------------------------------------
 # LOAD DATA
@@ -105,8 +108,10 @@ with st.sidebar:
     st.markdown("## 🌦️ Filters")
     st.divider()
 
-    filter_mode = st.radio("Filter by", ["All Stations", "Zone", "Station"],
-                           horizontal=True)
+    filter_mode = st.radio(
+        "Filter by", ["All Stations", "Zone", "Station"],
+        horizontal=True
+    )
 
     if filter_mode == "Zone":
         selected_zone = st.selectbox(
@@ -119,8 +124,8 @@ with st.sidebar:
         )
 
     st.markdown("### Time Range")
-    all_years  = sorted(df["Year"].dropna().unique().tolist())
-    time_mode  = st.radio("Granularity", ["Year", "Month", "Day"], horizontal=True)
+    all_years = sorted(df["Year"].dropna().unique().tolist())
+    time_mode = st.radio("Granularity", ["Year", "Month", "Day"], horizontal=True)
 
     if time_mode == "Year":
         year_opts    = ["All"] + [str(y) for y in all_years]
@@ -174,7 +179,6 @@ elif filter_mode == "Station":
 else:
     scope_label = "All Stations"
 
-# Time filter
 if time_mode == "Year":
     if sel_year:
         base         = base[base["Year"] == sel_year]
@@ -205,11 +209,11 @@ if base.empty:
 st.markdown(f"### 📡 Overview — {scope_label} · {period_label}")
 
 k1, k2, k3, k4, k5 = st.columns(5)
-k1.metric("🌡️ Avg Temperature",   f"{base['Temperature'].mean():.1f} °C")
-k2.metric("💧 Avg Humidity",       f"{base['Humidity'].mean():.1f} %")
-k3.metric("🌧️ Avg Precipitation",  f"{base['Precipitation'].mean():.1f} mm")
-k4.metric("💨 Avg Wind Speed",     f"{base['WindSpeed'].mean():.1f} km/h")
-k5.metric("📋 Daily observations", f"{len(base):,}")
+k1.metric("🌡️ Avg Temperature",    f"{base['Temperature'].mean():.1f} °C")
+k2.metric("💧 Avg Humidity",        f"{base['Humidity'].mean():.1f} %")
+k3.metric("🌧️ Avg Precipitation",   f"{base['Precipitation'].mean():.1f} mm")
+k4.metric("💨 Avg Wind Speed",      f"{base['WindSpeed'].mean():.1f} km/h")
+k5.metric("📋 Daily observations",  f"{len(base):,}")
 
 st.divider()
 
@@ -230,12 +234,10 @@ with tab1:
     st.markdown("### Correlation Matrix — Pollutants × Weather")
     st.caption("Pearson r · −1 = inverse · 0 = no relation · +1 = direct")
 
-    corr_cols   = ALL_POLLUTANTS + [v for v in WEATHER_VARS if v in base.columns]
-    corr_matrix = base[corr_cols].dropna().corr()
-
-    # Focus view: pollutants vs weather
+    corr_cols    = ALL_POLLUTANTS + [v for v in WEATHER_VARS if v in base.columns]
+    corr_matrix  = base[corr_cols].dropna().corr()
     weather_present = [v for v in WEATHER_VARS if v in corr_matrix.columns]
-    corr_focus      = corr_matrix.loc[ALL_POLLUTANTS, weather_present]
+    corr_focus   = corr_matrix.loc[ALL_POLLUTANTS, weather_present]
 
     col_f, col_full = st.columns([3, 2])
 
@@ -248,7 +250,7 @@ with tab1:
             aspect="auto",
             title="Pollutant × Weather (focus view)"
         )
-        fig_focus.update_layout(height=300, margin=dict(t=50,b=10,l=10,r=10))
+        fig_focus.update_layout(height=320, margin=dict(t=50, b=10, l=10, r=10))
         st.plotly_chart(fig_focus, width="stretch")
 
     with col_full:
@@ -272,16 +274,16 @@ with tab1:
         pairs_df.index += 1
         st.dataframe(
             pairs_df,
+            use_container_width=True,
             column_config={
                 "r": st.column_config.ProgressColumn(
                     "Correlation (r)", min_value=-1, max_value=1, format="%.3f"
                 )
-            },
-            use_container_width=True
+            }
         )
 
     with st.expander("View full correlation matrix"):
-        fig_full = px.imshow(
+        fig_full_m = px.imshow(
             corr_matrix,
             color_continuous_scale="RdBu_r",
             zmin=-1, zmax=1,
@@ -289,8 +291,8 @@ with tab1:
             aspect="auto",
             title="Full Correlation Matrix"
         )
-        fig_full.update_layout(height=500)
-        st.plotly_chart(fig_full, width="stretch")
+        fig_full_m.update_layout(height=500)
+        st.plotly_chart(fig_full_m, width="stretch")
 
 # ==================== TAB 2: WEATHER RELATIONSHIPS ====================
 with tab2:
@@ -298,16 +300,19 @@ with tab2:
 
     sc1, sc2, sc3 = st.columns(3)
     with sc1:
-        x_var    = st.selectbox("Weather variable (X)",
-                                [v for v in WEATHER_VARS if v in base.columns],
-                                index=0)
+        x_var = st.selectbox(
+            "Weather variable (X)",
+            [v for v in WEATHER_VARS if v in base.columns],
+            index=0
+        )
     with sc2:
-        y_var    = st.selectbox("Pollutant (Y)", ALL_POLLUTANTS, index=0)
+        y_var = st.selectbox("Pollutant (Y)", ALL_POLLUTANTS, index=0)
     with sc3:
         color_by = st.radio("Color by", ["Zone", "Season", "None"], horizontal=True)
 
-    scatter_df = base[[x_var, y_var, "Zone", "season"]].dropna().copy()
-    corr_val   = scatter_df[[x_var, y_var]].corr().iloc[0, 1]
+    scatter_cols = [x_var, y_var, "Zone", "season"]
+    scatter_df   = base[[c for c in scatter_cols if c in base.columns]].dropna().copy()
+    corr_val     = scatter_df[[x_var, y_var]].corr().iloc[0, 1]
 
     if color_by == "Zone":
         fig_sc = px.scatter(
@@ -315,19 +320,23 @@ with tab2:
             color="Zone",
             color_discrete_map={z: m["color"] for z, m in ZONE_META.items()},
             opacity=0.4,
-            labels={x_var: f"{x_var} ({WEATHER_UNIT.get(x_var,'')})",
-                    y_var: f"{y_var} (µg/m³)"},
+            labels={
+                x_var: f"{x_var} ({WEATHER_UNIT.get(x_var,'')})",
+                y_var: f"{y_var} (µg/m³)"
+            },
             title=f"{y_var} vs {x_var} · r = {corr_val:.3f}"
         )
-    elif color_by == "Season":
+    elif color_by == "Season" and "season" in scatter_df.columns:
         fig_sc = px.scatter(
             scatter_df, x=x_var, y=y_var,
             color="season",
             color_discrete_map=SEASON_COLOR,
             category_orders={"season": SEASON_ORDER},
             opacity=0.4,
-            labels={x_var: f"{x_var} ({WEATHER_UNIT.get(x_var,'')})",
-                    y_var: f"{y_var} (µg/m³)"},
+            labels={
+                x_var: f"{x_var} ({WEATHER_UNIT.get(x_var,'')})",
+                y_var: f"{y_var} (µg/m³)"
+            },
             title=f"{y_var} vs {x_var} · r = {corr_val:.3f}"
         )
     else:
@@ -335,8 +344,10 @@ with tab2:
             scatter_df, x=x_var, y=y_var,
             opacity=0.4,
             color_discrete_sequence=[POLLUTANT_COLOR.get(y_var, "#3498db")],
-            labels={x_var: f"{x_var} ({WEATHER_UNIT.get(x_var,'')})",
-                    y_var: f"{y_var} (µg/m³)"},
+            labels={
+                x_var: f"{x_var} ({WEATHER_UNIT.get(x_var,'')})",
+                y_var: f"{y_var} (µg/m³)"
+            },
             title=f"{y_var} vs {x_var} · r = {corr_val:.3f}"
         )
 
@@ -345,31 +356,129 @@ with tab2:
             y=WHO_ANNUAL[y_var], line_dash="dash", line_color="red",
             annotation_text=f"WHO {y_var}", annotation_font_size=10
         )
-
-    fig_sc.update_layout(height=460, hovermode="closest")
+    fig_sc.update_layout(height=420, hovermode="closest")
     st.plotly_chart(fig_sc, width="stretch")
 
-    st.info(f"Pearson correlation between **{x_var}** and **{y_var}**: **{corr_val:.3f}**")
+    st.info(
+        f"Pearson correlation between **{x_var}** and **{y_var}**: **{corr_val:.3f}**"
+    )
 
-    # Wind direction rose — only when WindDirection selected
-    if x_var == "WindDirection" and "WindDirection" in base.columns:
-        st.markdown("#### 🧭 Wind Direction Distribution")
-        wd_df = base[["WindDirection", y_var]].dropna().copy()
-        wd_df["Dir16"] = (wd_df["WindDirection"] // 22.5 * 22.5).astype(int)
+    # --------------------------------------------------
+    # Wind Components (Wind_X / Wind_Y) vs Pollution
+    # --------------------------------------------------
+    wind_cols_present = [c for c in ["Wind_X", "Wind_Y"] if c in base.columns]
+
+    if wind_cols_present:
+        st.markdown("---")
+        st.markdown("### 🧭 Wind Components vs Pollution")
+        st.caption(
+            "Wind_X = East–West component · Wind_Y = North–South component · "
+            "Derived from WindSpeed and WindDirection"
+        )
+
+        wc_cols = st.columns(len(wind_cols_present))
+        for idx, wc in enumerate(wind_cols_present):
+            wc_df    = base[[wc, y_var, "Zone"]].dropna()
+            wc_corr  = wc_df[[wc, y_var]].corr().iloc[0, 1]
+            fig_wc   = px.scatter(
+                wc_df, x=wc, y=y_var,
+                color="Zone",
+                color_discrete_map={z: m["color"] for z, m in ZONE_META.items()},
+                opacity=0.4,
+                labels={
+                    wc:    f"{wc} ({WEATHER_UNIT.get(wc, 'm/s')})",
+                    y_var: f"{y_var} (µg/m³)"
+                },
+                title=f"{y_var} vs {wc} · r = {wc_corr:.3f}"
+            )
+            if WHO_ANNUAL.get(y_var):
+                fig_wc.add_hline(
+                    y=WHO_ANNUAL[y_var], line_dash="dash", line_color="red",
+                    annotation_text=f"WHO {y_var}", annotation_font_size=9
+                )
+            fig_wc.update_layout(height=380)
+            with wc_cols[idx]:
+                st.plotly_chart(fig_wc, width="stretch")
+    else:
+        st.info(
+            "Wind_X and Wind_Y columns not found. "
+            "Add them to the dataset to enable wind component analysis."
+        )
+
+    # --------------------------------------------------
+    # Wind Rose — همیشه نمایش داده می‌شود
+    # --------------------------------------------------
+    if "WindDirection" in base.columns and "WindSpeed" in base.columns:
+        st.markdown("---")
+        st.markdown("### 🌹 Wind Rose")
+        st.caption(
+            "Each sector = frequency of wind from that direction · "
+            "Color = average pollution · Radius = number of days (left) / avg speed (right)"
+        )
+
+        wr_poll = st.selectbox(
+            "Color wind rose by pollutant",
+            ALL_POLLUTANTS, index=0, key="wr_poll"
+        )
+
+        wd_df = base[["WindDirection", "WindSpeed", wr_poll]].dropna().copy()
+
+        # 16-sector binning
+        wd_df["Dir16"] = (
+            ((wd_df["WindDirection"] + 11.25) // 22.5 * 22.5) % 360
+        ).astype(int)
+
+        DIR_LABELS = {
+            0: "N",   22: "NNE",  45: "NE",  67: "ENE",
+            90: "E",  112: "ESE", 135: "SE", 157: "SSE",
+            180: "S", 202: "SSW", 225: "SW", 247: "WSW",
+            270: "W", 292: "WNW", 315: "NW", 337: "NNW",
+        }
+
         wd_grp = (
             wd_df.groupby("Dir16")
-            .agg(count=("WindDirection","count"), mean_poll=(y_var,"mean"))
+            .agg(
+                Days        =("WindDirection", "count"),
+                AvgSpeed    =("WindSpeed",      "mean"),
+                AvgPollution=(wr_poll,           "mean"),
+            )
             .reset_index()
         )
-        fig_rose = px.bar_polar(
-            wd_grp, r="count", theta="Dir16",
-            color="mean_poll",
-            color_continuous_scale="YlOrRd",
-            title=f"Wind rose colored by avg {y_var}",
-            labels={"mean_poll": f"Avg {y_var} (µg/m³)", "count": "Days"}
+        wd_grp["Label"] = wd_grp["Dir16"].map(
+            lambda d: DIR_LABELS.get(d, f"{d}°")
         )
-        fig_rose.update_layout(height=420)
-        st.plotly_chart(fig_rose, width="stretch")
+
+        col_r1, col_r2 = st.columns(2)
+
+        with col_r1:
+            fig_rose = px.bar_polar(
+                wd_grp, r="Days", theta="Label",
+                color="AvgPollution",
+                color_continuous_scale="YlOrRd",
+                title=f"Wind frequency · color = avg {wr_poll}",
+                labels={
+                    "Days":         "Days",
+                    "AvgPollution": f"Avg {wr_poll} (µg/m³)",
+                    "Label":        "Direction"
+                }
+            )
+            fig_rose.update_layout(height=420)
+            st.plotly_chart(fig_rose, width="stretch")
+
+        with col_r2:
+            fig_speed_rose = px.bar_polar(
+                wd_grp, r="AvgSpeed", theta="Label",
+                color="AvgPollution",
+                color_continuous_scale="Blues",
+                title=f"Avg wind speed by direction · color = avg {wr_poll}",
+                labels={
+                    "AvgSpeed":     "Avg Speed (km/h)",
+                    "AvgPollution": f"Avg {wr_poll} (µg/m³)",
+                    "Label":        "Direction"
+                }
+            )
+            fig_speed_rose.update_layout(height=420)
+            st.plotly_chart(fig_speed_rose, width="stretch")
 
 # ==================== TAB 3: SEASONAL EFFECTS ====================
 with tab3:
@@ -381,12 +490,13 @@ with tab3:
         seas_poll = st.selectbox("Pollutant", ALL_POLLUTANTS, index=0, key="seas_poll")
 
         seasonal = (
-            base.groupby("season")[ALL_POLLUTANTS + [v for v in WEATHER_VARS if v in base.columns]]
+            base.groupby("season")[
+                ALL_POLLUTANTS + [v for v in WEATHER_VARS if v in base.columns]
+            ]
             .mean()
             .round(2)
             .reset_index()
         )
-        # Force season order
         seasonal["season"] = pd.Categorical(
             seasonal["season"], categories=SEASON_ORDER, ordered=True
         )
@@ -395,7 +505,6 @@ with tab3:
         col_s1, col_s2 = st.columns(2)
 
         with col_s1:
-            # All pollutants by season
             seas_long = seasonal.melt(
                 id_vars="season",
                 value_vars=ALL_POLLUTANTS,
@@ -414,9 +523,6 @@ with tab3:
             st.plotly_chart(fig_seas, width="stretch")
 
         with col_s2:
-            # Selected pollutant + weather by season
-            weather_plot = [v for v in ["Temperature","WindSpeed","Precipitation"]
-                            if v in seasonal.columns]
             fig_sw = make_subplots(specs=[[{"secondary_y": True}]])
             fig_sw.add_trace(
                 go.Bar(
@@ -461,7 +567,7 @@ with tab3:
         )
         fig_zs = px.imshow(
             pivot_zs,
-            color_continuous_scale=["#2ecc71","#f9ca24","#e74c3c"],
+            color_continuous_scale=["#2ecc71", "#f9ca24", "#e74c3c"],
             text_auto=".1f",
             aspect="auto",
             title=f"{seas_poll} µg/m³ — Zone × Season"
@@ -469,7 +575,6 @@ with tab3:
         fig_zs.update_layout(height=280)
         st.plotly_chart(fig_zs, width="stretch")
 
-        # Full seasonal stats table
         with st.expander("📊 Full seasonal statistics"):
             st.dataframe(seasonal.set_index("season"), use_container_width=True)
 
@@ -481,8 +586,9 @@ with tab4:
         "High lag correlation = persistent pollution events."
     )
 
-    lag_poll = st.selectbox("Pollutant", ["PM2.5", "PM10", "NO2", "SO2"],
-                            index=0, key="lag_poll")
+    lag_poll = st.selectbox(
+        "Pollutant", ALL_POLLUTANTS, index=0, key="lag_poll"
+    )
 
     lag_col_map = {
         "PM2.5": LAG_COLS_PM25,
@@ -501,88 +607,93 @@ with tab4:
     }
 
     lag_cols_use = [c for c in lag_col_map[lag_poll] if c in base.columns]
-    target_col   = "target_PM25"  # available target in dataset
+    target_col   = "target_PM25"
 
-    results = []
-    for col in lag_cols_use:
-        pair = base[[col, target_col]].dropna()
-        if len(pair) > 10:
-            r = pair.corr().iloc[0, 1]
-            results.append({
-                "Lag feature": col,
-                "Days":        lag_days_map.get(col, "?"),
-                "r":           round(r, 3),
-                "abs_r":       abs(round(r, 3))
-            })
-
-    if results:
-        lag_df = pd.DataFrame(results).sort_values("Days")
-
-        fig_lag = go.Figure()
-        fig_lag.add_trace(go.Bar(
-            x=lag_df["Days"].astype(str) + "d",
-            y=lag_df["r"],
-            marker_color=[
-                "#2ecc71" if r >= 0 else "#e74c3c" for r in lag_df["r"]
-            ],
-            text=lag_df["r"].round(3),
-            textposition="outside",
-            name="Correlation r"
-        ))
-        fig_lag.add_hline(y=0, line_color="#bbb", line_width=1)
-        fig_lag.update_layout(
-            title=f"{lag_poll} lag features vs target_PM25 · correlation",
-            xaxis_title="Lag (days)",
-            yaxis_title="Pearson r",
-            height=400,
-            yaxis=dict(range=[-0.1, max(lag_df["r"].max() * 1.2, 0.5)])
-        )
-        st.plotly_chart(fig_lag, width="stretch")
-
-        # Rolling means
-        st.markdown("#### Rolling Mean Features")
-        roll_cols_use = [c for c in ROLL_COLS_PM25 if c in base.columns]
-        roll_days_map = {
-            "PM25_roll_mean_7":   7,
-            "PM25_roll_mean_14":  14,
-            "PM25_roll_mean_30":  30,
-            "PM25_roll_mean_90":  90,
-            "PM25_roll_mean_365": 365,
-        }
-        roll_results = []
-        for col in roll_cols_use:
+    if target_col not in base.columns:
+        st.warning("target_PM25 column not found in dataset.")
+    else:
+        results = []
+        for col in lag_cols_use:
             pair = base[[col, target_col]].dropna()
             if len(pair) > 10:
                 r = pair.corr().iloc[0, 1]
-                roll_results.append({
-                    "Roll feature": col,
-                    "Window (days)": roll_days_map.get(col, "?"),
-                    "r": round(r, 3)
+                results.append({
+                    "Lag feature": col,
+                    "Days":        lag_days_map.get(col, "?"),
+                    "r":           round(r, 3),
+                    "abs_r":       abs(round(r, 3))
                 })
 
-        if roll_results:
-            roll_df = pd.DataFrame(roll_results).sort_values("Window (days)")
-            fig_roll = px.bar(
-                roll_df,
-                x=roll_df["Window (days)"].astype(str) + "d",
-                y="r",
-                color="r",
-                color_continuous_scale="Blues",
-                text="r",
-                title="PM2.5 rolling mean features vs target_PM25",
-                labels={"x": "Window (days)", "r": "Pearson r"}
-            )
-            fig_roll.update_traces(texttemplate="%{text:.3f}", textposition="outside")
-            fig_roll.update_layout(height=360, showlegend=False)
-            st.plotly_chart(fig_roll, width="stretch")
+        if results:
+            lag_df = pd.DataFrame(results).sort_values("Days")
 
-        with st.expander("📊 Lag correlation table"):
-            st.dataframe(
-                lag_df.drop(columns="abs_r").set_index("Lag feature"),
-                use_container_width=True
+            fig_lag = go.Figure()
+            fig_lag.add_trace(go.Bar(
+                x=lag_df["Days"].astype(str) + "d",
+                y=lag_df["r"],
+                marker_color=[
+                    "#2ecc71" if r >= 0 else "#e74c3c" for r in lag_df["r"]
+                ],
+                text=lag_df["r"].round(3),
+                textposition="outside",
+                name="Correlation r"
+            ))
+            fig_lag.add_hline(y=0, line_color="#bbb", line_width=1)
+            fig_lag.update_layout(
+                title=f"{lag_poll} lag features vs target_PM25 · correlation",
+                xaxis_title="Lag (days)",
+                yaxis_title="Pearson r",
+                height=400,
+                yaxis=dict(range=[-0.1, max(lag_df["r"].max() * 1.2, 0.5)])
             )
-    else:
-        st.warning("Lag columns not found for selected pollutant.")
+            st.plotly_chart(fig_lag, width="stretch")
+
+            # Rolling means
+            st.markdown("#### Rolling Mean Features")
+            roll_cols_use = [c for c in ROLL_COLS_PM25 if c in base.columns]
+            roll_days_map = {
+                "PM25_roll_mean_7":   7,
+                "PM25_roll_mean_14":  14,
+                "PM25_roll_mean_30":  30,
+                "PM25_roll_mean_90":  90,
+                "PM25_roll_mean_365": 365,
+            }
+            roll_results = []
+            for col in roll_cols_use:
+                pair = base[[col, target_col]].dropna()
+                if len(pair) > 10:
+                    r = pair.corr().iloc[0, 1]
+                    roll_results.append({
+                        "Roll feature":  col,
+                        "Window (days)": roll_days_map.get(col, "?"),
+                        "r":             round(r, 3)
+                    })
+
+            if roll_results:
+                roll_df = pd.DataFrame(roll_results).sort_values("Window (days)")
+                fig_roll = px.bar(
+                    roll_df,
+                    x=roll_df["Window (days)"].astype(str) + "d",
+                    y="r",
+                    color="r",
+                    color_continuous_scale="Blues",
+                    text="r",
+                    title="PM2.5 rolling mean features vs target_PM25",
+                    labels={"x": "Window (days)", "r": "Pearson r"}
+                )
+                fig_roll.update_traces(
+                    texttemplate="%{text:.3f}", textposition="outside"
+                )
+                fig_roll.update_layout(height=360, showlegend=False)
+                st.plotly_chart(fig_roll, width="stretch")
+
+            with st.expander("📊 Lag correlation table"):
+                st.dataframe(
+                    lag_df.drop(columns="abs_r").set_index("Lag feature"),
+                    use_container_width=True
+                )
+        else:
+            st.warning("Lag columns not found for selected pollutant.")
 
 # ==================== TAB 5: FORECAST FEATURES ====================
 with tab5:
@@ -617,7 +728,6 @@ with tab5:
     )
     corr_target.index += 1
 
-    # Category labels
     def feat_category(f):
         if any(f.startswith(v) for v in WEATHER_VARS): return "Weather"
         if "roll_mean" in f: return "Rolling Mean"
@@ -637,8 +747,7 @@ with tab5:
 
     fig_feat = px.bar(
         corr_target.head(top_n),
-        x="r",
-        y="Feature",
+        x="r", y="Feature",
         color="Category",
         color_discrete_map=cat_color,
         orientation="h",
@@ -655,12 +764,11 @@ with tab5:
     )
     st.plotly_chart(fig_feat, width="stretch")
 
-    # Category summary
     st.markdown("#### Summary by feature category")
     cat_summary = (
         corr_target.groupby("Category")["abs_r"]
-        .agg(["mean","max","count"])
-        .rename(columns={"mean":"Avg |r|","max":"Max |r|","count":"# Features"})
+        .agg(["mean", "max", "count"])
+        .rename(columns={"mean": "Avg |r|", "max": "Max |r|", "count": "# Features"})
         .round(3)
         .sort_values("Avg |r|", ascending=False)
     )

@@ -424,7 +424,8 @@ with col_s1:
         "**🌬️ Air Quality Data**  \n"
         "Basque Government Air Quality Network  \n"
         "*(Red de Control de Calidad del Aire)*  \n"
-        "7 stations · Greater Bilbao ·  WHO 2021 guidelines applied © Gobierno Vasco · CC BY 4.0"
+        "7 stations · Greater Bilbao ·"  
+        "WHO 2021 guidelines applied © Gobierno Vasco · CC BY 4.0"
     )
 
 with col_s2:
@@ -433,4 +434,5 @@ with col_s2:
         "Open-Meteo · [open-meteo.com](https://open-meteo.com)  \n"
         "Historical Weather API · CC BY 4.0  \n"
         "~29k daily records ·"
+        "Temperature, Humidity, Precipitation, Wind, wind direction,wind speed, wind u, wind v"
     )
