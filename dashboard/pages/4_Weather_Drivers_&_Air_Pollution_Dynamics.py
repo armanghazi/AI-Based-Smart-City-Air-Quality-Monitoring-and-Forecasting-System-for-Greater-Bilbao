@@ -590,35 +590,44 @@ with tab4:
         "Pollutant", ALL_POLLUTANTS, index=0, key="lag_poll"
     )
 
+    # تعریف نگاشت‌ها به صورت پویا بر اساس آلاینده انتخابی
     lag_col_map = {
         "PM2.5": LAG_COLS_PM25,
         "PM10":  LAG_COLS_PM10,
         "NO2":   LAG_COLS_NO2,
         "SO2":   LAG_COLS_SO2,
     }
+    
+    # اصلاح نام کلیدها برای انطباق با فرمت نام‌گذاری دیتاست شما (مثلاً حذف نقطه از PM2.5 به PM25 اگر در نام ستون‌ها اینطور است)
+    poll_clean = lag_poll.replace(".", "") 
+    
     lag_days_map = {
-        f"{lag_poll}_lag_1":   1,
-        f"{lag_poll}_lag_3":   3,
-        f"{lag_poll}_lag_7":   7,
-        f"{lag_poll}_lag_30":  30,
-        f"{lag_poll}_lag_90":  90,
-        f"{lag_poll}_lag_365": 365,
+        f"{poll_clean}_lag_1":   1,
+        f"{poll_clean}_lag_3":   3,
+        f"{poll_clean}_lag_7":   7,
+        f"{poll_clean}_lag_30":  30,
+        f"{poll_clean}_lag_90":  90,
+        f"{poll_clean}_lag_365": 365,
     }
 
-    lag_cols_use = [c for c in lag_col_map[lag_poll] if c in base.columns]
-    target_col   = "target_PM25"
+    lag_cols_use = [c for c in lag_col_map.get(lag_poll, []) if c in base.columns]
+    
+    # پویا کردن ستون هدف بر اساس آلاینده انتخابی
+    target_col   = f"target_{poll_clean}"
 
     if target_col not in base.columns:
-        st.warning("target_PM25 column not found in dataset.")
+        st.warning(f"Target column '{target_col}' not found in dataset.")
     else:
         results = []
         for col in lag_cols_use:
             pair = base[[col, target_col]].dropna()
             if len(pair) > 10:
                 r = pair.corr().iloc[0, 1]
+                # مقدار پیش‌فرض را 0 یا یک عدد بگذارید تا در sort_values خطا ندهد
+                days = lag_days_map.get(col, 0) 
                 results.append({
                     "Lag feature": col,
-                    "Days":        lag_days_map.get(col, "?"),
+                    "Days":        days,
                     "r":           round(r, 3),
                     "abs_r":       abs(round(r, 3))
                 })
@@ -639,23 +648,29 @@ with tab4:
             ))
             fig_lag.add_hline(y=0, line_color="#bbb", line_width=1)
             fig_lag.update_layout(
-                title=f"{lag_poll} lag features vs target_PM25 · correlation",
+                title=f"{lag_poll} lag features vs {target_col} · correlation",
                 xaxis_title="Lag (days)",
                 yaxis_title="Pearson r",
                 height=400,
                 yaxis=dict(range=[-0.1, max(lag_df["r"].max() * 1.2, 0.5)])
             )
-            st.plotly_chart(fig_lag, width="stretch")
+            # اصلاح پارامتر width به use_container_width
+            st.plotly_chart(fig_lag, use_container_width=True)
 
-            # Rolling means
-            st.markdown("#### Rolling Mean Features")
-            roll_cols_use = [c for c in ROLL_COLS_PM25 if c in base.columns]
+            # Rolling means (پویا سازی این بخش بر اساس آلاینده انتخابی)
+            st.markdown(f"#### Rolling Mean Features ({lag_poll})")
+            
+            # فرض بر این است که لیستی به نام ROLL_COLS_PM10 و غیره هم دارید
+            # اگر ندارید، می‌توانید نام ستون‌ها را اینجا به صورت پویا بسازید
             roll_days_map = {
-                "PM25_roll_mean_7":   7,
-                "PM25_roll_mean_30":  30,
-                "PM25_roll_mean_90":  90,
-                "PM25_roll_mean_365": 365,
+                f"{poll_clean}_roll_mean_7":   7,
+                f"{poll_clean}_roll_mean_30":  30,
+                f"{poll_clean}_roll_mean_90":  90,
+                f"{poll_clean}_roll_mean_365": 365,
             }
+            
+            roll_cols_use = [c for c in roll_days_map.keys() if c in base.columns]
+            
             roll_results = []
             for col in roll_cols_use:
                 pair = base[[col, target_col]].dropna()
@@ -663,7 +678,7 @@ with tab4:
                     r = pair.corr().iloc[0, 1]
                     roll_results.append({
                         "Roll feature":  col,
-                        "Window (days)": roll_days_map.get(col, "?"),
+                        "Window (days)": roll_days_map.get(col, 0),
                         "r":             round(r, 3)
                     })
 
@@ -676,14 +691,15 @@ with tab4:
                     color="r",
                     color_continuous_scale="Blues",
                     text="r",
-                    title="PM2.5 rolling mean features vs target_PM25",
+                    title=f"{lag_poll} rolling mean features vs {target_col}",
                     labels={"x": "Window (days)", "r": "Pearson r"}
                 )
                 fig_roll.update_traces(
                     texttemplate="%{text:.3f}", textposition="outside"
                 )
                 fig_roll.update_layout(height=360, showlegend=False)
-                st.plotly_chart(fig_roll, width="stretch")
+                # اصلاح پارامتر width
+                st.plotly_chart(fig_roll, use_container_width=True)
 
             with st.expander("📊 Lag correlation table"):
                 st.dataframe(
@@ -691,7 +707,7 @@ with tab4:
                     use_container_width=True
                 )
         else:
-            st.warning("Lag columns not found for selected pollutant.")
+            st.warning(f"Lag columns not found for selected pollutant: {lag_poll}")
 
 # ==================== TAB 5: FORECAST FEATURES ====================
 with tab5:
