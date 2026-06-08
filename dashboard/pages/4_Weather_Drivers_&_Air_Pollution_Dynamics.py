@@ -634,7 +634,7 @@ with tab4:
                 height=400,
                 yaxis=dict(range=[-0.1, max(lag_df["r"].max() * 1.2, 0.5)])
             )
-            st.plotly_chart(fig_lag, use_container_width=True)   # ← درست شد
+            st.plotly_chart(fig_lag, use_container_width=True)   
 
 # ==================== TAB 5: FORECAST FEATURES ====================
 with tab5:
