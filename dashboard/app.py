@@ -375,5 +375,5 @@ with col_s2:
         "Open-Meteo · [open-meteo.com](https://open-meteo.com)  \n"
         "Historical Weather API · CC BY 4.0  \n"
         "~29k daily records · Temperature, Humidity, Precipitation,  \n"
-        "Wind Speed, Wind Direction, Wind U (wind_u), Wind V (wind_v)"
+        "Wind Speed, Wind Direction"
     )
