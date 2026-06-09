@@ -188,7 +188,9 @@ def load_data() -> pd.DataFrame:
     df = df.sort_values(["station", "Date"]).copy()
 
     # Target: next-day PM2.5 per station
-    df["target_PM25"] = df.groupby("station")["PM2.5"].shift(-1)
+    for pollutant in ["PM2.5", "PM10", "NO2", "SO2"]:
+        prefix = pollutant.replace(".", "")
+        df[f"target_{prefix}"] = df.groupby("station")[pollutant].shift(-1)
 
     # Lag features
     LAG_DAYS = [1, 3, 7, 30, 90, 365]
@@ -198,7 +200,7 @@ def load_data() -> pd.DataFrame:
             df[f"{prefix}_lag_{d}"] = df.groupby("station")[pollutant].shift(d)
 
     # Rolling mean features
-    ROLL_WINDOWS = [7, 14, 30, 90, 365]
+    ROLL_WINDOWS = [7, 30, 90, 365]
     for pollutant in ["PM2.5", "PM10", "NO2", "SO2"]:
         prefix = pollutant.replace(".", "")
         for w in ROLL_WINDOWS:
