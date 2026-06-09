@@ -161,13 +161,12 @@ def load_data() -> pd.DataFrame:
     df["Day"]       = df["Date"].dt.date
     df["YearMonth"] = df["Date"].dt.to_period("M").dt.to_timestamp()
 
-    # Normalise season column — parquet may use lowercase or different casing
-    if "season" in df.columns and "Season" not in df.columns:
-        df["season"] = df["season"].str.capitalize()
-    elif "Season" in df.columns and "season" not in df.columns:
+    # Normalise season column — handle any casing from parquet
+    if "Season" in df.columns:
         df["season"] = df["Season"].str.capitalize()
-    elif "season" not in df.columns:
-        # Derive from month if missing entirely
+    elif "season" in df.columns:
+        df["season"] = df["season"].str.capitalize()
+    else:
         month_to_season = {
             12: "Winter", 1: "Winter", 2: "Winter",
             3: "Spring",  4: "Spring", 5: "Spring",

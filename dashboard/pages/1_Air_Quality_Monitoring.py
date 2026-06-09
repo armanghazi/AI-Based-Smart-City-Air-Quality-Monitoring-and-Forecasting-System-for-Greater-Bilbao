@@ -286,7 +286,6 @@ if row2:
     pad       = (3 - n_rem) // 2
     spacers   = [None] * pad + [z for z in row2] + [None] * (3 - n_rem - pad)
     cols_r2   = st.columns(3)
-    card_idx  = 0
     for i, item in enumerate(spacers):
         if item is not None:
             with cols_r2[i]:

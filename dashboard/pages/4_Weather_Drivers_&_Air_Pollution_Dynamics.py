@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from config import (
-    DATA_FILE, load_data,
+    load_data,
     WHO_ANNUAL, CORE_POLLUTANTS,
     POLLUTANT_COLOR, MONTH_NAMES,
     ZONE_META, get_zone,
@@ -72,17 +72,7 @@ SEASON_COLOR = {
     "Autumn": "#e67e22",
 }
 
-LAG_COLS_PM25  = ["PM25_lag_1","PM25_lag_3","PM25_lag_7",
-                   "PM25_lag_30","PM25_lag_90","PM25_lag_365"]
-LAG_COLS_PM10  = ["PM10_lag_1","PM10_lag_3","PM10_lag_7",
-                   "PM10_lag_30","PM10_lag_90","PM10_lag_365"]
-LAG_COLS_NO2   = ["NO2_lag_1","NO2_lag_3","NO2_lag_7",
-                   "NO2_lag_30","NO2_lag_90","NO2_lag_365"]
-LAG_COLS_SO2   = ["SO2_lag_1","SO2_lag_3","SO2_lag_7",
-                  "SO2_lag_30","SO2_lag_90","SO2_lag_365"]
-
-ROLL_COLS_PM25 = ["PM25_roll_mean_7","PM25_roll_mean_30",
-                   "PM25_roll_mean_90","PM25_roll_mean_365"]
+_POLL_PREFIXES = [p.replace(".", "") for p in ALL_POLLUTANTS]
 
 # --------------------------------------------------
 # LOAD DATA
@@ -251,7 +241,7 @@ with tab1:
             title="Pollutant × Weather (focus view)"
         )
         fig_focus.update_layout(height=320, margin=dict(t=50, b=10, l=10, r=10))
-        st.plotly_chart(fig_focus, width="stretch")
+        st.plotly_chart(fig_focus, use_container_width=True)
 
     with col_full:
         st.markdown("#### Strongest pairs")
@@ -292,7 +282,7 @@ with tab1:
             title="Full Correlation Matrix"
         )
         fig_full_m.update_layout(height=500)
-        st.plotly_chart(fig_full_m, width="stretch")
+        st.plotly_chart(fig_full_m, use_container_width=True)
 
 # ==================== TAB 2: WEATHER RELATIONSHIPS ====================
 with tab2:
@@ -357,7 +347,7 @@ with tab2:
             annotation_text=f"WHO {y_var}", annotation_font_size=10
         )
     fig_sc.update_layout(height=420, hovermode="closest")
-    st.plotly_chart(fig_sc, width="stretch")
+    st.plotly_chart(fig_sc, use_container_width=True)
 
     st.info(
         f"Pearson correlation between **{x_var}** and **{y_var}**: **{corr_val:.3f}**"
@@ -421,7 +411,7 @@ with tab2:
                 }
             )
             fig_rose.update_layout(height=420)
-            st.plotly_chart(fig_rose, width="stretch")
+            st.plotly_chart(fig_rose, use_container_width=True)
 
         with col_r2:
             fig_speed_rose = px.bar_polar(
@@ -436,7 +426,7 @@ with tab2:
                 }
             )
             fig_speed_rose.update_layout(height=420)
-            st.plotly_chart(fig_speed_rose, width="stretch")
+            st.plotly_chart(fig_speed_rose, use_container_width=True)
 
     # --------------------------------------------------
     # Wind Components (Wind_X / Wind_Y) vs Pollution
@@ -473,7 +463,7 @@ with tab2:
                 )
             fig_wc.update_layout(height=380)
             with wc_cols[idx]:
-                st.plotly_chart(fig_wc, width="stretch")
+                st.plotly_chart(fig_wc, use_container_width=True)
     else:
         st.info(
             "Wind_X and Wind_Y columns not found. "
@@ -522,7 +512,7 @@ with tab3:
                 labels={"Concentration": "µg/m³"}
             )
             fig_seas.update_layout(height=380)
-            st.plotly_chart(fig_seas, width="stretch")
+            st.plotly_chart(fig_seas, use_container_width=True)
 
         with col_s2:
             fig_sw = make_subplots(specs=[[{"secondary_y": True}]])
@@ -552,7 +542,7 @@ with tab3:
                 height=380, hovermode="x unified",
                 legend=dict(orientation="h", y=1.08)
             )
-            st.plotly_chart(fig_sw, width="stretch")
+            st.plotly_chart(fig_sw, use_container_width=True)
 
         # Zone × Season heatmap
         st.markdown("#### Zone × Season heatmap")
@@ -575,12 +565,11 @@ with tab3:
             title=f"{seas_poll} µg/m³ — Zone × Season"
         )
         fig_zs.update_layout(height=280)
-        st.plotly_chart(fig_zs, width="stretch")
+        st.plotly_chart(fig_zs, use_container_width=True)
 
         with st.expander("📊 Full seasonal statistics"):
             st.dataframe(seasonal.set_index("season"), use_container_width=True)
 
-# ==================== TAB 4: LAG ANALYSIS ====================
 # ==================== TAB 4: LAG ANALYSIS ====================
 with tab4:
     st.markdown("### ⏳ Lag Correlation Analysis")
@@ -640,7 +629,7 @@ with tab4:
             height=400,
             yaxis=dict(range=[-0.1, max(lag_df["r"].max() * 1.2, 0.5)])
         )
-        st.plotly_chart(fig_lag, width="stretch")
+        st.plotly_chart(fig_lag, use_container_width=True)
 
         # ── Rolling Mean ───────────────────────────────────────
         st.markdown("#### Rolling Mean Features")
@@ -676,7 +665,7 @@ with tab4:
                 texttemplate="%{text:.3f}", textposition="outside"
             )
             fig_roll.update_layout(height=360, showlegend=False)
-            st.plotly_chart(fig_roll, width="stretch")
+            st.plotly_chart(fig_roll, use_container_width=True)
         else:
             st.info(f"No rolling mean columns found for {lag_poll}.")
 
@@ -703,9 +692,9 @@ with tab5:
     candidate_features = (
         [v for v in WEATHER_VARS if v in base.columns] +
         [c for c in base.columns if
-         any(c.startswith(f"{p}_lag_") for p in ALL_POLLUTANTS)] +
+         any(c.startswith(f"{pfx}_lag_") for pfx in _POLL_PREFIXES)] +
         [c for c in base.columns if
-         any(c.startswith(f"{p}_roll_mean_") for p in ALL_POLLUTANTS)]
+         any(c.startswith(f"{pfx}_roll_mean_") for pfx in _POLL_PREFIXES)]
     )
     candidate_features = [f for f in candidate_features if f in base.columns]
 
@@ -755,7 +744,7 @@ with tab5:
         margin=dict(l=10, r=60, t=50, b=10),
         yaxis=dict(autorange="reversed")
     )
-    st.plotly_chart(fig_feat, width="stretch")
+    st.plotly_chart(fig_feat, use_container_width=True)
 
     st.markdown("#### Summary by feature category")
     cat_summary = (

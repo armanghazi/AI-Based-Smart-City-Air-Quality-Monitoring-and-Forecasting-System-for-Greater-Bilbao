@@ -1,5 +1,5 @@
 from config import (
-    DATA_FILE, load_data,
+    load_data,
     WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
     POLLUTANT_COLOR, MONTH_NAMES, RISK_COLORS, RISK_ORDER,
     ZONE_MAP, ZONE_META, get_zone,
