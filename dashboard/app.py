@@ -2,12 +2,16 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from config import DATA_FILE
+
+from config import (
+    load_data,
+    WHO_ANNUAL, POLLUTANT_COLOR,
+    ZONE_META, who_delta,
+)
 
 # -----------------------
 # Page Config
 # -----------------------
-
 st.set_page_config(
     page_title="Smart City Air Intelligence",
     page_icon="🌍",
@@ -17,74 +21,11 @@ st.set_page_config(
 # -----------------------
 # Load Data
 # -----------------------
-
-@st.cache_data
-def load_data():
-    df = pd.read_parquet(DATA_FILE)
-    df["Date"]  = pd.to_datetime(df["Date"])
-    df["Year"]  = df["Date"].dt.year
-    df["Month"] = df["Date"].dt.month
-    df["Zone"]  = df["Town"].apply(get_zone)
-    return df
-
-WHO_ANNUAL = {"PM2.5": 5.0, "PM10": 15.0, "NO2": 10.0}
-
-POLLUTANT_COLOR = {
-    "NO2": "#e74c3c", "PM10": "#e67e22",
-    "PM2.5": "#9b59b6", "SO2": "#3498db"
-}
-
-# -----------------------
-# Zone Classification
-# -----------------------
-
-ZONE_MAP = {
-    "Barakaldo": "Industrial Corridor",
-    "Basauri":   "Industrial Corridor",
-    "Mazarredo": "Urban Core",
-    "Erandio":   "Urban Core",
-    "Algorta":   "Coastal Buffer Zone",
-    "Muskiz":    "Coastal Buffer Zone",
-    "Santurtzi": "Coastal Buffer Zone",
-}
-
-ZONE_META = {
-    "Industrial Corridor": {
-        "icon":        "🏭",
-        "color":       "#e67e22",
-        "border":      "#d35400",
-        "description": "High PM2.5, High PM10, Elevated NO₂",
-        "key_pollutant": "PM2.5",
-    },
-    "Urban Core": {
-        "icon":        "🚗",
-        "color":       "#8e44ad",
-        "border":      "#6c3483",
-        "description": "Highest NO₂, Strong traffic influence, Urban canyon effects",
-        "key_pollutant": "NO2",
-    },
-    "Coastal Buffer Zone": {
-        "icon":        "🌊",
-        "color":       "#1abc9c",
-        "border":      "#148f77",
-        "description": "Better dispersion, Lower NO₂, Marine influence on PM10",
-        "key_pollutant": "PM10",
-    },
-}
-
-def get_zone(town: str) -> str:
-    for key, zone in ZONE_MAP.items():
-        if key.lower() in str(town).lower():
-            return zone
-    return "Unknown"
-
-# load_data depends on get_zone so define after
 df = load_data()
 
 # -----------------------
 # Header
 # -----------------------
-
 st.markdown("""
 <div style="padding: 1.5rem 0 0.5rem">
     <h1 style="margin:0; font-size:2rem">
@@ -99,9 +40,8 @@ st.markdown("""
 st.divider()
 
 # -----------------------
-# Live snapshot
+# Latest Snapshot
 # -----------------------
-
 latest_date  = df["Date"].max()
 latest_df    = df[df["Date"] == latest_date]
 latest_means = (
@@ -115,16 +55,8 @@ st.markdown(f"### 📡 Latest Snapshot — {latest_date.strftime('%d %b %Y')}")
 st.caption("City-wide average across all stations on the most recent recorded day")
 
 c1, c2, c3, c4 = st.columns(4)
-
-def who_delta(val, pollutant):
-    limit = WHO_ANNUAL.get(pollutant)
-    if not limit:
-        return None, "off"
-    ratio = val / limit
-    return f"{ratio:.1f}× WHO limit", "inverse" if ratio > 1 else "normal"
-
 for col, poll in zip([c1, c2, c3, c4], ["PM2.5", "PM10", "NO2", "SO2"]):
-    val = latest_means.get(poll, 0)
+    val                      = latest_means.get(poll, 0)
     delta_label, delta_color = who_delta(val, poll)
     col.metric(
         label=poll,
@@ -138,7 +70,6 @@ st.divider()
 # -----------------------
 # Dataset Overview
 # -----------------------
-
 st.markdown("### 📊 Dataset Overview")
 
 total_records  = len(df)
@@ -147,19 +78,18 @@ date_range     = f"{df['Date'].min().strftime('%Y')} – {df['Date'].max().strft
 total_years    = df["Year"].nunique()
 
 o1, o2, o3, o4 = st.columns(4)
-o1.metric("Total daily records",  f"{total_records:,}")
-o2.metric("Monitoring stations",  str(total_stations))
-o3.metric("Years of data",        f"{total_years} yrs ({date_range})")
-o4.metric("Pollutants tracked",   "4  (PM2.5, PM10, NO₂, SO₂)")
+o1.metric("Total daily records", f"{total_records:,}")
+o2.metric("Monitoring stations", str(total_stations))
+o3.metric("Years of data",       f"{total_years} yrs ({date_range})")
+o4.metric("Pollutants tracked",  "4  (PM2.5, PM10, NO₂, SO₂)")
 
 st.divider()
 
 # -----------------------
-# Environmental Zone Summary
+# Environmental Zone Overview — 5 zones, 2 rows
 # -----------------------
-
 st.markdown("### 🗺️ Environmental Zone Overview")
-st.caption("EDA-identified spatial zones based on pollution profile and source characteristics")
+st.caption("Spatial zones identified from EDA based on pollution profile and emission source characteristics")
 
 latest_year  = int(df["Year"].max())
 zone_summary = (
@@ -169,16 +99,10 @@ zone_summary = (
     .round(2)
 )
 
-zone_cols = st.columns(3)
-
-for idx, (zone_name, meta) in enumerate(ZONE_META.items()):
-    z_data = zone_summary.loc[zone_name] if zone_name in zone_summary.index else None
-
-    stations_in_zone = (
-        df[df["Zone"] == zone_name]["station"]
-        .unique().tolist()
-    )
-    short_names = ", ".join([s.split("_")[0] for s in stations_in_zone])
+def render_zone_card(zone_name, meta, zone_summary, df):
+    z_data      = zone_summary.loc[zone_name] if zone_name in zone_summary.index else None
+    stations_in = df[df["Zone"] == zone_name]["station"].unique().tolist()
+    short_names = ", ".join([s.split("_")[0] for s in stations_in])
 
     if z_data is not None:
         pm25_val = z_data["PM2.5"]
@@ -194,55 +118,74 @@ for idx, (zone_name, meta) in enumerate(ZONE_META.items()):
         vs_who   = "—"
         key_poll = meta["key_pollutant"]
 
-    with zone_cols[idx]:
-        st.markdown(
-            f"""
-            <div style="
-                border-left: 5px solid {meta['border']};
-                background: linear-gradient(135deg, {meta['color']}18, {meta['color']}06);
-                border-radius: 10px;
-                padding: 16px 18px;
-                height: 100%;
-            ">
-                <div style="font-size:20px; margin-bottom:4px">
-                    {meta['icon']} <strong>{zone_name}</strong>
-                </div>
-                <div style="color:#555; font-size:11px; margin-bottom:10px">
-                    {meta['description']}
-                </div>
-                <div style="color:#777; font-size:11px; margin-bottom:8px">
-                    📍 {short_names}
-                </div>
-                <table style="width:100%; font-size:12px; border-collapse:collapse">
-                    <tr>
-                        <td style="color:#777; padding:2px 0">PM2.5</td>
-                        <td style="text-align:right; font-weight:600">{pm25_val:.1f} µg/m³</td>
-                    </tr>
-                    <tr>
-                        <td style="color:#777; padding:2px 0">PM10</td>
-                        <td style="text-align:right; font-weight:600">{pm10_val:.1f} µg/m³</td>
-                    </tr>
-                    <tr>
-                        <td style="color:#777; padding:2px 0">NO₂</td>
-                        <td style="text-align:right; font-weight:600">{no2_val:.1f} µg/m³</td>
-                    </tr>
-                    <tr>
-                        <td style="color:#777; padding:2px 0">Key pollutant ({key_poll})</td>
-                        <td style="text-align:right; font-weight:600"
-                            style="color:{meta['color']}">{vs_who} WHO</td>
-                    </tr>
-                </table>
+    st.markdown(
+        f"""
+        <div style="
+            border-left: 5px solid {meta['border']};
+            background: linear-gradient(135deg, {meta['color']}18, {meta['color']}06);
+            border-radius: 10px;
+            padding: 16px 18px;
+            margin-bottom: 8px;
+            height: 100%;
+        ">
+            <div style="font-size:20px; margin-bottom:4px">
+                {meta['icon']} <strong>{zone_name}</strong>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+            <div style="color:#555; font-size:11px; margin-bottom:6px">
+                {meta['description']}
+            </div>
+            <div style="color:#777; font-size:11px; margin-bottom:8px">
+                📍 {short_names}
+            </div>
+            <table style="width:100%; font-size:12px; border-collapse:collapse">
+                <tr>
+                    <td style="color:#777; padding:2px 0">PM2.5</td>
+                    <td style="text-align:right; font-weight:600">{pm25_val:.1f} µg/m³</td>
+                </tr>
+                <tr>
+                    <td style="color:#777; padding:2px 0">PM10</td>
+                    <td style="text-align:right; font-weight:600">{pm10_val:.1f} µg/m³</td>
+                </tr>
+                <tr>
+                    <td style="color:#777; padding:2px 0">NO₂</td>
+                    <td style="text-align:right; font-weight:600">{no2_val:.1f} µg/m³</td>
+                </tr>
+                <tr>
+                    <td style="color:#777; padding:2px 0">SO₂</td>
+                    <td style="text-align:right; font-weight:600">{so2_val:.1f} µg/m³</td>
+                </tr>
+                <tr>
+                    <td style="color:#777; padding:2px 0">Key ({key_poll}) vs WHO</td>
+                    <td style="text-align:right; font-weight:600;
+                               color:{meta['color']}">{vs_who}</td>
+                </tr>
+            </table>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+zones_list = list(ZONE_META.items())
+row1       = zones_list[:3]
+row2       = zones_list[3:]
+
+cols_r1 = st.columns(3)
+for idx, (zone_name, meta) in enumerate(row1):
+    with cols_r1[idx]:
+        render_zone_card(zone_name, meta, zone_summary, df)
+
+if row2:
+    cols_r2  = st.columns(3)
+    offsets  = [0, 1] if len(row2) == 2 else [1]
+    for i, (zone_name, meta) in zip(offsets, row2):
+        with cols_r2[i]:
+            render_zone_card(zone_name, meta, zone_summary, df)
 
 st.divider()
 
 # -----------------------
-# Two-column: trend + station status
+# City-wide trend + Station status
 # -----------------------
-
 col_left, col_right = st.columns([3, 2])
 
 with col_left:
@@ -259,11 +202,9 @@ with col_left:
         var_name="Pollutant",
         value_name="Concentration"
     )
-
     fig_trend = px.line(
         annual_long,
-        x="Year",
-        y="Concentration",
+        x="Year", y="Concentration",
         color="Pollutant",
         markers=True,
         color_discrete_map=POLLUTANT_COLOR,
@@ -272,8 +213,7 @@ with col_left:
     )
     for poll, limit in WHO_ANNUAL.items():
         fig_trend.add_hline(
-            y=limit,
-            line_dash="dot",
+            y=limit, line_dash="dot",
             line_color=POLLUTANT_COLOR[poll],
             opacity=0.4,
             annotation_text=f"WHO {poll}",
@@ -286,7 +226,7 @@ with col_left:
         hovermode="x unified",
         legend=dict(orientation="h", y=1.08)
     )
-    st.plotly_chart(fig_trend, use_container_width=True)
+    st.plotly_chart(fig_trend, width="stretch")
 
 with col_right:
     st.markdown("#### 🏙️ Station Status — Latest Year")
@@ -302,7 +242,7 @@ with col_right:
         ratios = [
             row["PM2.5"] / WHO_ANNUAL["PM2.5"],
             row["PM10"]  / WHO_ANNUAL["PM10"],
-            row["NO2"]   / WHO_ANNUAL["NO2"]
+            row["NO2"]   / WHO_ANNUAL["NO2"],
         ]
         score = 100 * sum(ratios) / 3
         if score < 100:   return score, "Below WHO"
@@ -312,19 +252,18 @@ with col_right:
     station_latest[["Score", "Status"]] = station_latest.apply(
         lambda r: pd.Series(core_risk(r)), axis=1
     )
-    station_latest = station_latest.sort_values("Score", ascending=False)
+    station_latest          = station_latest.sort_values("Score", ascending=False)
     station_latest["Station"] = station_latest["station"].str.split("_").str[0]
 
     fig_status = px.bar(
         station_latest,
-        x="Score",
-        y="Station",
+        x="Score", y="Station",
         color="Zone",
         color_discrete_map={z: m["color"] for z, m in ZONE_META.items()},
         orientation="h",
-        title="",
         labels={"Score": "Core Risk Score"},
-        text="Score"
+        text="Score",
+        title=""
     )
     fig_status.update_traces(texttemplate="%{text:.0f}", textposition="outside")
     fig_status.add_vline(x=100, line_dash="dash", line_color="#f39c12", opacity=0.6)
@@ -336,16 +275,18 @@ with col_right:
         legend=dict(orientation="h", y=1.08, font=dict(size=10)),
         xaxis_range=[0, max(station_latest["Score"].max() * 1.2, 250)]
     )
-    st.plotly_chart(fig_status, use_container_width=True)
+    st.plotly_chart(fig_status, width="stretch")
 
 st.divider()
 
 # -----------------------
-# Navigation Cards —  st.button
+# Navigation Cards
 # -----------------------
-
 st.markdown("### 🧭 Navigate to Module")
-st.caption("Explore detailed analyses: Air Quality Monitoring, Temporal Trends, Urban Risk Index, Weather Drivers & Air Pollution Dynamics")
+st.caption(
+    "Explore detailed analyses: Air Quality Monitoring, "
+    "Temporal Trends, Urban Risk Index, Weather Drivers & Air Pollution Dynamics"
+)
 
 NAV_MODULES = [
     {
@@ -374,9 +315,9 @@ NAV_MODULES = [
     },
     {
         "icon":        "🌤️",
-        "title":       "Weather Drivers & Air Pollution Dynamics",
-        "description": "Wind · Rain · Temperature impact · Zone weather profiles",
-        "page":        "pages/4_Weather_Correlation.py",
+        "title":       "Weather Drivers",
+        "description": "Wind · Rain · Temperature · Lag analysis · Forecast features",
+        "page":        "pages/4_Weather_Drivers_&_Air_Pollution_Dynamics.py",
         "color":       "#d35400",
         "border":      "#b94600",
     },
@@ -386,7 +327,6 @@ nav_cols = st.columns(4)
 
 for idx, module in enumerate(NAV_MODULES):
     with nav_cols[idx]:
-        # Visual card
         st.markdown(
             f"""
             <div style="
@@ -407,7 +347,6 @@ for idx, module in enumerate(NAV_MODULES):
             """,
             unsafe_allow_html=True
         )
-        # Clickable button below card
         if st.button(
             f"Open {module['title']} →",
             key=f"nav_{idx}",
@@ -415,7 +354,9 @@ for idx, module in enumerate(NAV_MODULES):
         ):
             st.switch_page(module["page"])
 
-st.divider()
+# -----------------------
+# Footer
+# -----------------------
 st.divider()
 col_s1, col_s2 = st.columns(2)
 
@@ -424,8 +365,8 @@ with col_s1:
         "**🌬️ Air Quality Data**  \n"
         "Basque Government Air Quality Network  \n"
         "*(Red de Control de Calidad del Aire)*  \n"
-        "7 stations · Greater Bilbao ·"  
-        "WHO 2021 guidelines applied © Gobierno Vasco · CC BY 4.0"
+        "7 stations · Greater Bilbao · © Gobierno Vasco · CC BY 4.0  \n"
+        "WHO 2021 guidelines applied"
     )
 
 with col_s2:
@@ -433,6 +374,6 @@ with col_s2:
         "**🌤️ Meteorological Data**  \n"
         "Open-Meteo · [open-meteo.com](https://open-meteo.com)  \n"
         "Historical Weather API · CC BY 4.0  \n"
-        "~29k daily records ·"
-        "Temperature, Humidity, Precipitation, Wind, wind direction,wind speed, wind u, wind v"
+        "~29k daily records · Temperature, Humidity, Precipitation,  \n"
+        "Wind Speed, Wind Direction, Wind U (wind_u), Wind V (wind_v)"
     )
