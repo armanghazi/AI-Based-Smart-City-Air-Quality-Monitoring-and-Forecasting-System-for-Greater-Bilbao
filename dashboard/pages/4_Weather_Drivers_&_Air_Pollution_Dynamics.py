@@ -581,6 +581,7 @@ with tab3:
             st.dataframe(seasonal.set_index("season"), use_container_width=True)
 
 # ==================== TAB 4: LAG ANALYSIS ====================
+# ==================== TAB 4: LAG ANALYSIS ====================
 with tab4:
     st.markdown("### ⏳ Lag Correlation Analysis")
     st.caption(
@@ -592,123 +593,100 @@ with tab4:
         "Pollutant", ALL_POLLUTANTS, index=0, key="lag_poll"
     )
 
-    lag_col_map = {
-        "PM2.5": LAG_COLS_PM25,
-        "PM10":  LAG_COLS_PM10,
-        "NO2":   LAG_COLS_NO2,
-        "SO2":   LAG_COLS_SO2,
-    }
-    lag_days_map = {
-        f"{lag_poll}_lag_1":   1,
-        f"{lag_poll}_lag_3":   3,
-        f"{lag_poll}_lag_7":   7,
-        f"{lag_poll}_lag_30":  30,
-        f"{lag_poll}_lag_90":  90,
-        f"{lag_poll}_lag_365": 365,
-    }
-
-    lag_cols_use = [c for c in lag_col_map[lag_poll] if c in base.columns]
-
-    target_col_map = {
-        "PM2.5": "target_PM25",
-        "PM10":  "target_PM10",
-        "NO2":   "target_NO2",
-        "SO2":   "target_SO2",
-    }
-    target_col = target_col_map[lag_poll]
+    # ── داینامیک: prefix و target ──────────────────────────────
+    poll_prefix = lag_poll.replace(".", "")          # PM2.5 → PM25
+    target_col  = f"target_{poll_prefix}"            # target_PM25 / target_SO2 ...
 
     if target_col not in base.columns:
-        st.warning(f"Column `{target_col}` not found. Try refreshing the data cache.")
+        st.warning(f"`{target_col}` not found in dataset.")
         st.stop()
 
-    if target_col not in base.columns:
-        st.warning(f"Column `{target_col}` not found in dataset.")
-    else:
-        results = []
-        for col in lag_cols_use:
+    # ── Lag columns و days map ─────────────────────────────────
+    LAG_DAYS     = [1, 3, 7, 30, 90, 365]
+    lag_cols_use = [f"{poll_prefix}_lag_{d}" for d in LAG_DAYS
+                    if f"{poll_prefix}_lag_{d}" in base.columns]
+
+    lag_days_map = {f"{poll_prefix}_lag_{d}": d for d in LAG_DAYS}
+
+    # ── Lag chart ──────────────────────────────────────────────
+    results = []
+    for col in lag_cols_use:
+        pair = base[[col, target_col]].dropna()
+        if len(pair) > 10:
+            r = pair.corr().iloc[0, 1]
+            results.append({
+                "Lag feature": col,
+                "Days":        lag_days_map[col],
+                "r":           round(r, 3),
+            })
+
+    if results:
+        lag_df = pd.DataFrame(results).sort_values("Days")
+
+        fig_lag = go.Figure()
+        fig_lag.add_trace(go.Bar(
+            x=lag_df["Days"].astype(str) + "d",
+            y=lag_df["r"],
+            marker_color=["#2ecc71" if r >= 0 else "#e74c3c" for r in lag_df["r"]],
+            text=lag_df["r"].round(3),
+            textposition="outside",
+            name="Correlation r"
+        ))
+        fig_lag.add_hline(y=0, line_color="#bbb", line_width=1)
+        fig_lag.update_layout(
+            title=f"{lag_poll} lag features vs {target_col} · correlation",
+            xaxis_title="Lag (days)",
+            yaxis_title="Pearson r",
+            height=400,
+            yaxis=dict(range=[-0.1, max(lag_df["r"].max() * 1.2, 0.5)])
+        )
+        st.plotly_chart(fig_lag, width="stretch")
+
+        # ── Rolling Mean ───────────────────────────────────────
+        st.markdown("#### Rolling Mean Features")
+        ROLL_WINDOWS  = [7, 30, 90, 365]
+        roll_cols_use = [f"{poll_prefix}_roll_mean_{w}" for w in ROLL_WINDOWS
+                         if f"{poll_prefix}_roll_mean_{w}" in base.columns]
+        roll_days_map = {f"{poll_prefix}_roll_mean_{w}": w for w in ROLL_WINDOWS}
+
+        roll_results = []
+        for col in roll_cols_use:
             pair = base[[col, target_col]].dropna()
             if len(pair) > 10:
                 r = pair.corr().iloc[0, 1]
-                results.append({
-                    "Lag feature": col,
-                    "Days":        lag_days_map.get(col, "?"),
-                    "r":           round(r, 3),
-                    "abs_r":       abs(round(r, 3))
+                roll_results.append({
+                    "Roll feature":  col,
+                    "Window (days)": roll_days_map[col],
+                    "r":             round(r, 3)
                 })
 
-        if results:
-            lag_df = pd.DataFrame(results).sort_values("Days")
-
-            fig_lag = go.Figure()
-            fig_lag.add_trace(go.Bar(
-                x=lag_df["Days"].astype(str) + "d",
-                y=lag_df["r"],
-                marker_color=[
-                    "#2ecc71" if r >= 0 else "#e74c3c" for r in lag_df["r"]
-                ],
-                text=lag_df["r"].round(3),
-                textposition="outside",
-                name="Correlation r"
-            ))
-            fig_lag.add_hline(y=0, line_color="#bbb", line_width=1)
-            fig_lag.update_layout(
-                title=f"{lag_poll} lag features vs target_PM25 · correlation",
-                xaxis_title="Lag (days)",
-                yaxis_title="Pearson r",
-                height=400,
-                yaxis=dict(range=[-0.1, max(lag_df["r"].max() * 1.2, 0.5)])
+        if roll_results:
+            roll_df = pd.DataFrame(roll_results).sort_values("Window (days)")
+            fig_roll = px.bar(
+                roll_df,
+                x=roll_df["Window (days)"].astype(str) + "d",
+                y="r",
+                color="r",
+                color_continuous_scale="Blues",
+                text="r",
+                title=f"{lag_poll} rolling mean features vs {target_col}",
+                labels={"x": "Window (days)", "r": "Pearson r"}
             )
-            st.plotly_chart(fig_lag, width="stretch")
-
-            # Rolling means
-            st.markdown("#### Rolling Mean Features")
-            roll_prefix = lag_poll.replace(".", "")
-            roll_cols_use = [
-                c for c in base.columns 
-                if c.startswith(f"{roll_prefix}_roll_mean_")
-            ]
-            roll_days_map = {
-                "PM25_roll_mean_7":   7,
-                "PM25_roll_mean_30":  30,
-                "PM25_roll_mean_90":  90,
-                "PM25_roll_mean_365": 365,
-            }
-            roll_results = []
-            for col in roll_cols_use:
-                pair = base[[col, target_col]].dropna()
-                if len(pair) > 10:
-                    r = pair.corr().iloc[0, 1]
-                    roll_results.append({
-                        "Roll feature":  col,
-                        "Window (days)": roll_days_map.get(col, "?"),
-                        "r":             round(r, 3)
-                    })
-
-            if roll_results:
-                roll_df = pd.DataFrame(roll_results).sort_values("Window (days)")
-                fig_roll = px.bar(
-                    roll_df,
-                    x=roll_df["Window (days)"].astype(str) + "d",
-                    y="r",
-                    color="r",
-                    color_continuous_scale="Blues",
-                    text="r",
-                    title="PM2.5 rolling mean features vs target_PM25",
-                    labels={"x": "Window (days)", "r": "Pearson r"}
-                )
-                fig_roll.update_traces(
-                    texttemplate="%{text:.3f}", textposition="outside"
-                )
-                fig_roll.update_layout(height=360, showlegend=False)
-                st.plotly_chart(fig_roll, width="stretch")
-
-            with st.expander("📊 Lag correlation table"):
-                st.dataframe(
-                    lag_df.drop(columns="abs_r").set_index("Lag feature"),
-                    use_container_width=True
-                )
+            fig_roll.update_traces(
+                texttemplate="%{text:.3f}", textposition="outside"
+            )
+            fig_roll.update_layout(height=360, showlegend=False)
+            st.plotly_chart(fig_roll, width="stretch")
         else:
-            st.warning("Lag columns not found for selected pollutant.")
+            st.info(f"No rolling mean columns found for {lag_poll}.")
+
+        with st.expander("📊 Lag correlation table"):
+            st.dataframe(
+                lag_df.set_index("Lag feature"),
+                use_container_width=True
+            )
+    else:
+        st.warning(f"No lag columns found for {lag_poll}.")
 
 # ==================== TAB 5: FORECAST FEATURES ====================
 with tab5:
