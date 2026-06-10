@@ -77,11 +77,22 @@ def prepare_features(df: pd.DataFrame, required_features: list) -> pd.DataFrame:
     df["day_of_week"] = df["Date"].dt.dayofweek
     df["is_weekend"]  = (df["Date"].dt.weekday >= 5).astype(int)
 
-    # --- Season as integer (model trained on numeric season) ---
-    # config makes it a capitalized string; remap to int
+    # Season → int. config.py makes it a capitalized string; model needs numeric.
+    # Always remap (don't rely on dtype check), and fall back to month-derived season.
+    # Season → int. Handle ANY type (object, string[pyarrow], already-numeric).
+    
     season_to_int = {"Winter": 0, "Spring": 1, "Summer": 2, "Autumn": 3}
-    if df["season"].dtype == object:
-        df["season"] = df["season"].map(season_to_int).fillna(0).astype(int)
+
+    # Try string mapping first
+    season_str = df["season"].astype(str).str.capitalize()
+    mapped = season_str.map(season_to_int)
+
+    # Fallback: derive from month for anything unmapped
+    month_season = df["Date"].dt.month.map(
+        {12: 0, 1: 0, 2: 0, 3: 1, 4: 1, 5: 1,
+        6: 2, 7: 2, 8: 2, 9: 3, 10: 3, 11: 3}
+    )
+    df["season"] = mapped.fillna(month_season).fillna(0).astype(int)
 
     # --- station_code ---
     df["station_code"] = df["station"].astype("category").cat.codes
@@ -105,6 +116,14 @@ def prepare_features(df: pd.DataFrame, required_features: list) -> pd.DataFrame:
         if feat not in df.columns:
             df[feat] = 0.0
 
+    # Final safety: force every model feature to numeric
+    for feat in required_features:
+        if feat in df.columns:
+            if df[feat].dtype == bool:
+                df[feat] = df[feat].astype(int)
+            elif not pd.api.types.is_numeric_dtype(df[feat]):
+                df[feat] = pd.to_numeric(df[feat], errors="coerce").fillna(0)
+    
     return df
 
 
@@ -349,3 +368,4 @@ with tab2:
                 lambda v: "⚠️ Above" if v > limit else "✅ Below"
             )
         st.dataframe(show, width="stretch", hide_index=True)
+
