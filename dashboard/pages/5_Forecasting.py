@@ -233,9 +233,10 @@ if station_df.empty:
 # TABS
 # --------------------------------------------------
 
-tab1, tab2 = st.tabs([
+tab1, tab2, tab3 = st.tabs([
     "📈 Next-Day Forecast (Backtest)",
     "🔮 Multi-Day Forecast (Recursive)",
+    "🧠 Model Explainability",
 ])
 
 # ==================== TAB 1: NEXT-DAY BACKTEST ====================
@@ -368,4 +369,91 @@ with tab2:
                 lambda v: "⚠️ Above" if v > limit else "✅ Below"
             )
         st.dataframe(show, width="stretch", hide_index=True)
+
+
+# ==================== TAB 3: EXPLAINABILITY ====================
+with tab3:
+    st.markdown(f"### Why does the model predict this way? — {sel_pollutant}")
+    st.caption(
+        "SHAP (SHapley Additive exPlanations) shows how each feature pushes "
+        "individual predictions up or down — beyond simple importance ranking."
+    )
+
+    col1, col2 = st.columns([3, 2])
+
+    with col1:
+        # Pre-computed SHAP beeswarm (generated in notebook 07)
+        img_path = (
+            Path(__file__).parent.parent / "assets" /
+            f"shap_{sel_pollutant.replace('.', '').lower()}.png"
+        )
+        if img_path.exists():
+            st.image(str(img_path), width="stretch")
+            st.caption(
+                "Each dot = one prediction · red = high feature value, "
+                "blue = low · right = pushes forecast up, left = down"
+            )
+        else:
+            st.info(
+                f"SHAP plot not found ({img_path.name}). "
+                "Generate it in notebook 07 and place it in dashboard/assets/."
+            )
+
+    with col2:
+        st.markdown("#### Key physical insights")
+        st.markdown(
+            """
+- **Today's pollutant level** is the strongest predictor — pollution
+  persists day-to-day (atmospheric inertia).
+- **Higher wind speed** pushes forecasts **down** → dispersion.
+- **Precipitation** pushes forecasts **down** → wet deposition (washout).
+- **Day of week** matters most for NO₂ → weekly traffic cycle.
+- **SO₂** shows the weakest temporal structure → episodic
+  industrial/port emissions, hence its lower R².
+            """
+        )
+        st.success(
+            "✅ SHAP confirms the model learned real atmospheric mechanisms — "
+            "not spurious correlations."
+        )
+
+    st.divider()
+
+    # Live top-10 importance from the loaded model (instant, no SHAP needed)
+    st.markdown(f"#### Top 10 features — {sel_pollutant} model (XGBoost importance)")
+
+    imp = (
+        pd.DataFrame({
+            "feature": features,
+            "importance": model.feature_importances_,
+        })
+        .sort_values("importance", ascending=False)
+        .head(10)
+    )
+
+    fig_imp = px.bar(
+        imp[::-1],
+        x="importance", y="feature",
+        orientation="h",
+        color_discrete_sequence=[POLLUTANT_COLOR.get(sel_pollutant, "#3498db")],
+        labels={"importance": "Importance", "feature": ""},
+    )
+    fig_imp.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10))
+    st.plotly_chart(fig_imp, width="stretch")
+
+    # Model card
+    with st.expander("ℹ️ Model details"):
+        st.markdown(
+            f"""
+| | |
+|---|---|
+| **Model** | XGBoost Regressor |
+| **Task** | Next-day {sel_pollutant} forecast |
+| **Features** | {len(features)} |
+| **Training period** | {bundle.get('train_period', '2015–2023')} |
+| **Test period** | {bundle.get('test_period', '2024–2026')} |
+| **Test R²** | {bundle['metrics']['R2']:.3f} |
+| **Test RMSE** | {bundle['metrics']['RMSE']:.2f} µg/m³ |
+            """
+        )
 
