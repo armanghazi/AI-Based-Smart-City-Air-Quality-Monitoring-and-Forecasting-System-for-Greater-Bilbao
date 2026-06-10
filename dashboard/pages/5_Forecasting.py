@@ -428,7 +428,7 @@ with tab3:
             "importance": model.feature_importances_,
         })
         .sort_values("importance", ascending=False)
-        .head(10)
+        .head(15)
     )
 
     fig_imp = px.bar(
