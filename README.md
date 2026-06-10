@@ -187,6 +187,20 @@ project/
 
 ---
 
+## Acknowledgements
+
+This project was developed during the AI & Data Tech training pathway and has benefited from the support, guidance, and learning ecosystem provided by:
+
+**GAIA Cluster ICTA**
+
+**DEMA – Agencia de Empleo y Emprendimiento**
+
+**C2B**
+
+Special thanks to GAIA for promoting innovation in Artificial Intelligence, Data Science, and Digital Transformation, and for providing an environment that encouraged the development of applied GeoAI and Smart City solutions.
+
+---
+
 ## Author
 
 **Arman Ghaziaskari Naeini**
