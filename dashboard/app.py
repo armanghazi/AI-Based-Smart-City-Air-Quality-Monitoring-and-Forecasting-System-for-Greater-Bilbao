@@ -285,7 +285,7 @@ st.divider()
 st.markdown("### 🧭 Navigate to Module")
 st.caption(
     "Explore detailed analyses: Air Quality Monitoring, "
-    "Temporal Trends, Urban Risk Index, Weather Drivers & Air Pollution Dynamics,Forecasting"
+    "Temporal Trends, Urban Risk Index, Weather Drivers & Air Pollution Dynamics, Forecasting"
 )
 
 NAV_MODULES = [
@@ -331,36 +331,41 @@ NAV_MODULES = [
     }
 ]
 
-nav_cols = st.columns(4)
+N_COLS = 3
 
-for idx, module in enumerate(NAV_MODULES):
-    with nav_cols[idx]:
-        st.markdown(
-            f"""
-            <div style="
-                border: 2px solid {module['border']};
-                border-radius: 12px;
-                padding: 20px 16px 12px;
-                text-align: center;
-                background: linear-gradient(135deg, {module['color']}12, {module['color']}04);
-                margin-bottom: 8px;
-            ">
-                <div style="font-size: 2.2rem; margin-bottom: 6px">{module['icon']}</div>
-                <div style="font-weight: 700; font-size: 1rem; color: #2c3e50;
-                            margin-bottom: 6px">{module['title']}</div>
-                <div style="color: #777; font-size: 0.82rem; line-height: 1.4">
-                    {module['description']}
+for i in range(0, len(NAV_MODULES), N_COLS):
+    nav_cols = st.columns(N_COLS)
+    row_modules = NAV_MODULES[i:i + N_COLS]
+
+    for j, module in enumerate(row_modules):
+        idx = i + j   # global index for unique button keys
+        with nav_cols[j]:
+            st.markdown(
+                f"""
+                <div style="
+                    border: 2px solid {module['border']};
+                    border-radius: 12px;
+                    padding: 20px 16px 12px;
+                    text-align: center;
+                    background: linear-gradient(135deg, {module['color']}12, {module['color']}04);
+                    margin-bottom: 8px;
+                ">
+                    <div style="font-size: 2.2rem; margin-bottom: 6px">{module['icon']}</div>
+                    <div style="font-weight: 700; font-size: 1rem; color: #2c3e50;
+                                margin-bottom: 6px">{module['title']}</div>
+                    <div style="color: #777; font-size: 0.82rem; line-height: 1.4">
+                        {module['description']}
+                    </div>
                 </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        if st.button(
-            f"Open {module['title']} →",
-            key=f"nav_{idx}",
-            use_container_width=True
-        ):
-            st.switch_page(module["page"])
+                """,
+                unsafe_allow_html=True
+            )
+            if st.button(
+                f"Open {module['title']} →",
+                key=f"nav_{idx}",
+                use_container_width=True
+            ):
+                st.switch_page(module["page"])
 
 # -----------------------
 # Footer
