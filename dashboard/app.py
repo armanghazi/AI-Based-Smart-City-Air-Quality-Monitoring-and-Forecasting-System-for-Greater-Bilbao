@@ -285,7 +285,7 @@ st.divider()
 st.markdown("### 🧭 Navigate to Module")
 st.caption(
     "Explore detailed analyses: Air Quality Monitoring, "
-    "Temporal Trends, Urban Risk Index, Weather Drivers & Air Pollution Dynamics"
+    "Temporal Trends, Urban Risk Index, Weather Drivers & Air Pollution Dynamics,Forecasting"
 )
 
 NAV_MODULES = [
