@@ -321,6 +321,14 @@ NAV_MODULES = [
         "color":       "#d35400",
         "border":      "#b94600",
     },
+    {
+        "icon":        "🔮",
+        "title":       "Forecasting",
+        "description": "ML predictions · Next-day & multi-day · XGBoost models",
+        "page":        "pages/5_Forecasting.py",
+        "color":       "#16a085",
+        "border":      "#0e6655",
+    }
 ]
 
 nav_cols = st.columns(4)
