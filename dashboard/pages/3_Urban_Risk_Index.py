@@ -512,7 +512,7 @@ with tab_risk:
                               annotation_text="2× WHO", annotation_position="top")
         fig_bar.update_layout(showlegend=True, height=400,
                               margin=dict(l=10, r=60, t=40, b=10))
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar,  width="stretch")
 
     with c_right:
         cats = ["PM2.5 ratio", "PM10 ratio", "NO₂ ratio"]
@@ -537,7 +537,7 @@ with tab_risk:
             height=400,
             margin=dict(l=30, r=30, t=60, b=30)
         )
-        st.plotly_chart(fig_radar, use_container_width=True)
+        st.plotly_chart(fig_radar,  width="stretch")
 
     # Grouped bar — by zone
     st.markdown("#### Zone-level Pollutant Comparison")
@@ -574,7 +574,7 @@ with tab_risk:
                     annotation_text=f"WHO {p}", annotation_font_size=10
                 )
         fig_zone_poll.update_layout(height=320)
-        st.plotly_chart(fig_zone_poll, use_container_width=True)
+        st.plotly_chart(fig_zone_poll,  width="stretch")
 
     # Individual pollutant means per station
     st.markdown("#### Individual Pollutant Annual Means vs WHO Guideline")
@@ -609,7 +609,7 @@ with tab_risk:
                 annotation_text=f"WHO {p}", annotation_font_size=9
             )
     fig_grouped.update_layout(height=360)
-    st.plotly_chart(fig_grouped, use_container_width=True)
+    st.plotly_chart(fig_grouped,  width="stretch")
 
     # SO2
     st.markdown("#### SO₂ Short-Term Pressure")
@@ -625,7 +625,7 @@ with tab_risk:
         text_auto=".1%"
     )
     fig_so2.update_layout(height=320)
-    st.plotly_chart(fig_so2, use_container_width=True)
+    st.plotly_chart(fig_so2,  width="stretch")
 
 
 # ==================== TAB 3: TRENDS ====================
@@ -657,7 +657,7 @@ with tab_trend:
                 annotation_text=f"WHO {WHO_ANNUAL[poll_day]} µg/m³"
             )
         fig_snap.update_layout(height=380)
-        st.plotly_chart(fig_snap, use_container_width=True)
+        st.plotly_chart(fig_snap,  width="stretch")
 
     else:
         st.markdown("### Trends — stations colored by zone")
@@ -723,7 +723,7 @@ with tab_trend:
                 annotation_position="bottom right"
             )
         fig_trend.update_layout(height=420, hovermode="x unified")
-        st.plotly_chart(fig_trend, use_container_width=True)
+        st.plotly_chart(fig_trend,  width="stretch")
 
         # Zone-level trend (Year mode only)
         if time_mode == "Year":
@@ -748,7 +748,7 @@ with tab_trend:
                     annotation_text=f"WHO {WHO_ANNUAL[pollutant_choice]} µg/m³"
                 )
             fig_zone_trend.update_layout(height=360, hovermode="x unified")
-            st.plotly_chart(fig_zone_trend, use_container_width=True)
+            st.plotly_chart(fig_zone_trend,  width="stretch")
 
             # City-wide rolling area chart
             st.markdown("### City-wide monthly average (3-month rolling)")
@@ -779,7 +779,7 @@ with tab_trend:
                 height=380, hovermode="x unified",
                 legend=dict(orientation="h", y=1.05)
             )
-            st.plotly_chart(fig_area, use_container_width=True)
+            st.plotly_chart(fig_area,  width="stretch")
 
 
 # ==================== TAB 4: SEASONAL ====================
@@ -816,7 +816,7 @@ with tab_seasonal:
             annotation_text="WHO limit"
         )
     fig_zone_season.update_layout(height=360, hovermode="x unified")
-    st.plotly_chart(fig_zone_season, use_container_width=True)
+    st.plotly_chart(fig_zone_season,  width="stretch")
 
     # Station-level seasonality
     st.markdown("### Monthly seasonality by station")
@@ -853,7 +853,7 @@ with tab_seasonal:
             annotation_text="WHO limit"
         )
     fig_season.update_layout(height=400, hovermode="x unified")
-    st.plotly_chart(fig_season, use_container_width=True)
+    st.plotly_chart(fig_season,  width="stretch")
 
     # Heatmap: station × month
     st.markdown("### Station × Month heatmap")
@@ -881,7 +881,7 @@ with tab_seasonal:
         labels={"color": f"{poll_s} µg/m³"}
     )
     fig_hm.update_layout(height=340, margin=dict(l=10, r=10, t=50, b=10))
-    st.plotly_chart(fig_hm, use_container_width=True)
+    st.plotly_chart(fig_hm,  width="stretch")
 
 
 # ==================== TAB 5: TABLE ====================
@@ -966,7 +966,7 @@ with tab_table:
         height=380, hovermode="x unified",
         legend=dict(orientation="h", y=1.05)
     )
-    st.plotly_chart(fig_raw, use_container_width=True)
+    st.plotly_chart(fig_raw,  width="stretch")
 
     with st.expander("Show raw daily data"):
-        st.dataframe(raw, use_container_width=True, hide_index=True)
+        st.dataframe(raw,  width="stretch", hide_index=True)

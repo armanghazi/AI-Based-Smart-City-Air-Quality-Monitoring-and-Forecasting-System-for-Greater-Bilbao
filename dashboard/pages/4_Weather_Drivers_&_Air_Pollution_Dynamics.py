@@ -241,7 +241,7 @@ with tab1:
             title="Pollutant × Weather (focus view)"
         )
         fig_focus.update_layout(height=320, margin=dict(t=50, b=10, l=10, r=10))
-        st.plotly_chart(fig_focus, use_container_width=True)
+        st.plotly_chart(fig_focus,  width="stretch")
 
     with col_full:
         st.markdown("#### Strongest pairs")
@@ -282,7 +282,7 @@ with tab1:
             title="Full Correlation Matrix"
         )
         fig_full_m.update_layout(height=500)
-        st.plotly_chart(fig_full_m, use_container_width=True)
+        st.plotly_chart(fig_full_m,  width="stretch")
 
 # ==================== TAB 2: WEATHER RELATIONSHIPS ====================
 with tab2:
@@ -347,7 +347,7 @@ with tab2:
             annotation_text=f"WHO {y_var}", annotation_font_size=10
         )
     fig_sc.update_layout(height=420, hovermode="closest")
-    st.plotly_chart(fig_sc, use_container_width=True)
+    st.plotly_chart(fig_sc,  width="stretch")
 
     st.info(
         f"Pearson correlation between **{x_var}** and **{y_var}**: **{corr_val:.3f}**"
@@ -411,7 +411,7 @@ with tab2:
                 }
             )
             fig_rose.update_layout(height=420)
-            st.plotly_chart(fig_rose, use_container_width=True)
+            st.plotly_chart(fig_rose,  width="stretch")
 
         with col_r2:
             fig_speed_rose = px.bar_polar(
@@ -426,7 +426,7 @@ with tab2:
                 }
             )
             fig_speed_rose.update_layout(height=420)
-            st.plotly_chart(fig_speed_rose, use_container_width=True)
+            st.plotly_chart(fig_speed_rose,  width="stretch")
 
     # --------------------------------------------------
     # Wind Components (Wind_X / Wind_Y) vs Pollution
@@ -463,7 +463,7 @@ with tab2:
                 )
             fig_wc.update_layout(height=380)
             with wc_cols[idx]:
-                st.plotly_chart(fig_wc, use_container_width=True)
+                st.plotly_chart(fig_wc,  width="stretch")
     else:
         st.info(
             "Wind_X and Wind_Y columns not found. "
@@ -512,7 +512,7 @@ with tab3:
                 labels={"Concentration": "µg/m³"}
             )
             fig_seas.update_layout(height=380)
-            st.plotly_chart(fig_seas, use_container_width=True)
+            st.plotly_chart(fig_seas,  width="stretch")
 
         with col_s2:
             fig_sw = make_subplots(specs=[[{"secondary_y": True}]])
@@ -542,7 +542,7 @@ with tab3:
                 height=380, hovermode="x unified",
                 legend=dict(orientation="h", y=1.08)
             )
-            st.plotly_chart(fig_sw, use_container_width=True)
+            st.plotly_chart(fig_sw,  width="stretch")
 
         # Zone × Season heatmap
         st.markdown("#### Zone × Season heatmap")
@@ -565,7 +565,7 @@ with tab3:
             title=f"{seas_poll} µg/m³ — Zone × Season"
         )
         fig_zs.update_layout(height=280)
-        st.plotly_chart(fig_zs, use_container_width=True)
+        st.plotly_chart(fig_zs,  width="stretch")
 
         with st.expander("📊 Full seasonal statistics"):
             st.dataframe(seasonal.set_index("season"), use_container_width=True)
@@ -629,7 +629,7 @@ with tab4:
             height=400,
             yaxis=dict(range=[-0.1, max(lag_df["r"].max() * 1.2, 0.5)])
         )
-        st.plotly_chart(fig_lag, use_container_width=True)
+        st.plotly_chart(fig_lag,  width="stretch")
 
         # ── Rolling Mean ───────────────────────────────────────
         st.markdown("#### Rolling Mean Features")
@@ -665,14 +665,14 @@ with tab4:
                 texttemplate="%{text:.3f}", textposition="outside"
             )
             fig_roll.update_layout(height=360, showlegend=False)
-            st.plotly_chart(fig_roll, use_container_width=True)
+            st.plotly_chart(fig_roll,  width="stretch")
         else:
             st.info(f"No rolling mean columns found for {lag_poll}.")
 
         with st.expander("📊 Lag correlation table"):
             st.dataframe(
                 lag_df.set_index("Lag feature"),
-                use_container_width=True
+                 width="stretch"
             )
     else:
         st.warning(f"No lag columns found for {lag_poll}.")
@@ -744,7 +744,7 @@ with tab5:
         margin=dict(l=10, r=60, t=50, b=10),
         yaxis=dict(autorange="reversed")
     )
-    st.plotly_chart(fig_feat, use_container_width=True)
+    st.plotly_chart(fig_feat,  width="stretch")
 
     st.markdown("#### Summary by feature category")
     cat_summary = (

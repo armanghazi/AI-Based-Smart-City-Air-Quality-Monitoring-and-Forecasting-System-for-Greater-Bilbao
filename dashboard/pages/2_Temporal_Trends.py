@@ -287,7 +287,7 @@ if time_mode == "Day":
                 annotation_font_size=11
             )
         fig_day.update_layout(height=380)
-        st.plotly_chart(fig_day, use_container_width=True)
+        st.plotly_chart(fig_day,  width="stretch")
 
 else:
     # ---- Annual Trend ----
@@ -367,7 +367,7 @@ else:
             annotation_font_size=11
         )
     fig_trend.update_layout(height=380, hovermode="x unified")
-    st.plotly_chart(fig_trend, use_container_width=True)
+    st.plotly_chart(fig_trend,  width="stretch")
 
     # ---- Monthly Seasonality (only in Year mode) ----
     if time_mode == "Year":
@@ -429,7 +429,7 @@ else:
                 annotation_font_size=11
             )
 
-        st.plotly_chart(fig_monthly, use_container_width=True)
+        st.plotly_chart(fig_monthly,  width="stretch")
 
 # -----------------------
 # Station Comparison (ALL stations, Year mode only)
@@ -469,7 +469,7 @@ if filter_mode == "Station" and selected_station == "ALL" and time_mode == "Year
             annotation_font_size=11
         )
     fig_comp.update_layout(height=420, hovermode="x unified")
-    st.plotly_chart(fig_comp, use_container_width=True)
+    st.plotly_chart(fig_comp,  width="stretch")
 
 # -----------------------
 # COVID Impact (Year mode only, full dataset)
@@ -518,7 +518,7 @@ if time_mode == "Year":
                 annotation_text=f"WHO {who_limit} µg/m³",
                 annotation_font_size=11
             )
-        st.plotly_chart(fig_covid, use_container_width=True)
+        st.plotly_chart(fig_covid,  width="stretch")
 
     else:
         covid_stats = (
@@ -580,7 +580,7 @@ if time_mode == "Year":
                     annotation_text=f"WHO {who_limit} µg/m³",
                     annotation_font_size=11
                 )
-            st.plotly_chart(fig_covid, use_container_width=True)
+            st.plotly_chart(fig_covid,  width="stretch")
 
         with col_table:
             st.markdown("**Statistics by period**")

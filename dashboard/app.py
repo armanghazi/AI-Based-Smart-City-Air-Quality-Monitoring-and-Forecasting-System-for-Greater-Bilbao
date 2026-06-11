@@ -226,7 +226,7 @@ with col_left:
         hovermode="x unified",
         legend=dict(orientation="h", y=1.08)
     )
-    st.plotly_chart(fig_trend, use_container_width=True)
+    st.plotly_chart(fig_trend,  width="stretch")
 
 with col_right:
     st.markdown("#### 🏙️ Station Status — Latest Year")
@@ -275,7 +275,7 @@ with col_right:
         legend=dict(orientation="h", y=1.08, font=dict(size=10)),
         xaxis_range=[0, max(station_latest["Score"].max() * 1.2, 250)]
     )
-    st.plotly_chart(fig_status, use_container_width=True)
+    st.plotly_chart(fig_status,  width="stretch")
 
 st.divider()
 

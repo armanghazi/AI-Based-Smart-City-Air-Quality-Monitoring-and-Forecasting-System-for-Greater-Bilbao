@@ -369,7 +369,7 @@ with tab2:
             xaxis_title="Date", yaxis_title=f"{sel_pollutant} (µg/m³)",
             legend=dict(orientation="h", y=1.05),
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2,  width="stretch")
 
         # Forecast table
         st.markdown("#### Forecast values")
