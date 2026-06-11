@@ -328,8 +328,19 @@ NAV_MODULES = [
         "page":        "pages/5_Forecasting.py",
         "color":       "#16a085",
         "border":      "#0e6655",
+    },
+    {
+        "icon":        "🏛️",
+        "title":       "Smart City Decision Support",
+        "description": "Risk prioritization · Exportable reports",
+        "page":        "pages/6_Smart_City_Decision_Support.py",
+        "color":       "#f1c40f",
+        "border":      "#d4ac0d",
     }
 ]
+
+
+
 
 N_COLS = 3
 
