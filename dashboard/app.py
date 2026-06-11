@@ -341,7 +341,6 @@ NAV_MODULES = [
 
 
 
-
 N_COLS = 3
 
 for i in range(0, len(NAV_MODULES), N_COLS):
