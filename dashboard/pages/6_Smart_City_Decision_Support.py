@@ -361,7 +361,7 @@ with tab_forecast:
         # Shared colour scale — identical to the risk map above for consistency.
         _IDW_CS = [
             [0.00, "#2ecc71"],   # 0× — green
-            [0.48, "#7fd957"],   # کمی above 0× — light green 
+            [0.48, "#7fd957"],   # above 0× — light green 
             [0.50, "#f4d03f"],   #  1× WHO — yellow
             [0.65, "#e67e22"],   # ~1.3× — orange
             [0.85, "#e74c3c"],   # ~1.7× — red
