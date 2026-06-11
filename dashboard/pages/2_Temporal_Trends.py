@@ -589,7 +589,7 @@ if time_mode == "Year":
                 display_stats[col] = display_stats[col].round(2)
             st.dataframe(
                 display_stats,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 column_config={
                     "Mean": st.column_config.ProgressColumn(
@@ -600,3 +600,4 @@ if time_mode == "Year":
                     )
                 }
             )
+

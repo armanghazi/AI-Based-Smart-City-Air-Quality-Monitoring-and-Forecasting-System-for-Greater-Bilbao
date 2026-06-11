@@ -264,7 +264,7 @@ with tab1:
         pairs_df.index += 1
         st.dataframe(
             pairs_df,
-            use_container_width=True,
+            width="stretch",
             column_config={
                 "r": st.column_config.ProgressColumn(
                     "Correlation (r)", min_value=-1, max_value=1, format="%.3f"
@@ -568,7 +568,7 @@ with tab3:
         st.plotly_chart(fig_zs,  width="stretch")
 
         with st.expander("📊 Full seasonal statistics"):
-            st.dataframe(seasonal.set_index("season"), use_container_width=True)
+            st.dataframe(seasonal.set_index("season"), width="stretch")
 
 # ==================== TAB 4: LAG ANALYSIS ====================
 with tab4:
@@ -754,16 +754,18 @@ with tab5:
         .round(3)
         .sort_values("Avg |r|", ascending=False)
     )
-    st.dataframe(cat_summary, use_container_width=True)
+    st.dataframe(cat_summary, width="stretch")
 
     with st.expander("📊 Full feature ranking table"):
         st.dataframe(
             corr_target.drop(columns="abs_r"),
-            use_container_width=True,
+            width="stretch",
             column_config={
                 "r": st.column_config.ProgressColumn(
                     "Correlation (r)", min_value=-1, max_value=1, format="%.3f"
                 )
             }
         )
+
+
 

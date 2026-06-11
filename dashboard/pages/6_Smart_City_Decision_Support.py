@@ -12,7 +12,7 @@ from config import (
     POLLUTANT_COLOR, ZONE_META, RISK_COLORS,
     classify_core_risk, risk_color,
 )
-from forecast_utils import prepare_features  # shared with 5_Forecasting.py
+from forecast_utils import prepare_features  
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -41,68 +41,6 @@ def model_path(pollutant: str) -> Path:
 def load_model(pollutant: str):
     path = model_path(pollutant)
     return joblib.load(path) if path.exists() else None
-
-
-# --------------------------------------------------
-# FEATURE PREPARATION (same logic as 5_Forecasting)
-# --------------------------------------------------
-
-def prepare_features(df: pd.DataFrame, required_features: list,
-                     station_codes: dict | None = None) -> pd.DataFrame:
-    """Build every feature the models need (mirrors page 5).
-    station_codes: global {station -> code} mapping from the full frame.
-    """
-    df = df.copy()
-
-    if "wind_u" not in df.columns and "Wind_X" in df.columns:
-        df["wind_u"] = df["Wind_X"]
-    if "wind_v" not in df.columns and "Wind_Y" in df.columns:
-        df["wind_v"] = df["Wind_Y"]
-
-    df["year"]         = df["Date"].dt.year
-    df["month"]        = df["Date"].dt.month
-    df["day"]          = df["Date"].dt.day
-    df["day_of_year"]  = df["Date"].dt.dayofyear
-    df["week_of_year"] = df["Date"].dt.isocalendar().week.astype(int)
-    df["day_of_week"]  = df["Date"].dt.dayofweek
-    df["is_weekend"]   = (df["Date"].dt.weekday >= 5).astype(int)
-
-    # Season → int regardless of incoming dtype (object / string[pyarrow] / numeric)
-    season_to_int = {"Winter": 0, "Spring": 1, "Summer": 2, "Autumn": 3}
-    season_str = df["season"].astype(str).str.capitalize()
-    mapped = season_str.map(season_to_int)
-    month_season = df["Date"].dt.month.map(
-        {12: 0, 1: 0, 2: 0, 3: 1, 4: 1, 5: 1,
-         6: 2, 7: 2, 8: 2, 9: 3, 10: 3, 11: 3}
-    )
-    df["season"] = mapped.fillna(month_season).fillna(0).astype(int)
-
- # station_code MUST use the global training mapping, never a per-subset one.
-    # On a single-station frame .cat.codes collapses to 0 -> silent mismatch
-    # with the codes the model saw at training (built over all 7 stations).
-    if station_codes is not None:
-        df["station_code"] = df["station"].map(station_codes).fillna(-1).astype(int)
-    else:
-        df["station_code"] = df["station"].astype("category").cat.codes
-
-    for pollutant in POLLUTANTS:
-        prefix = pollutant.replace(".", "")
-        col = f"{prefix}_roll_mean_14"
-        if col not in df.columns:
-            df[col] = (
-                df.groupby("station")[pollutant]
-                .transform(lambda x: x.shift(1).rolling(14, min_periods=1).mean())
-            )
-
-    df["wind_x_precip"] = df["WindSpeed"] * df["Precipitation"]
-    df["temp_x_humid"]  = df["Temperature"] * df["Humidity"]
-
-    for feat in required_features:
-        if feat not in df.columns:
-            df[feat] = 0.0
-        df[feat] = pd.to_numeric(df[feat], errors="coerce").fillna(0)
-
-    return df
 
 
 # --------------------------------------------------
@@ -714,3 +652,4 @@ with tab_action:
         "Data: Basque Government air-quality network + Open-Meteo (CC BY 4.0) · "
         "Forecasts: XGBoost next-day models (see Forecasting page for validation)."
     )
+

@@ -907,7 +907,7 @@ with tab_table:
 
     st.dataframe(
         display_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "CoreRiskScore": st.column_config.ProgressColumn(
@@ -930,7 +930,7 @@ with tab_table:
             .agg(["mean", "min", "max"])
             .round(2)
         )
-        st.dataframe(zone_comp, use_container_width=True)
+        st.dataframe(zone_comp, width="stretch")
 
     st.markdown("---")
     st.markdown("### Daily raw data explorer")
@@ -970,3 +970,4 @@ with tab_table:
 
     with st.expander("Show raw daily data"):
         st.dataframe(raw,  width="stretch", hide_index=True)
+

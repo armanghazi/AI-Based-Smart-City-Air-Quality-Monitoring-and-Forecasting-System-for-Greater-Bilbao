@@ -68,7 +68,8 @@ Next-day pollutant concentration forecasting: `target(t+1) = pollutant(t+1)` per
 | **PM10**  | 0.460     | 6.26         | 4.45        | Dust events add variability                  |
 | **SO₂**   | 0.390     | 1.87         | 1.23        | Hardest — episodic industrial/port emissions |
 
-Production model: **XGBoost** (one model per pollutant, saved as joblib bundles with feature lists and metrics in `models/`).
+Production model: **XGBoost** — one model per pollutant, **62 features each**
+(verified), saved as joblib bundles with feature lists and metrics in `models/`.
 
 ### Methodological Rigor
 

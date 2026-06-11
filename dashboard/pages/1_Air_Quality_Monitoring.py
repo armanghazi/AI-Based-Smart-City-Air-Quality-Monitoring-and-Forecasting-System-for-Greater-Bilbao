@@ -412,7 +412,7 @@ ranking["Quality"] = ranking[pollutant].apply(lambda v: get_quality_label(v, pol
 
 st.dataframe(
     ranking[["station", "Town", "Zone", pollutant, "Quality"]],
-    use_container_width=True,
+    width="stretch",
     column_config={
         pollutant: st.column_config.ProgressColumn(
             f"{pollutant} (µg/m³)",
@@ -443,4 +443,6 @@ with st.expander("📊 Zone Comparison Table"):
         .round(2)
         .reset_index()
     )
-    st.dataframe(zone_summary, use_container_width=True)
+    st.dataframe(zone_summary, width="stretch")
+
+
