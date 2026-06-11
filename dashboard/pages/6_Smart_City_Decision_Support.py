@@ -12,7 +12,8 @@ from config import (
     POLLUTANT_COLOR, ZONE_META, RISK_COLORS,
     classify_core_risk, risk_color,
 )
-from forecast_utils import prepare_features  
+from forecast_utils import prepare_features
+from spatial_utils import idw_grid
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -332,6 +333,103 @@ with tab_forecast:
             coloraxis_colorbar=dict(title="× WHO"),
         )
         st.plotly_chart(fig_map, width="stretch")
+
+        # ==================================================
+        # IDW INTERPOLATION SURFACE
+        # ==================================================
+
+        st.markdown("## 🌡️ Interpolated Forecast Surface (IDW)")
+        st.caption(
+            "⚠️ **Interpolated surface (IDW) from 7 station forecasts — "
+            "colour = worst-case forecast ratio (× WHO limit), same scale as markers. "
+            "Visual approximation only: terrain, local sources, and road density are not modelled.**"
+        )
+
+        _lats   = map_df["Latitude"].values
+        _lons   = map_df["Longitude"].values
+        _ratios = map_df["MaxRatio"].values
+
+  
+        _grid_lats, _grid_lons, _z_grid = idw_grid(_lats, _lons, _ratios)
+
+        # Flatten the regular grid to lists for the Scattermapbox surface layer.
+        _glat_mesh, _glon_mesh = np.meshgrid(_grid_lats, _grid_lons, indexing="ij")
+        _flat_lats = _glat_mesh.ravel()
+        _flat_lons = _glon_mesh.ravel()
+        _flat_z    = _z_grid.ravel()
+
+        # Shared colour scale — identical to the risk map above for consistency.
+        _IDW_CS = [
+            [0.00, "#2ecc71"],   # 0× — green
+            [0.48, "#7fd957"],   # کمی above 0× — light green 
+            [0.50, "#f4d03f"],   #  1× WHO — yellow
+            [0.65, "#e67e22"],   # ~1.3× — orange
+            [0.85, "#e74c3c"],   # ~1.7× — red
+            [1.00, "#c0392b"],   # 2× — dark red 
+        ]
+
+        fig_idw = go.Figure()
+
+        # Layer 1: IDW value surface.
+        # Each grid point is coloured by its interpolated MaxRatio value (same quantity
+        # as the station markers), NOT by KDE density.  size=8px at zoom 10 covers one
+        # grid step (~0.004°, ~3 px) with 2-3 px overlap so there are no visible gaps.
+        fig_idw.add_trace(go.Scattermapbox(
+            lat=_flat_lats,
+            lon=_flat_lons,
+            mode="markers",
+            marker=dict(
+                size=20,
+                color=_flat_z,
+                colorscale=_IDW_CS,
+                cmin=0,
+                cmax=2,
+                opacity=0.65,
+                showscale=True,
+                colorbar=dict(title="× WHO"),
+            ),
+            hoverinfo="skip",
+            name="IDW surface",
+        ))
+
+        # Layer 2: station markers on top showing actual forecast values.
+        fig_idw.add_trace(go.Scattermapbox(
+            lat=map_df["Latitude"],
+            lon=map_df["Longitude"],
+            mode="markers+text",
+            marker=dict(
+                size=16,
+                color=map_df["MaxRatio"],
+                colorscale=_IDW_CS,
+                cmin=0,
+                cmax=2,
+                showscale=False,
+                
+            ),
+            text=map_df["Station"],
+            textposition="top center",
+            customdata=map_df[["MaxRatio"]].values,
+            hovertemplate=(
+                "<b>%{text}</b><br>"
+                "Max forecast: %{customdata[0]:.2f}× WHO<extra></extra>"
+            ),
+            name="Station forecasts",
+        ))
+
+        fig_idw.update_layout(
+            mapbox_style="open-street-map",
+            mapbox=dict(
+                center=dict(
+                    lat=float(map_df["Latitude"].mean()),
+                    lon=float(map_df["Longitude"].mean()),
+                ),
+                zoom=10,
+            ),
+            height=500,
+            margin=dict(l=0, r=0, t=10, b=0),
+            showlegend=False,
+        )
+        st.plotly_chart(fig_idw, width="stretch")
 
     st.divider()
 
