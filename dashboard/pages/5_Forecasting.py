@@ -12,6 +12,7 @@ from config import (
     ZONE_META, get_zone,
 )
 
+
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
@@ -50,87 +51,10 @@ def load_model(pollutant: str):
 
 
 # --------------------------------------------------
-# FEATURE PREPARATION
+# FEATURE PREPARATION (shared — see dashboard/forecast_utils.py)
 # --------------------------------------------------
 
-def prepare_features(df: pd.DataFrame, required_features: list,
-                     station_codes: dict | None = None) -> pd.DataFrame:
-    """
-    Build every feature the model needs, matching the exact names/order
-    used at training time. The dashboard's config.load_data() does not
-    create all of them, so we fill the gaps here.
-    """
-    df = df.copy()
-
-    # --- Wind components: model expects wind_u / wind_v ---
-    # config renames them to Wind_X / Wind_Y but keeps originals; ensure presence
-    if "wind_u" not in df.columns and "Wind_X" in df.columns:
-        df["wind_u"] = df["Wind_X"]
-    if "wind_v" not in df.columns and "Wind_Y" in df.columns:
-        df["wind_v"] = df["Wind_Y"]
-
-    # --- Lowercase time features (model uses lowercase) ---
-    df["year"]        = df["Date"].dt.year
-    df["month"]       = df["Date"].dt.month
-    df["day"]         = df["Date"].dt.day
-    df["day_of_year"] = df["Date"].dt.dayofyear
-    df["week_of_year"] = df["Date"].dt.isocalendar().week.astype(int)
-    df["day_of_week"] = df["Date"].dt.dayofweek
-    df["is_weekend"]  = (df["Date"].dt.weekday >= 5).astype(int)
-
-    # Season → int. config.py makes it a capitalized string; model needs numeric.
-    # Always remap (don't rely on dtype check), and fall back to month-derived season.
-    # Season → int. Handle ANY type (object, string[pyarrow], already-numeric).
-    
-    season_to_int = {"Winter": 0, "Spring": 1, "Summer": 2, "Autumn": 3}
-
-    # Try string mapping first
-    season_str = df["season"].astype(str).str.capitalize()
-    mapped = season_str.map(season_to_int)
-
-    # Fallback: derive from month for anything unmapped
-    month_season = df["Date"].dt.month.map(
-        {12: 0, 1: 0, 2: 0, 3: 1, 4: 1, 5: 1,
-        6: 2, 7: 2, 8: 2, 9: 3, 10: 3, 11: 3}
-    )
-    df["season"] = mapped.fillna(month_season).fillna(0).astype(int)
-
-    # --- station_code ---
-    # MUST use the global training mapping. On a single-station frame
-    # .cat.codes collapses to 0 -> silent mismatch with training codes.
-    if station_codes is not None:
-        df["station_code"] = df["station"].map(station_codes).fillna(-1).astype(int)
-    else:
-        df["station_code"] = df["station"].astype("category").cat.codes
-
-    # --- Missing rolling window: config skips 14, model needs it ---
-    for pollutant in POLLUTANTS:
-        prefix = pollutant.replace(".", "")
-        col = f"{prefix}_roll_mean_14"
-        if col not in df.columns:
-            df[col] = (
-                df.groupby("station")[pollutant]
-                .transform(lambda x: x.shift(1).rolling(14, min_periods=1).mean())
-            )
-
-    # --- Interaction features ---
-    df["wind_x_precip"] = df["WindSpeed"] * df["Precipitation"]
-    df["temp_x_humid"]  = df["Temperature"] * df["Humidity"]
-
-    # --- Any remaining required feature that's still missing → fill with 0 ---
-    for feat in required_features:
-        if feat not in df.columns:
-            df[feat] = 0.0
-
-    # Final safety: force every model feature to numeric
-    for feat in required_features:
-        if feat in df.columns:
-            if df[feat].dtype == bool:
-                df[feat] = df[feat].astype(int)
-            elif not pd.api.types.is_numeric_dtype(df[feat]):
-                df[feat] = pd.to_numeric(df[feat], errors="coerce").fillna(0)
-    
-    return df
+from forecast_utils import prepare_features
 
 
 # --------------------------------------------------
