@@ -150,334 +150,564 @@ with st.sidebar:
 window_start = latest_date - pd.Timedelta(days=window_days)
 recent = df[df["Date"] >= window_start].copy()
 
-# ==================================================
-# SECTION 1 — CITY-WIDE STATUS (KPI row)
-# ==================================================
+tab_status, tab_forecast, tab_action = st.tabs([
+    "🚦 Current Status",
+    "🔮 Forecast & Map",
+    "🎯 Decisions & Actions",
+])
+with tab_status:
+    # ==================================================
+    # SECTION 1 — CITY-WIDE STATUS (KPI row)
+    # ==================================================
 
-st.markdown(f"## 🚦 City-Wide Status — {window_label}")
+    st.markdown(f"## 🚦 City-Wide Status — {window_label}")
 
-# Mean per station/pollutant over the window
-station_means = (
-    recent.groupby(["station", "Zone"])[POLLUTANTS]
-    .mean()
-    .reset_index()
+    # Mean per station/pollutant over the window
+    station_means = (
+        recent.groupby(["station", "Zone"])[POLLUTANTS]
+        .mean()
+        .reset_index()
+    )
+
+    # Composite risk score per station: mean(value / WHO limit) over core pollutants × 100
+    def composite_score(row) -> float:
+        ratios = [row[p] / WHO_ANNUAL[p] for p in CORE_POLLUTANTS]
+        return float(np.mean(ratios) * 100)
+
+    station_means["RiskScore"] = station_means.apply(composite_score, axis=1)
+    station_means["RiskLevel"] = station_means["RiskScore"].apply(classify_core_risk)
+    station_means = station_means.sort_values("RiskScore", ascending=False)
+
+    n_above = (station_means["RiskScore"] >= 100).sum()
+    worst_station = station_means.iloc[0]
+
+    # Worst pollutant city-wide (highest mean WHO ratio)
+    city_ratios = {
+        p: recent[p].mean() / WHO_ANNUAL[p] for p in CORE_POLLUTANTS
+    }
+    worst_pollutant = max(city_ratios, key=city_ratios.get)
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Stations above WHO", f"{n_above} / {len(station_means)}")
+    k2.metric("Highest-risk station", worst_station["station"],
+            f"{worst_station['RiskScore']:.0f} risk score",
+            delta_color="inverse")
+    k3.metric("Most critical pollutant", worst_pollutant,
+            f"{city_ratios[worst_pollutant]:.1f}× WHO limit",
+            delta_color="inverse")
+    k4.metric("Observations analyzed", f"{len(recent):,}")
+
+    st.divider()
+
+
+    # ==================================================
+    # SECTION 4 — STATION RISK PRIORITIZATION
+    # ==================================================
+
+    st.markdown(f"## 📊 Station Risk Prioritization — {window_label}")
+    st.caption(
+        "Composite risk = mean of (concentration ÷ WHO limit) across PM2.5, PM10, "
+        "NO₂ · ×100. Below 100 = within guidelines."
+    )
+
+    col_t, col_c = st.columns([3, 2])
+
+    with col_t:
+        display = station_means.copy()
+        display["Rank"] = range(1, len(display) + 1)
+        display = display[["Rank", "station", "Zone", "PM2.5", "PM10",
+                        "NO2", "SO2", "RiskScore", "RiskLevel"]]
+        display[POLLUTANTS] = display[POLLUTANTS].round(1)
+        display["RiskScore"] = display["RiskScore"].round(0).astype(int)
+
+        st.dataframe(
+            display,
+            width="stretch", hide_index=True,
+            column_config={
+                "RiskScore": st.column_config.ProgressColumn(
+                    "Risk Score", min_value=0, max_value=300, format="%d"
+                )
+            },
+        )
+
+    with col_c:
+        fig_rank = go.Figure(go.Bar(
+            x=station_means["RiskScore"],
+            y=station_means["station"],
+            orientation="h",
+            marker_color=[risk_color(s) for s in station_means["RiskScore"]],
+            text=station_means["RiskScore"].round(0).astype(int),
+            textposition="outside",
+        ))
+        fig_rank.add_vline(x=100, line_dash="dash", line_color="#555",
+                        annotation_text="WHO")
+        fig_rank.update_layout(
+            height=340, margin=dict(l=10, r=40, t=30, b=10),
+            xaxis_title="Composite risk score",
+            yaxis=dict(autorange="reversed"),
+            title="Priority ranking",
+        )
+        st.plotly_chart(fig_rank, width="stretch")
+
+    st.divider()
+
+with tab_forecast:
+    # ==================================================
+    # SECTION 2 — TOMORROW'S FORECAST ALERTS
+    # ==================================================
+
+    st.markdown("## 🔮 Next-Day Forecast Alerts")
+    st.caption(
+        "XGBoost forecasts from the latest available data for every station and "
+        "pollutant. Limits: WHO 2021 annual guidelines (SO₂: 24-hour guideline)."
+    )
+
+    # Load all 4 models once
+    bundles = {p: load_model(p) for p in POLLUTANTS}
+    missing_models = [p for p, b in bundles.items() if b is None]
+
+    if missing_models:
+        st.warning(f"Models not found for: {', '.join(missing_models)}")
+
+    alerts = []
+    for station in sorted(df["station"].unique()):
+        sdf = df[df["station"] == station].sort_values("Date")
+
+        for pollutant in POLLUTANTS:
+            bundle = bundles.get(pollutant)
+            if bundle is None:
+                continue
+
+            feats = bundle["features"]
+            prep = prepare_features(sdf, feats, station_codes=STATION_CODES)
+            valid = prep.dropna(subset=feats)
+            if valid.empty:
+                continue
+
+            X_last = valid[feats].iloc[[-1]]
+            pred = float(bundle["model"].predict(X_last)[0])
+            pred = max(pred, 0.0)
+
+            limit = WHO_SO2_DAILY if pollutant == "SO2" else WHO_ANNUAL.get(pollutant)
+            alerts.append({
+                "Station":    station,
+                "Zone":       sdf["Zone"].iloc[-1],
+                "Pollutant":  pollutant,
+                "Forecast":   round(pred, 1),
+                "WHO limit":  limit,
+                "Ratio":      round(pred / limit, 2) if limit else None,
+                "Status":     "⚠️ Above WHO" if limit and pred > limit else "✅ OK",
+            })
+
+    alerts_df = pd.DataFrame(alerts)
+
+    if not alerts_df.empty:
+        exceed = alerts_df[alerts_df["Status"].str.contains("Above")]
+
+        if exceed.empty:
+            st.success("✅ No WHO exceedances forecast for tomorrow at any station.")
+        else:
+            st.error(
+                f"⚠️ {len(exceed)} forecast exceedance(s) tomorrow — "
+                f"stations: {', '.join(exceed['Station'].unique())}"
+            )
+
+        # Heatmap: forecast ratio per station × pollutant
+        pivot = alerts_df.pivot(index="Station", columns="Pollutant", values="Ratio")
+        pivot = pivot[POLLUTANTS]
+
+        fig_hm = px.imshow(
+            pivot,
+            color_continuous_scale=["#2ecc71", "#f9ca24", "#e74c3c"],
+            zmin=0, zmax=2,
+            text_auto=".2f",
+            aspect="auto",
+            title="Tomorrow's forecast as ratio of WHO limit (>1 = exceedance)",
+        )
+        fig_hm.update_layout(height=340, margin=dict(t=50, b=10))
+        st.plotly_chart(fig_hm, width="stretch")
+
+        with st.expander("📋 Full forecast table"):
+            st.dataframe(
+                alerts_df.sort_values("Ratio", ascending=False),
+                width="stretch", hide_index=True,
+            )
+
+    st.divider()
+
+    # ==================================================
+    # SECTION 3 — GeoAI RISK MAP (next-day forecast)
+    # ==================================================
+
+    st.markdown("## 🗺️ GeoAI Risk Map — Tomorrow's Forecast")
+    st.caption(
+        "Marker colour = worst-case forecast as a ratio of the WHO limit "
+        "(max across the 4 pollutants). >1 = exceedance."
+    )
+
+    if alerts_df.empty:
+        st.info("No forecasts available to map.")
+    else:
+        # Worst-case ratio per station (max over pollutants — keeps SO2's 24h limit in play)
+        station_risk = (
+            alerts_df.groupby("Station", as_index=False)["Ratio"].max()
+            .rename(columns={"Ratio": "MaxRatio"})
+        )
+
+        # Coordinates + zone, one row per station (latest known)
+        coords = (
+            df.sort_values("Date")
+            .groupby("station", as_index=False)
+            .agg(Latitude=("Latitude", "last"),
+                Longitude=("Longitude", "last"),
+                Zone=("Zone", "last"))
+            .rename(columns={"station": "Station"})
+        )
+        map_df = station_risk.merge(coords, on="Station", how="left")
+
+        # Tier label from ratio (consistent with the WHO-ratio logic, not raw values)
+        def risk_tier(r: float) -> str:
+            if r > 2:   return "🔴 High"
+            if r > 1:   return "🟡 Moderate"
+            return "🟢 Low"
+        map_df["Tier"] = map_df["MaxRatio"].apply(risk_tier)
+
+        fig_map = px.scatter_mapbox(
+            map_df,
+            lat="Latitude", lon="Longitude",
+            color="MaxRatio",
+            color_continuous_scale=["#2ecc71", "#f9ca24", "#e74c3c"],
+            range_color=[0, 2],
+            hover_name="Station",
+            hover_data={"Zone": True, "Tier": True, "MaxRatio": ":.2f",
+                        "Latitude": False, "Longitude": False},
+            zoom=10,
+            center=dict(lat=map_df["Latitude"].mean(),
+                        lon=map_df["Longitude"].mean()),
+            height=460,
+        )
+        fig_map.update_traces(marker=dict(size=18))
+        fig_map.update_layout(
+            mapbox_style="open-street-map",          # tokenless, Streamlit-Cloud safe
+            margin=dict(l=0, r=0, t=10, b=0),
+            coloraxis_colorbar=dict(title="× WHO"),
+        )
+        st.plotly_chart(fig_map, width="stretch")
+
+    st.divider()
+
+with tab_action:
+
+    zone_means = (
+    recent.groupby("Zone")[POLLUTANTS].mean().round(1)
+    .reindex([z for z in ZONE_META if z in recent["Zone"].unique()])
 )
+    
 
-# Composite risk score per station: mean(value / WHO limit) over core pollutants × 100
-def composite_score(row) -> float:
-    ratios = [row[p] / WHO_ANNUAL[p] for p in CORE_POLLUTANTS]
-    return float(np.mean(ratios) * 100)
+     # ==================================================
+    # SECTION 6 — SCENARIO SIMULATOR
+    # ==================================================
 
-station_means["RiskScore"] = station_means.apply(composite_score, axis=1)
-station_means["RiskLevel"] = station_means["RiskScore"].apply(classify_core_risk)
-station_means = station_means.sort_values("RiskScore", ascending=False)
+    st.markdown("## 🧪 Scenario Simulator")
+    st.caption(
+        "Explore how the composite risk score responds to interventions. "
+        "Two modes with different epistemic status — read the labels."
+    )
 
-n_above = (station_means["RiskScore"] >= 100).sum()
-worst_station = station_means.iloc[0]
+    sim_mode = st.radio(
+        "Simulation mode",
+        ["Model-based counterfactual", "Policy elasticity assumption"],
+        horizontal=True,
+    )
 
-# Worst pollutant city-wide (highest mean WHO ratio)
-city_ratios = {
-    p: recent[p].mean() / WHO_ANNUAL[p] for p in CORE_POLLUTANTS
-}
-worst_pollutant = max(city_ratios, key=city_ratios.get)
+    sim_station = st.selectbox(
+        "Station to simulate", sorted(df["station"].unique()), key="sim_station"
+    )
 
-k1, k2, k3, k4 = st.columns(4)
-k1.metric("Stations above WHO", f"{n_above} / {len(station_means)}")
-k2.metric("Highest-risk station", worst_station["station"],
-          f"{worst_station['RiskScore']:.0f} risk score",
-          delta_color="inverse")
-k3.metric("Most critical pollutant", worst_pollutant,
-          f"{city_ratios[worst_pollutant]:.1f}× WHO limit",
-          delta_color="inverse")
-k4.metric("Observations analyzed", f"{len(recent):,}")
+    sdf_sim = df[df["station"] == sim_station].sort_values("Date")
 
-st.divider()
-
-# ==================================================
-# SECTION 2 — TOMORROW'S FORECAST ALERTS
-# ==================================================
-
-st.markdown("## 🔮 Next-Day Forecast Alerts")
-st.caption(
-    "XGBoost forecasts from the latest available data for every station and "
-    "pollutant. Limits: WHO 2021 annual guidelines (SO₂: 24-hour guideline)."
-)
-
-# Load all 4 models once
-bundles = {p: load_model(p) for p in POLLUTANTS}
-missing_models = [p for p, b in bundles.items() if b is None]
-
-if missing_models:
-    st.warning(f"Models not found for: {', '.join(missing_models)}")
-
-alerts = []
-for station in sorted(df["station"].unique()):
-    sdf = df[df["station"] == station].sort_values("Date")
-
+    # --- Baseline forecast for all 4 pollutants at this station ---
+    baseline = {}
     for pollutant in POLLUTANTS:
         bundle = bundles.get(pollutant)
         if bundle is None:
             continue
-
         feats = bundle["features"]
-        prep = prepare_features(sdf, feats, station_codes=STATION_CODES)
+        prep = prepare_features(sdf_sim, feats, station_codes=STATION_CODES)
         valid = prep.dropna(subset=feats)
         if valid.empty:
             continue
-
         X_last = valid[feats].iloc[[-1]]
-        pred = float(bundle["model"].predict(X_last)[0])
-        pred = max(pred, 0.0)
+        baseline[pollutant] = max(float(bundle["model"].predict(X_last)[0]), 0.0)
 
-        limit = WHO_SO2_DAILY if pollutant == "SO2" else WHO_ANNUAL.get(pollutant)
-        alerts.append({
-            "Station":    station,
-            "Zone":       sdf["Zone"].iloc[-1],
-            "Pollutant":  pollutant,
-            "Forecast":   round(pred, 1),
-            "WHO limit":  limit,
-            "Ratio":      round(pred / limit, 2) if limit else None,
-            "Status":     "⚠️ Above WHO" if limit and pred > limit else "✅ OK",
-        })
 
-alerts_df = pd.DataFrame(alerts)
+    def composite_from_preds(pred_dict: dict) -> float:
+        """Composite risk score from a {pollutant: value} dict — core pollutants only."""
+        ratios = [pred_dict[p] / WHO_ANNUAL[p] for p in CORE_POLLUTANTS if p in pred_dict]
+        return float(np.mean(ratios) * 100) if ratios else 0.0
 
-if not alerts_df.empty:
-    exceed = alerts_df[alerts_df["Status"].str.contains("Above")]
 
-    if exceed.empty:
-        st.success("✅ No WHO exceedances forecast for tomorrow at any station.")
-    else:
-        st.error(
-            f"⚠️ {len(exceed)} forecast exceedance(s) tomorrow — "
-            f"stations: {', '.join(exceed['Station'].unique())}"
+    baseline_score = composite_from_preds(baseline)
+
+    # ----------------------------------------------------------
+    if sim_mode == "Model-based counterfactual":
+        st.info(
+            "🟢 **Honest what-if:** perturbs features the model actually uses "
+            "(weather + today's levels), then re-runs `model.predict()`. "
+            "This is a real model output."
         )
 
-    # Heatmap: forecast ratio per station × pollutant
-    pivot = alerts_df.pivot(index="Station", columns="Pollutant", values="Ratio")
-    pivot = pivot[POLLUTANTS]
+        c1, c2, c3 = st.columns(3)
+        wind_mult   = c1.slider("Wind speed ×", 0.5, 2.0, 1.0, 0.1)
+        precip_mult = c2.slider("Precipitation ×", 0.0, 3.0, 1.0, 0.1)
+        today_mult  = c3.slider("Today's pollutant level ×", 0.5, 1.5, 1.0, 0.05)
 
-    fig_hm = px.imshow(
-        pivot,
-        color_continuous_scale=["#2ecc71", "#f9ca24", "#e74c3c"],
-        zmin=0, zmax=2,
-        text_auto=".2f",
-        aspect="auto",
-        title="Tomorrow's forecast as ratio of WHO limit (>1 = exceedance)",
-    )
-    fig_hm.update_layout(height=340, margin=dict(t=50, b=10))
-    st.plotly_chart(fig_hm, width="stretch")
+        scenario = {}
+        for pollutant in POLLUTANTS:
+            bundle = bundles.get(pollutant)
+            if bundle is None:
+                continue
+            feats = bundle["features"]
+            prep = prepare_features(sdf_sim, feats, station_codes=STATION_CODES)
+            valid = prep.dropna(subset=feats)
+            if valid.empty:
+                continue
 
-    with st.expander("📋 Full forecast table"):
-        st.dataframe(
-            alerts_df.sort_values("Ratio", ascending=False),
-            width="stretch", hide_index=True,
+            row = valid.iloc[[-1]].copy()
+            # Perturb only real model features
+            if "WindSpeed" in row:     row["WindSpeed"]   *= wind_mult
+            if "Precipitation" in row: row["Precipitation"] *= precip_mult
+            if pollutant in row:       row[pollutant]      *= today_mult
+            # Rebuild interactions that depend on perturbed inputs
+            if "wind_x_precip" in feats:
+                row["wind_x_precip"] = row["WindSpeed"] * row["Precipitation"]
+
+            X = row[feats]
+            scenario[pollutant] = max(float(bundle["model"].predict(X)[0]), 0.0)
+
+        scenario_score = composite_from_preds(scenario)
+
+    else:  # Policy elasticity assumption
+        st.warning(
+            "🟡 **Policy elasticity — NOT a model prediction.** The model has no "
+            "traffic/emission features, so this applies an *assumed* linear "
+            "response (e.g. −20% traffic → −20% NO₂). Use for illustrative "
+            "policy framing only; the elasticity is a stated assumption."
         )
 
-st.divider()
+        c1, c2 = st.columns(2)
+        traffic_cut    = c1.slider("Traffic reduction (%)", 0, 50, 0, 5)
+        emission_cut   = c2.slider("Industrial emission reduction (%)", 0, 50, 0, 5)
 
-# ==================================================
-# SECTION 3 — GeoAI RISK MAP (next-day forecast)
-# ==================================================
+        # Stated, explicit elasticities — not 1:1, to avoid the "where did 20→20 come from" trap
+        NO2_ELASTICITY  = 0.7   # assumption: NO2 ~70% traffic-attributable
+        PM_ELASTICITY   = 0.4   # assumption: PM partly traffic, partly background
+        SO2_ELASTICITY  = 0.6   # assumption: SO2 ~industrial-attributable
 
-st.markdown("## 🗺️ GeoAI Risk Map — Tomorrow's Forecast")
-st.caption(
-    "Marker colour = worst-case forecast as a ratio of the WHO limit "
-    "(max across the 4 pollutants). >1 = exceedance."
-)
+        scenario = dict(baseline)
+        if "NO2" in scenario:
+            scenario["NO2"]   *= (1 - NO2_ELASTICITY  * traffic_cut  / 100)
+        if "PM2.5" in scenario:
+            scenario["PM2.5"] *= (1 - PM_ELASTICITY   * traffic_cut  / 100)
+        if "PM10" in scenario:
+            scenario["PM10"]  *= (1 - PM_ELASTICITY   * traffic_cut  / 100)
+        if "SO2" in scenario:
+            scenario["SO2"]   *= (1 - SO2_ELASTICITY  * emission_cut / 100)
 
-if alerts_df.empty:
-    st.info("No forecasts available to map.")
-else:
-    # Worst-case ratio per station (max over pollutants — keeps SO2's 24h limit in play)
-    station_risk = (
-        alerts_df.groupby("Station", as_index=False)["Ratio"].max()
-        .rename(columns={"Ratio": "MaxRatio"})
-    )
+        scenario_score = composite_from_preds(scenario)
 
-    # Coordinates + zone, one row per station (latest known)
-    coords = (
-        df.sort_values("Date")
-        .groupby("station", as_index=False)
-        .agg(Latitude=("Latitude", "last"),
-             Longitude=("Longitude", "last"),
-             Zone=("Zone", "last"))
-        .rename(columns={"station": "Station"})
-    )
-    map_df = station_risk.merge(coords, on="Station", how="left")
+    # ----------------------------------------------------------
+    # Results
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Baseline risk score", f"{baseline_score:.0f}")
+    m2.metric("Scenario risk score", f"{scenario_score:.0f}")
+    delta = (scenario_score - baseline_score) / baseline_score * 100 if baseline_score else 0
+    m3.metric("Change", f"{delta:+.1f}%", delta_color="inverse")
 
-    # Tier label from ratio (consistent with the WHO-ratio logic, not raw values)
-    def risk_tier(r: float) -> str:
-        if r > 2:   return "🔴 High"
-        if r > 1:   return "🟡 Moderate"
-        return "🟢 Low"
-    map_df["Tier"] = map_df["MaxRatio"].apply(risk_tier)
+    # Per-pollutant comparison
+    comp = pd.DataFrame({
+        "Pollutant": [p for p in POLLUTANTS if p in baseline],
+        "Baseline":  [round(baseline[p], 1) for p in POLLUTANTS if p in baseline],
+        "Scenario":  [round(scenario.get(p, baseline[p]), 1) for p in POLLUTANTS if p in baseline],
+    })
+    st.dataframe(comp, width="stretch", hide_index=True)
 
-    fig_map = px.scatter_mapbox(
-        map_df,
-        lat="Latitude", lon="Longitude",
-        color="MaxRatio",
-        color_continuous_scale=["#2ecc71", "#f9ca24", "#e74c3c"],
-        range_color=[0, 2],
-        hover_name="Station",
-        hover_data={"Zone": True, "Tier": True, "MaxRatio": ":.2f",
-                    "Latitude": False, "Longitude": False},
-        zoom=10,
-        center=dict(lat=map_df["Latitude"].mean(),
-                    lon=map_df["Longitude"].mean()),
-        height=460,
-    )
-    fig_map.update_traces(marker=dict(size=18))
-    fig_map.update_layout(
-        mapbox_style="open-street-map",          # tokenless, Streamlit-Cloud safe
-        margin=dict(l=0, r=0, t=10, b=0),
-        coloraxis_colorbar=dict(title="× WHO"),
-    )
-    st.plotly_chart(fig_map, width="stretch")
+    st.divider()
 
-st.divider()
+    # ==================================================
+    # SECTION 4.75 — EXECUTIVE SUMMARY
+    # ==================================================
 
-# ==================================================
-# SECTION 4 — STATION RISK PRIORITIZATION
-# ==================================================
+    st.markdown("## 📋 Executive Summary")
 
-st.markdown(f"## 📊 Station Risk Prioritization — {window_label}")
-st.caption(
-    "Composite risk = mean of (concentration ÷ WHO limit) across PM2.5, PM10, "
-    "NO₂ · ×100. Below 100 = within guidelines."
-)
-
-col_t, col_c = st.columns([3, 2])
-
-with col_t:
-    display = station_means.copy()
-    display["Rank"] = range(1, len(display) + 1)
-    display = display[["Rank", "station", "Zone", "PM2.5", "PM10",
-                       "NO2", "SO2", "RiskScore", "RiskLevel"]]
-    display[POLLUTANTS] = display[POLLUTANTS].round(1)
-    display["RiskScore"] = display["RiskScore"].round(0).astype(int)
-
-    st.dataframe(
-        display,
-        width="stretch", hide_index=True,
-        column_config={
-            "RiskScore": st.column_config.ProgressColumn(
-                "Risk Score", min_value=0, max_value=300, format="%d"
+    # Pull together values already computed above — no new calculations.
+    worst_zone_line = ""
+    if not zone_means.empty:
+        # Zone whose key pollutant is furthest above its WHO limit
+        zone_ratios = {}
+        for zone, meta in ZONE_META.items():
+            if zone not in zone_means.index:
+                continue
+            key_p = meta["key_pollutant"]
+            lim = WHO_SO2_DAILY if key_p == "SO2" else WHO_ANNUAL.get(key_p)
+            if lim:
+                zone_ratios[zone] = zone_means.loc[zone, key_p] / lim
+        if zone_ratios:
+            top_zone = max(zone_ratios, key=zone_ratios.get)
+            worst_zone_line = (
+                f"The **{top_zone}** zone shows the highest pressure on its key "
+                f"pollutant ({ZONE_META[top_zone]['key_pollutant']}, "
+                f"{zone_ratios[top_zone]:.1f}× WHO)."
             )
-        },
-    )
 
-with col_c:
-    fig_rank = go.Figure(go.Bar(
-        x=station_means["RiskScore"],
-        y=station_means["station"],
-        orientation="h",
-        marker_color=[risk_color(s) for s in station_means["RiskScore"]],
-        text=station_means["RiskScore"].round(0).astype(int),
-        textposition="outside",
-    ))
-    fig_rank.add_vline(x=100, line_dash="dash", line_color="#555",
-                       annotation_text="WHO")
-    fig_rank.update_layout(
-        height=340, margin=dict(l=10, r=40, t=30, b=10),
-        xaxis_title="Composite risk score",
-        yaxis=dict(autorange="reversed"),
-        title="Priority ranking",
-    )
-    st.plotly_chart(fig_rank, width="stretch")
+    # Forecast exceedance line (from Section 2)
+    if not alerts_df.empty and not exceed.empty:
+        forecast_line = (
+            f"Tomorrow's forecast flags **{len(exceed)} WHO exceedance(s)** "
+            f"at: {', '.join(exceed['Station'].unique())}."
+        )
+    elif not alerts_df.empty:
+        forecast_line = "No WHO exceedances are forecast for tomorrow at any station."
+    else:
+        forecast_line = "Forecast data unavailable."
 
-st.divider()
+    summary = f"""
+    Over the **{window_label.lower()}**, **{n_above} of {len(station_means)}**
+    monitoring stations exceeded WHO annual guidelines on the composite risk
+    index. The highest-risk station is **{worst_station['station']}**
+    ({worst_station['Zone']} zone) with a composite score of
+    **{worst_station['RiskScore']:.0f}**, and the most critical pollutant
+    city-wide is **{worst_pollutant}** at
+    **{city_ratios[worst_pollutant]:.1f}× the WHO limit**.
 
-# ==================================================
-# SECTION 4 — ZONE-LEVEL RECOMMENDATIONS
-# ==================================================
+    {worst_zone_line}
 
-st.markdown("## 🗺️ Zone Recommendations")
-
-ZONE_ACTIONS = {
-    "Urban": (
-        "Traffic management is the primary lever: low-emission zones, "
-        "public-transport incentives, and rush-hour restrictions target the "
-        "dominant NO₂ signal."
-    ),
-    "Industrial": (
-        "Coordinate with industrial operators on emission controls and "
-        "monitor PM episodes; prioritize continuous stack monitoring."
-    ),
-    "Port": (
-        "Shore-power (cold ironing) for docked vessels and cleaner marine "
-        "fuels address the SO₂ contribution from port activity."
-    ),
-    "Coastal": (
-        "Favourable dispersion keeps levels lower; maintain monitoring and "
-        "protect green buffers."
-    ),
-    "Refinery": (
-        "Episodic SO₂/PM peaks require event-based alerting rather than "
-        "annual averages; coordinate maintenance windows with forecast "
-        "conditions (low-wind days are highest risk)."
-    ),
-}
-
-zone_means = (
-    recent.groupby("Zone")[POLLUTANTS].mean().round(1)
-    .reindex([z for z in ZONE_META if z in recent["Zone"].unique()])
-)
-
-for zone, meta in ZONE_META.items():
-    if zone not in zone_means.index:
-        continue
-    zrow = zone_means.loc[zone]
-    key_p = meta["key_pollutant"]
-    limit = WHO_SO2_DAILY if key_p == "SO2" else WHO_ANNUAL.get(key_p)
-    ratio = zrow[key_p] / limit if limit else None
+    {forecast_line}
+    """
 
     with st.container(border=True):
-        c1, c2 = st.columns([1, 3])
-        with c1:
-            st.markdown(f"### {meta['icon']} {zone}")
-            st.metric(
-                f"Key pollutant: {key_p}",
-                f"{zrow[key_p]:.1f} µg/m³",
-                f"{ratio:.1f}× WHO" if ratio else None,
-                delta_color="inverse" if ratio and ratio > 1 else "normal",
-            )
-        with c2:
-            st.markdown(f"**Profile:** {meta['description']}")
-            st.markdown(f"**Recommended action:** {ZONE_ACTIONS.get(zone, '—')}")
+        st.markdown(summary)
+        st.caption(
+            "Auto-generated from the current analysis window and latest forecasts. "
+            f"Window: {window_label} · Latest data: {latest_date.strftime('%d %b %Y')}."
+        )
 
-st.divider()
+    st.divider()
 
-# ==================================================
-# SECTION 5 — EXPORT
-# ==================================================
+    # ==================================================
+    # SECTION 5 — ZONE-LEVEL RECOMMENDATIONS
+    # ==================================================
 
-st.markdown("## 📥 Export for Reporting")
+    st.markdown("## 🗺️ Zone Recommendations")
 
-e1, e2 = st.columns(2)
+    # Zone determines the TYPE of action; ratio determines the TIER (urgency/intensity).
+    ZONE_ACTION_TIERS = {
+        "Urban": {
+            "low":  "Maintain routine traffic monitoring; no intervention needed.",
+            "mid":  "Promote public transport and soft mobility during peak hours; "
+                    "monitor the NO₂ weekly cycle.",
+            "high": "Activate low-emission-zone enforcement and rush-hour restrictions; "
+                    "issue public NO₂ advisories.",
+        },
+        "Industrial": {
+            "low":  "Routine stack monitoring; no escalation.",
+            "mid":  "Increase inspection frequency; coordinate with operators on PM episodes.",
+            "high": "Enforce temporary emission controls; mandatory continuous stack "
+                    "monitoring; investigate PM source episodes.",
+        },
+        "Port": {
+            "low":  "Standard port-activity monitoring.",
+            "mid":  "Encourage cleaner marine fuels for docked vessels.",
+            "high": "Prioritize shore-power (cold ironing) for berthed ships; "
+                    "restrict high-sulphur fuel use during episodes.",
+        },
+        "Coastal": {
+            "low":  "Favourable dispersion; maintain baseline monitoring.",
+            "mid":  "Watch for marine-PM10 transport events; protect green buffers.",
+            "high": "Unusual for this zone — verify sensors, then treat as a "
+                    "transport/dust episode.",
+        },
+        "Refinery": {
+            "low":  "Routine SO₂ monitoring; refinery operating normally.",
+            "mid":  "Increase SO₂ sampling cadence; flag upcoming low-wind days.",
+            "high": "Event-based alerting: coordinate refinery maintenance windows "
+                    "with forecast; notify sensitive population near Petronor.",
+        },
+    }
 
-with e1:
-    csv_priority = display.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        "⬇️ Station risk ranking (CSV)",
-        data=csv_priority,
-        file_name=f"risk_ranking_{latest_date.strftime('%Y%m%d')}.csv",
-        mime="text/csv",
-        width="stretch",
-    )
 
-with e2:
-    if not alerts_df.empty:
-        csv_alerts = alerts_df.to_csv(index=False).encode("utf-8")
+    def action_tier(ratio: float) -> str:
+        """Map a WHO ratio to an urgency tier."""
+        if ratio is None:
+            return "low"
+        if ratio > 2:
+            return "high"
+        if ratio > 1:
+            return "mid"
+        return "low"
+
+
+    for zone, meta in ZONE_META.items():
+        if zone not in zone_means.index:
+            continue
+        zrow = zone_means.loc[zone]
+        key_p = meta["key_pollutant"]
+        limit = WHO_SO2_DAILY if key_p == "SO2" else WHO_ANNUAL.get(key_p)
+        ratio = zrow[key_p] / limit if limit else None
+
+        with st.container(border=True):
+            c1, c2 = st.columns([1, 3])
+            with c1:
+                st.markdown(f"### {meta['icon']} {zone}")
+                st.metric(
+                    f"Key pollutant: {key_p}",
+                    f"{zrow[key_p]:.1f} µg/m³",
+                    f"{ratio:.1f}× WHO" if ratio else None,
+                    delta_color="inverse" if ratio and ratio > 1 else "normal",
+                )
+            with c2:
+                st.markdown(f"**Profile:** {meta['description']}")
+
+                tier = action_tier(ratio)   # ratio already computed just above
+                tier_badge = {"low": "🟢 Routine", "mid": "🟡 Elevated",
+                            "high": "🔴 Action required"}[tier]
+                action_text = ZONE_ACTION_TIERS.get(zone, {}).get(tier, "—")
+
+                st.markdown(f"**Status:** {tier_badge}")
+                st.markdown(f"**Recommended action:** {action_text}")
+    st.divider()
+
+   
+    # ==================================================
+    # SECTION 8 — EXPORT
+    # ==================================================
+
+    st.markdown("## 📥 Export for Reporting")
+
+    e1, e2 = st.columns(2)
+
+    with e1:
+        csv_priority = display.to_csv(index=False).encode("utf-8")
         st.download_button(
-            "⬇️ Tomorrow's forecast alerts (CSV)",
-            data=csv_alerts,
-            file_name=f"forecast_alerts_{latest_date.strftime('%Y%m%d')}.csv",
+            "⬇️ Station risk ranking (CSV)",
+            data=csv_priority,
+            file_name=f"risk_ranking_{latest_date.strftime('%Y%m%d')}.csv",
             mime="text/csv",
             width="stretch",
         )
 
-st.caption(
-    "Data: Basque Government air-quality network + Open-Meteo (CC BY 4.0) · "
-    "Forecasts: XGBoost next-day models (see Forecasting page for validation)."
-)
+    with e2:
+        if not alerts_df.empty:
+            csv_alerts = alerts_df.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                "⬇️ Tomorrow's forecast alerts (CSV)",
+                data=csv_alerts,
+                file_name=f"forecast_alerts_{latest_date.strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                width="stretch",
+            )
+
+    st.caption(
+        "Data: Basque Government air-quality network + Open-Meteo (CC BY 4.0) · "
+        "Forecasts: XGBoost next-day models (see Forecasting page for validation)."
+    )
