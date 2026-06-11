@@ -46,8 +46,11 @@ def load_model(pollutant: str):
 # FEATURE PREPARATION (same logic as 5_Forecasting)
 # --------------------------------------------------
 
-def prepare_features(df: pd.DataFrame, required_features: list) -> pd.DataFrame:
-    """Build every feature the models need (mirrors page 5)."""
+def prepare_features(df: pd.DataFrame, required_features: list,
+                     station_codes: dict | None = None) -> pd.DataFrame:
+    """Build every feature the models need (mirrors page 5).
+    station_codes: global {station -> code} mapping from the full frame.
+    """
     df = df.copy()
 
     if "wind_u" not in df.columns and "Wind_X" in df.columns:
@@ -73,7 +76,13 @@ def prepare_features(df: pd.DataFrame, required_features: list) -> pd.DataFrame:
     )
     df["season"] = mapped.fillna(month_season).fillna(0).astype(int)
 
-    df["station_code"] = df["station"].astype("category").cat.codes
+ # station_code MUST use the global training mapping, never a per-subset one.
+    # On a single-station frame .cat.codes collapses to 0 -> silent mismatch
+    # with the codes the model saw at training (built over all 7 stations).
+    if station_codes is not None:
+        df["station_code"] = df["station"].map(station_codes).fillna(-1).astype(int)
+    else:
+        df["station_code"] = df["station"].astype("category").cat.codes
 
     for pollutant in POLLUTANTS:
         prefix = pollutant.replace(".", "")
@@ -101,6 +110,10 @@ def prepare_features(df: pd.DataFrame, required_features: list) -> pd.DataFrame:
 
 df = load_data()
 latest_date = df["Date"].max()
+
+# Stable station_code mapping — reproduces training codes.
+# (.astype('category').cat.codes assigns codes in sorted order over the full set)
+STATION_CODES = {s: i for i, s in enumerate(sorted(df["station"].unique()))}
 
 # --------------------------------------------------
 # HEADER
@@ -207,7 +220,7 @@ for station in sorted(df["station"].unique()):
             continue
 
         feats = bundle["features"]
-        prep = prepare_features(sdf, feats)
+        prep = prepare_features(sdf, feats, station_codes=STATION_CODES)
         valid = prep.dropna(subset=feats)
         if valid.empty:
             continue
@@ -264,7 +277,68 @@ if not alerts_df.empty:
 st.divider()
 
 # ==================================================
-# SECTION 3 — STATION RISK PRIORITIZATION
+# SECTION 3 — GeoAI RISK MAP (next-day forecast)
+# ==================================================
+
+st.markdown("## 🗺️ GeoAI Risk Map — Tomorrow's Forecast")
+st.caption(
+    "Marker colour = worst-case forecast as a ratio of the WHO limit "
+    "(max across the 4 pollutants). >1 = exceedance."
+)
+
+if alerts_df.empty:
+    st.info("No forecasts available to map.")
+else:
+    # Worst-case ratio per station (max over pollutants — keeps SO2's 24h limit in play)
+    station_risk = (
+        alerts_df.groupby("Station", as_index=False)["Ratio"].max()
+        .rename(columns={"Ratio": "MaxRatio"})
+    )
+
+    # Coordinates + zone, one row per station (latest known)
+    coords = (
+        df.sort_values("Date")
+        .groupby("station", as_index=False)
+        .agg(Latitude=("Latitude", "last"),
+             Longitude=("Longitude", "last"),
+             Zone=("Zone", "last"))
+        .rename(columns={"station": "Station"})
+    )
+    map_df = station_risk.merge(coords, on="Station", how="left")
+
+    # Tier label from ratio (consistent with the WHO-ratio logic, not raw values)
+    def risk_tier(r: float) -> str:
+        if r > 2:   return "🔴 High"
+        if r > 1:   return "🟡 Moderate"
+        return "🟢 Low"
+    map_df["Tier"] = map_df["MaxRatio"].apply(risk_tier)
+
+    fig_map = px.scatter_mapbox(
+        map_df,
+        lat="Latitude", lon="Longitude",
+        color="MaxRatio",
+        color_continuous_scale=["#2ecc71", "#f9ca24", "#e74c3c"],
+        range_color=[0, 2],
+        hover_name="Station",
+        hover_data={"Zone": True, "Tier": True, "MaxRatio": ":.2f",
+                    "Latitude": False, "Longitude": False},
+        zoom=10,
+        center=dict(lat=map_df["Latitude"].mean(),
+                    lon=map_df["Longitude"].mean()),
+        height=460,
+    )
+    fig_map.update_traces(marker=dict(size=18))
+    fig_map.update_layout(
+        mapbox_style="open-street-map",          # tokenless, Streamlit-Cloud safe
+        margin=dict(l=0, r=0, t=10, b=0),
+        coloraxis_colorbar=dict(title="× WHO"),
+    )
+    st.plotly_chart(fig_map, width="stretch")
+
+st.divider()
+
+# ==================================================
+# SECTION 4 — STATION RISK PRIORITIZATION
 # ==================================================
 
 st.markdown(f"## 📊 Station Risk Prioritization — {window_label}")

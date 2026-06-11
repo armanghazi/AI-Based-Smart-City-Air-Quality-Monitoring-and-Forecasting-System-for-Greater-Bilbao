@@ -53,7 +53,8 @@ def load_model(pollutant: str):
 # FEATURE PREPARATION
 # --------------------------------------------------
 
-def prepare_features(df: pd.DataFrame, required_features: list) -> pd.DataFrame:
+def prepare_features(df: pd.DataFrame, required_features: list,
+                     station_codes: dict | None = None) -> pd.DataFrame:
     """
     Build every feature the model needs, matching the exact names/order
     used at training time. The dashboard's config.load_data() does not
@@ -95,7 +96,12 @@ def prepare_features(df: pd.DataFrame, required_features: list) -> pd.DataFrame:
     df["season"] = mapped.fillna(month_season).fillna(0).astype(int)
 
     # --- station_code ---
-    df["station_code"] = df["station"].astype("category").cat.codes
+    # MUST use the global training mapping. On a single-station frame
+    # .cat.codes collapses to 0 -> silent mismatch with training codes.
+    if station_codes is not None:
+        df["station_code"] = df["station"].map(station_codes).fillna(-1).astype(int)
+    else:
+        df["station_code"] = df["station"].astype("category").cat.codes
 
     # --- Missing rolling window: config skips 14, model needs it ---
     for pollutant in POLLUTANTS:
@@ -132,14 +138,18 @@ def prepare_features(df: pd.DataFrame, required_features: list) -> pd.DataFrame:
 # --------------------------------------------------
 
 def recursive_forecast(df_station, model, features, pollutant,
-                       horizon=7):
+                       horizon=7, station_codes=None):
     """
     Predict `horizon` days ahead recursively.
     Future weather is approximated by the last known values (held constant) —
     this is a simplification; accuracy degrades as horizon grows.
     Returns a DataFrame: Date, prediction.
+
+    station_codes: global {station -> code} mapping, threaded through to
+    prepare_features so station_code stays consistent with training. Without
+    it, prepare_features runs on a single-station frame and collapses
+    station_code to 0 on every step.
     """
-    prefix = pollutant.replace(".", "")
     work = df_station.sort_values("Date").copy().reset_index(drop=True)
 
     preds = []
@@ -148,7 +158,9 @@ def recursive_forecast(df_station, model, features, pollutant,
     for step in range(1, horizon + 1):
         # Use the most recent row as the basis for the next prediction
         latest = work.iloc[[-1]].copy()
-        latest_prep = prepare_features(work, features).iloc[[-1]]
+        latest_prep = prepare_features(
+            work, features, station_codes=station_codes
+        ).iloc[[-1]]
 
         X = latest_prep[features]
         yhat = float(model.predict(X)[0])
@@ -172,6 +184,9 @@ def recursive_forecast(df_station, model, features, pollutant,
 # --------------------------------------------------
 
 df = load_data()
+
+# Stable station_code mapping — reproduces training codes (sorted order).
+STATION_CODES = {s: i for i, s in enumerate(sorted(df["station"].unique()))}
 
 # --------------------------------------------------
 # HEADER
@@ -248,7 +263,7 @@ with tab1:
     )
 
     # Prepare features and predict on the test period
-    prep = prepare_features(station_df, features)
+    prep = prepare_features(station_df, features, station_codes=STATION_CODES)
     test_period = prep[prep["Date"] >= "2024-01-01"].copy()
     test_period = test_period.dropna(subset=features)
 
@@ -316,14 +331,15 @@ with tab2:
 
     horizon = st.slider("Forecast horizon (days)", 1, 14, 7)
 
-    prep_station = prepare_features(station_df, features)
+    prep_station = prepare_features(station_df, features, station_codes=STATION_CODES)
     valid = prep_station.dropna(subset=features)
 
     if valid.empty:
         st.warning("Not enough complete data to forecast for this station.")
     else:
         fc = recursive_forecast(
-            valid, model, features, sel_pollutant, horizon=horizon
+            valid, model, features, sel_pollutant,
+            horizon=horizon, station_codes=STATION_CODES
         )
 
         # Plot: recent history + forecast
