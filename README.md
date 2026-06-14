@@ -1,4 +1,4 @@
-# 🌍 GeoAI Smart City Platform for Air Quality Monitoring and Forecasting in Greater Bilbao (Under Development)
+﻿# 🌍 GeoAI Smart City Platform for Air Quality Monitoring and Forecasting in Greater Bilbao (Under Development)
 
 ## Overview
 
@@ -57,7 +57,7 @@ Five zones derived from spatial analysis and local domain knowledge:
 
 ### Task
 
-Next-day pollutant concentration forecasting: `target(t+1) = pollutant(t+1)` per station, using today's pollutant levels, meteorology, lag/rolling features, and station encoding (~66 features).
+Next-day pollutant concentration forecasting: `target(t+1) = pollutant(t+1)` per station, using today's pollutant levels, meteorology, lag/rolling features, and station encoding (62 features).
 
 ### Validated Results (held-out test = 2024–2026)
 
@@ -103,7 +103,7 @@ A full methodological comparison on identical splits:
 | 3 · Urban Risk Index                         | ✅         | WHO benchmarking, risk scoring, station ranking                                                                                                   |
 | 4 · Weather Drivers & Air Pollution Dynamics | ✅         | Correlation matrices, wind roses, lag analysis, feature ranking                                                                                   |
 | 5 · Forecasting                              | ✅         | **Next-day backtest** (prediction vs actual on 2024+) + **recursive multi-day forecast** with explicit uncertainty warnings, WHO exceedance flags |
-| 6 · Smart City Decision Support              | 🔄 Planned | Risk prioritization, exportable reports                                                                                                           |
+| 6 · Smart City Decision Support              | ✅         | Risk prioritization, exportable reports                                                                                                           |
 
 ---
 
@@ -125,7 +125,7 @@ project/
 ├── data/
 │   ├── raw/
 │   └── processed/
-│       ├── forecasting_dataset.parquet      # ML-ready (66 features)
+│       ├── forecasting_dataset.parquet      # ML-ready (62 features)
 │       └── air_quality_weather.parquet      # dashboard source
 │
 ├── notebooks/

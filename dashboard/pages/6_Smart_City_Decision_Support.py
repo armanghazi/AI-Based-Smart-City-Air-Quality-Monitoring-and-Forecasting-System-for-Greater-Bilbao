@@ -14,6 +14,11 @@ from config import (
 )
 from forecast_utils import prepare_features
 from spatial_utils import idw_grid
+from gauge_component import render_gauge_row
+from aqi import overall_aqi, compute_aqi_category, AQI_POLLUTANTS, AQI_CATEGORIES
+from aqi_components import (render_aqi_donut, render_station_aqi_cards,
+                            render_aqi_calendar)
+
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -54,6 +59,12 @@ latest_date = df["Date"].max()
 # Stable station_code mapping — reproduces training codes.
 # (.astype('category').cat.codes assigns codes in sorted order over the full set)
 STATION_CODES = {s: i for i, s in enumerate(sorted(df["station"].unique()))}
+
+# Latest-day city-wide mean per pollutant
+latest_day = df[df["Date"] == df["Date"].max()]
+current_values = {
+    p: float(latest_day[p].mean()) for p in ["PM2.5", "PM10", "NO2", "SO2"]
+}
 
 # --------------------------------------------------
 # HEADER
@@ -127,6 +138,12 @@ with tab_status:
     }
     worst_pollutant = max(city_ratios, key=city_ratios.get)
 
+    latest_day = df[df["Date"] == df["Date"].max()]
+    current_values = {p: float(latest_day[p].mean())
+                      for p in ["PM2.5", "PM10", "NO2", "SO2"]}
+    fig_gauges = render_gauge_row(current_values, WHO_ANNUAL, WHO_SO2_DAILY)
+    st.plotly_chart(fig_gauges, width="stretch")
+
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("Stations above WHO", f"{n_above} / {len(station_means)}")
     k2.metric("Highest-risk station", worst_station["station"],
@@ -138,6 +155,100 @@ with tab_status:
     k4.metric("Observations analyzed", f"{len(recent):,}")
 
     st.divider()
+
+    col_d, col_c = st.columns([1, 2])
+    with col_d:
+        render_aqi_donut(current_values, title="City-wide AQI Today")
+        st.caption(
+            "European/ICA standard — 6 levels from Good to Extremely poor. "
+            f"International reference: US EPA AQI ≈ {overall_aqi(current_values).get('epa_aqi', '—')} "
+            f"({overall_aqi(current_values).get('epa_label', '—')}). "
+            "⚠️ Daily-mean approximation — official indices use shorter windows."
+        )
+    with col_c:
+        st.markdown("##### Air quality by station")
+        render_station_aqi_cards(df, n_cols=4)
+
+    st.divider()
+    st.markdown("#### 📅 Pollution Calendar")
+    cc1, cc2 = st.columns(2)
+    with cc1:
+        cal_station = st.selectbox("Station", sorted(df["station"].unique()),
+                                   key="cal_st")
+    with cc2:
+        cal_year = st.selectbox("Year",
+                                sorted(df["Date"].dt.year.unique(), reverse=True),
+                                key="cal_yr")
+    render_aqi_calendar(df, cal_station, cal_year)
+
+    with st.expander("ℹ️ Why two different air quality indicators?"):
+        st.markdown("""
+**AQI (European/ICA)** answers: *"Is the air safe to go outside today?"*
+It uses short-term thresholds calibrated for daily public communication.
+Good = safe for everyone; Extremely poor = health alert.
+
+**WHO Risk Score** answers: *"How far are we from the ideal long-term target?"*
+It compares annual mean concentrations against the WHO 2021 annual guidelines
+(PM2.5=5, PM10=15, NO2=10 µg/m³) — which are very strict.
+
+**Why can they differ?** PM2.5 = 12 µg/m³ →
+AQI says "Fairly good" (within daily safe range) but
+WHO Risk shows 2.4× the annual limit (above the strict ideal).
+Both are correct — they answer different questions.
+
+Most European cities, including healthy ones, routinely exceed WHO annual
+targets. The WHO score tracks progress toward an ambitious public-health goal,
+not a daily alert threshold.
+
+*US EPA reference:* The EPA AQI (0–500 continuous scale) is shown alongside
+the European index as an internationally familiar reference point.
+        """)
+
+    # Latest-day city-wide mean per pollutant (used by existing AQI block below)
+    latest_day = df[df["Date"] == df["Date"].max()]
+    current_values = {
+        p: float(latest_day[p].mean()) for p in ["PM2.5", "PM10", "NO2", "SO2"]
+    }
+
+
+    st.markdown("### 🌍 Air Quality Index (European / Spanish ICA)")
+
+    # Latest-day city-wide mean per pollutant
+    latest_day = df[df["Date"] == df["Date"].max()]
+    city_values = {p: float(latest_day[p].mean()) for p in AQI_POLLUTANTS}
+
+    aqi = overall_aqi(city_values)
+
+    if aqi:
+        st.markdown(
+            f"""
+            <div style="
+                background: {aqi['color']};
+                border-radius: 16px;
+                padding: 24px;
+                text-align: center;
+                color: white;
+                text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            ">
+                <div style="font-size: 1.1rem; opacity: 0.9;">City-wide Air Quality</div>
+                <div style="font-size: 2.6rem; font-weight: 800; margin: 4px 0;">
+                    {aqi['label']}
+                </div>
+                <div style="font-size: 0.95rem;">
+                    Driven by {aqi['driver']} · {aqi['value']} µg/m³
+                </div>
+                <div style="font-size: 0.85rem; margin-top: 8px; opacity: 0.95;">
+                    {aqi['advice']}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.caption(
+        "European Air Quality Index (Spanish ICA methodology) · daily-mean "
+        "approximation · overall level = worst pollutant."
+    )
 
 
     # ==================================================

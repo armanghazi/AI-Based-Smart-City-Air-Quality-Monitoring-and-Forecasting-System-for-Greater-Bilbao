@@ -115,6 +115,11 @@ def overall_aqi(values: dict) -> dict:
 
     result = dict(worst)
     result["driver"] = driver   # the pollutant that determined the AQI
+
+    # EPA AQI — secondary international reference (worst pollutant, same driver)
+    epa_val = compute_epa_aqi(driver, values.get(driver))
+    result["epa_aqi"] = epa_val
+    result["epa_label"] = epa_label(epa_val)
     return result
 
 
@@ -122,3 +127,64 @@ def aqi_color(pollutant: str, value: float) -> str:
     """Convenience: just the hex color for a single pollutant value."""
     cat = compute_aqi_category(pollutant, value)
     return cat["color"] if cat else "#cccccc"
+
+
+# ------------------------------------------------------------------
+# EPA AQI (US — secondary / international reference)
+# ------------------------------------------------------------------
+
+_EPA_BREAKPOINTS: dict[str, list[tuple[float, float, int, int]]] = {
+    "PM2.5": [
+        (0, 12.0, 0, 50), (12.1, 35.4, 51, 100), (35.5, 55.4, 101, 150),
+        (55.5, 150.4, 151, 200), (150.5, 250.4, 201, 300), (250.5, 500.4, 301, 500),
+    ],
+    "PM10": [
+        (0, 54, 0, 50), (55, 154, 51, 100), (155, 254, 101, 150),
+        (255, 354, 151, 200), (355, 424, 201, 300), (425, 604, 301, 500),
+    ],
+    "NO2": [
+        (0, 53, 0, 50), (54, 100, 51, 100), (101, 360, 101, 150),
+        (361, 649, 151, 200), (650, 1249, 201, 300), (1250, 2049, 301, 500),
+    ],
+    "SO2": [
+        (0, 35, 0, 50), (36, 75, 51, 100), (76, 185, 101, 150),
+        (186, 304, 151, 200), (305, 604, 201, 300), (605, 1004, 301, 500),
+    ],
+}
+
+_EPA_LABELS = [
+    (50,  "Good"),
+    (100, "Moderate"),
+    (150, "Unhealthy for Sensitive Groups"),
+    (200, "Unhealthy"),
+    (300, "Very Unhealthy"),
+    (500, "Hazardous"),
+]
+
+
+def compute_epa_aqi(pollutant: str, value: float) -> int | None:
+    """
+    Compute the US EPA AQI for a single pollutant using linear interpolation.
+    Returns a rounded int, or None if the pollutant is unknown or value is
+    outside all defined breakpoint ranges.
+    """
+    breakpoints = _EPA_BREAKPOINTS.get(pollutant)
+    if breakpoints is None or value is None:
+        return None
+
+    for c_low, c_high, i_low, i_high in breakpoints:
+        if c_low <= value <= c_high:
+            aqi = (i_high - i_low) / (c_high - c_low) * (value - c_low) + i_low
+            return round(aqi)
+
+    return None
+
+
+def epa_label(aqi_value: int | None) -> str | None:
+    """Map a numeric EPA AQI to its category label."""
+    if aqi_value is None:
+        return None
+    for threshold, label in _EPA_LABELS:
+        if aqi_value <= threshold:
+            return label
+    return "Hazardous"
