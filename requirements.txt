@@ -8,3 +8,5 @@ joblib
 pyarrow
 statsmodels
 shap
+folium
+streamlit-folium
