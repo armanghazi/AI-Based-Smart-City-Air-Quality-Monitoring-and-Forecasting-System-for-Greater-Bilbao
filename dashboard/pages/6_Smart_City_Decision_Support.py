@@ -383,12 +383,14 @@ with tab_forecast:
             text_auto=".2f",
             aspect="auto",
             title=f"Forecast for {forecast_date.strftime('%d %b %Y')} — ratio of WHO limit (>1 = exceedance)",        )
-        fig_hm.update_layout( side="top",
+       
+        fig_hm.update_xaxes(side="top", ticklabelstandoff=40) 
+        fig_hm.update_layout(
             height=400, 
-            margin=dict(t=120, b=10) # t=120 to accommodate title and x-axis labels
-            )
-        fig_hm.update_layout(height=340, margin=dict(t=80, b=10)) # Corrected margin to avoid cutting off x-axis labels
-        st.plotly_chart(fig_hm, use_container_width=True) # Corrected to use_container_width for better responsiveness   
+            margin=dict(t=120, b=10) # t=120 برای جلوگیری از هم‌پوشانی تایتل و برچسب‌ها
+        )
+
+        st.plotly_chart(fig_hm, use_container_width=True)  
 
         with st.expander("📋 Full forecast table"):
             st.dataframe(
