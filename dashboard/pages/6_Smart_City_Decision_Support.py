@@ -387,8 +387,7 @@ with tab_forecast:
         fig_hm.update_xaxes(side="top", ticklabelstandoff=40) 
         fig_hm.update_layout(
             height=400, 
-            margin=dict(t=120, b=10) # t=120 برای جلوگیری از هم‌پوشانی تایتل و برچسب‌ها
-        )
+            margin=dict(t=120, b=10)              )
 
         st.plotly_chart(fig_hm, use_container_width=True)  
 
