@@ -4,13 +4,13 @@ import pandas as pd
 import streamlit as st
 
 # --------------------------------------------------
-# DATA FILE PATH — مسیر نسبت به محل config.py
+# DATA FILE PATH 
 # --------------------------------------------------
 
-# ROOT = پوشه‌ای که config.py در آن قرار دارد (یعنی dashboard/)
+# ROOT = Path(__file__).parent.parent
 _ROOT = Path(__file__).parent
 
-# مسیر واقعی فایل parquet را اینجا تنظیم کن:
+# --------------------------------------------------
 DATA_FILE = _ROOT.parent / "data" / "processed" / "air_quality_weather.parquet"
 
 # --------------------------------------------------
@@ -149,7 +149,7 @@ def who_delta(val: float, pollutant: str) -> tuple[str | None, str]:
 # SHARED DATA LOADER
 # --------------------------------------------------
 
-@st.cache_data
+@st.cache_data(ttl=3600)  # cache expires every hour
 def load_data() -> pd.DataFrame:
     df = pd.read_parquet(DATA_FILE)
     df["Date"]      = pd.to_datetime(df["Date"])
