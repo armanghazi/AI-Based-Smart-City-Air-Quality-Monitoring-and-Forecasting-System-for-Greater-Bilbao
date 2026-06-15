@@ -361,10 +361,14 @@ with tab_forecast:
         exceed = alerts_df[alerts_df["Status"].str.contains("Above")]
 
         if exceed.empty:
-            st.success("✅ No WHO exceedances forecast for tomorrow at any station.")
+            st.success(
+                f"✅ No WHO exceedances forecast for "
+                f"{forecast_date.strftime('%d %b %Y')} at any station."
+            )
         else:
             st.error(
-                f"⚠️ {len(exceed)} forecast exceedance(s) tomorrow — "
+                f"⚠️ {len(exceed)} forecast exceedance(s) for "
+                f"{forecast_date.strftime('%d %b %Y')} — "
                 f"stations: {', '.join(exceed['Station'].unique())}"
             )
 
@@ -728,7 +732,10 @@ with tab_action:
             f"at: {', '.join(exceed['Station'].unique())}."
         )
     elif not alerts_df.empty:
-        forecast_line = "No WHO exceedances are forecast for tomorrow at any station."
+        forecast_line = (
+            f"No WHO exceedances forecast for "
+            f"{forecast_date.strftime('%d %b %Y')}."
+        )
     else:
         forecast_line = "Forecast data unavailable."
 
