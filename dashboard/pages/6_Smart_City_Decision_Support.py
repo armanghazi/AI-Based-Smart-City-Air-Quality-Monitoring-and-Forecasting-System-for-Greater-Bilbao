@@ -383,7 +383,7 @@ with tab_forecast:
             text_auto=".2f",
             aspect="auto",
             title=f"Forecast for {forecast_date.strftime('%d %b %Y')} — ratio of WHO limit (>1 = exceedance)",        )
-        fig_hm.update_layout(
+        fig_hm.update_layout( side="top",
             height=400, 
             margin=dict(t=120, b=10) # t=120 to accommodate title and x-axis labels
             )
