@@ -382,8 +382,7 @@ with tab_forecast:
             zmin=0, zmax=2,
             text_auto=".2f",
             aspect="auto",
-            title="Tomorrow's forecast as ratio of WHO limit (>1 = exceedance)",
-        )
+            title=f"Forecast for {forecast_date.strftime('%d %b %Y')} — ratio of WHO limit (>1 = exceedance)",        )
         fig_hm.update_layout(height=340, margin=dict(t=50, b=10))
         st.plotly_chart(fig_hm, width="stretch")
 
