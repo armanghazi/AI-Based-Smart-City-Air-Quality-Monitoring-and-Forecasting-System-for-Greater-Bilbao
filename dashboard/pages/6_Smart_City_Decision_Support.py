@@ -307,10 +307,11 @@ with tab_forecast:
     # SECTION 2 — TOMORROW'S FORECAST ALERTS
     # ==================================================
 
-    st.markdown("## 🔮 Next-Day Forecast Alerts")
+    st.markdown(f"## 🔮 Forecast Alerts — {forecast_date.strftime('%d %b %Y')}")
     st.caption(
-        "XGBoost forecasts from the latest available data for every station and "
-        "pollutant. Limits: WHO 2021 annual guidelines (SO₂: 24-hour guideline)."
+        f"XGBoost next-day forecast based on latest available data "
+        f"({latest_date.strftime('%d %b %Y')}). "
+        "Limits: WHO 2021 annual guidelines (SO₂: 24-hour guideline)."
     )
 
     # Load all 4 models once
@@ -393,11 +394,13 @@ with tab_forecast:
     # SECTION 3 — GeoAI RISK MAP (next-day forecast)
     # ==================================================
 
-    st.markdown("## 🗺️ GeoAI Risk Map — Tomorrow's Forecast")
+    forecast_date = latest_date + pd.Timedelta(days=1)
+    st.markdown(f"## 🗺️ GeoAI Risk Map — Forecast for {forecast_date.strftime('%d %b %Y')}")
     st.caption(
-        "Marker colour = worst-case forecast as a ratio of the WHO limit "
-        "(max across the 4 pollutants). >1 = exceedance."
-    )
+            f"Based on latest available data ({latest_date.strftime('%d %b %Y')}). "
+            "Marker colour = worst-case forecast as a ratio of the WHO limit "
+            "(max across the 4 pollutants). >1 = exceedance."
+        )
 
     if alerts_df.empty:
         st.info("No forecasts available to map.")
@@ -720,7 +723,8 @@ with tab_action:
     # Forecast exceedance line (from Section 2)
     if not alerts_df.empty and not exceed.empty:
         forecast_line = (
-            f"Tomorrow's forecast flags **{len(exceed)} WHO exceedance(s)** "
+            f"Forecast for {forecast_date.strftime('%d %b %Y')} flags "
+            f"**{len(exceed)} WHO exceedance(s)** "
             f"at: {', '.join(exceed['Station'].unique())}."
         )
     elif not alerts_df.empty:
