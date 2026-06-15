@@ -256,7 +256,12 @@ with tab2:
     horizon = st.slider("Forecast horizon (days)", 1, 14, 7)
 
     prep_station = prepare_features(station_df, features, station_codes=STATION_CODES)
-    valid = prep_station.dropna(subset=features)
+
+    # Forward-fill lag/rolling NaNs caused by short sensor gaps (≤7 days).
+    # Raw parquet values are NOT touched — only derived feature columns.
+    prep_filled = prep_station.copy()
+    prep_filled[features] = prep_filled[features].ffill()
+    valid = prep_filled.dropna(subset=features)
 
     if valid.empty:
         st.warning("Not enough complete data to forecast for this station.")

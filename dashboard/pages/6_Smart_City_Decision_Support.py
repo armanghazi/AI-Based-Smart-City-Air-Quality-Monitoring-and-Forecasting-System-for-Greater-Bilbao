@@ -330,8 +330,11 @@ with tab_forecast:
                 continue
 
             feats = bundle["features"]
+
             prep = prepare_features(sdf, feats, station_codes=STATION_CODES)
-            valid = prep.dropna(subset=feats)
+            prep_filled = prep.copy()
+            prep_filled[feats] = prep_filled[feats].ffill()
+            valid = prep_filled.dropna(subset=feats)
             if valid.empty:
                 continue
 
@@ -581,8 +584,10 @@ with tab_action:
         if bundle is None:
             continue
         feats = bundle["features"]
-        prep = prepare_features(sdf_sim, feats, station_codes=STATION_CODES)
-        valid = prep.dropna(subset=feats)
+        prep = prepare_features(sdf, feats, station_codes=STATION_CODES)
+        prep_filled = prep.copy()
+        prep_filled[feats] = prep_filled[feats].ffill()
+        valid = prep_filled.dropna(subset=feats)
         if valid.empty:
             continue
         X_last = valid[feats].iloc[[-1]]
@@ -617,7 +622,9 @@ with tab_action:
                 continue
             feats = bundle["features"]
             prep = prepare_features(sdf_sim, feats, station_codes=STATION_CODES)
-            valid = prep.dropna(subset=feats)
+            prep_filled = prep.copy()
+            prep_filled[feats] = prep_filled[feats].ffill()
+            valid = prep_filled.dropna(subset=feats)
             if valid.empty:
                 continue
 
