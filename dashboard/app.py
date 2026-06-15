@@ -99,6 +99,67 @@ zone_summary = (
     .round(2)
 )
 
+st.markdown("### 📖 Understanding the indicators")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown(
+        """
+        <div style="border:2px solid #3498db; border-radius:12px; padding:14px;">
+        <div style="font-weight:700; font-size:1rem; color:#2c3e50;">
+            🌍 Air Quality Index (AQI)
+        </div>
+        <div style="font-size:0.82rem; color:#666; margin:6px 0;">
+            "Is the air safe to be outside today?" — easy 6-level public scale.
+        </div>
+        <div style="display:flex; gap:3px; margin-top:6px;">
+            <span style="flex:1; background:#50f0e6; height:14px; border-radius:2px;"></span>
+            <span style="flex:1; background:#50ccaa; height:14px;"></span>
+            <span style="flex:1; background:#f0e641; height:14px;"></span>
+            <span style="flex:1; background:#ff5050; height:14px;"></span>
+            <span style="flex:1; background:#960032; height:14px;"></span>
+            <span style="flex:1; background:#7d2181; height:14px; border-radius:2px;"></span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.68rem; color:#999; margin-top:2px;">
+            <span>Good</span><span>Extremely poor</span>
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with col2:
+    st.markdown(
+        """
+        <div style="border:2px solid #9b59b6; border-radius:12px; padding:14px;">
+        <div style="font-weight:700; font-size:1rem; color:#2c3e50;">
+            🎯 WHO Risk Score
+        </div>
+        <div style="font-size:0.82rem; color:#666; margin:6px 0;">
+            "How far from the ideal WHO health target?" — strict, for analysis.
+        </div>
+        <div style="display:flex; gap:3px; margin-top:6px;">
+            <span style="flex:1; background:#2ecc71; height:14px; border-radius:2px 0 0 2px;"></span>
+            <span style="flex:1; background:#f39c12; height:14px;"></span>
+            <span style="flex:1; background:#e74c3c; height:14px; border-radius:0 2px 2px 0;"></span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.68rem; color:#999; margin-top:2px;">
+            <span>Below WHO</span><span>&gt;2× WHO</span>
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+st.caption(
+    "Both appear across the dashboard. They can differ for the same value — "
+    "AQI flags daily risk, WHO Risk measures distance from strict ideals. "
+    "Most European cities exceed the WHO targets routinely."
+)
+
+
+
 def render_zone_card(zone_name, meta, zone_summary, df):
     z_data      = zone_summary.loc[zone_name] if zone_name in zone_summary.index else None
     stations_in = df[df["Zone"] == zone_name]["station"].unique().tolist()
