@@ -383,8 +383,9 @@ with tab_forecast:
             text_auto=".2f",
             aspect="auto",
             title=f"Forecast for {forecast_date.strftime('%d %b %Y')} — ratio of WHO limit (>1 = exceedance)",        )
-        fig_hm.update_layout(height=340, margin=dict(t=50, b=10))
-        st.plotly_chart(fig_hm, width="stretch")
+        fig_hm.update_xaxes(side="top")
+        fig_hm.update_layout(height=340, margin=dict(t=80, b=10)) # Corrected margin to avoid cutting off x-axis labels
+        st.plotly_chart(fig_hm, use_container_width=True) # Corrected to use_container_width for better responsiveness   
 
         with st.expander("📋 Full forecast table"):
             st.dataframe(
