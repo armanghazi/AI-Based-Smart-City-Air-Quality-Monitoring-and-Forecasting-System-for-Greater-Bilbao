@@ -103,7 +103,11 @@ def render_station_aqi_cards(df: pd.DataFrame, n_cols: int = 4):
     cards = []
     for s in stations:
         row = latest[latest["station"] == s]
-        vals = {p: float(row[p].mean()) for p in AQI_POLLUTANTS if p in row.columns}
+        vals = {
+            p: float(row[p].mean())
+            for p in AQI_POLLUTANTS
+            if p in row.columns and pd.notna(row[p].mean())
+        }
         aqi = overall_aqi(vals)
         if aqi:
             cards.append((s, aqi))
