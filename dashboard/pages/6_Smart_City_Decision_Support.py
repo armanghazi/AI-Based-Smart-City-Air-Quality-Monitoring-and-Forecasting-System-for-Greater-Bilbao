@@ -55,6 +55,7 @@ def load_model(pollutant: str):
 
 df = load_data()
 latest_date = df["Date"].max()
+forecast_date = latest_date + pd.Timedelta(days=1)
 
 # Stable station_code mapping — reproduces training codes.
 # (.astype('category').cat.codes assigns codes in sorted order over the full set)
@@ -394,7 +395,6 @@ with tab_forecast:
     # SECTION 3 — GeoAI RISK MAP (next-day forecast)
     # ==================================================
 
-    forecast_date = latest_date + pd.Timedelta(days=1)
     st.markdown(f"## 🗺️ GeoAI Risk Map — Forecast for {forecast_date.strftime('%d %b %Y')}")
     st.caption(
             f"Based on latest available data ({latest_date.strftime('%d %b %Y')}). "
