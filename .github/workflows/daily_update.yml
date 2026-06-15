@@ -1,0 +1,74 @@
+name: Daily Air Quality Update
+
+on:
+  # Run every day at 06:00 UTC (08:00 Madrid time)
+  # Euskadi D-1 is typically published by ~04:00 UTC — 06:00 gives a safe margin
+  schedule:
+    - cron: "0 6 * * *"
+
+  # Allow manual trigger with optional date for backfill
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Date to process (YYYY-MM-DD). Leave blank for D-1."
+        required: false
+        default: ""
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: write # needed to commit and push the updated parquet
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Use Python 3.11 in CI — not 3.14 (pyarrow string dtype quirks in 3.14)
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            python scripts/daily_update.py --date "${{ github.event.inputs.date }}"
+          else
+            python scripts/daily_update.py
+          fi
+
+      # Only commit if the parquet file actually changed
+      - name: Check for changes
+        id: check
+        run: |
+          git diff --quiet data/processed/air_quality_weather.parquet \
+            && echo "changed=false" >> "$GITHUB_OUTPUT" \
+            || echo "changed=true"  >> "$GITHUB_OUTPUT"
+
+      # Streamlit Cloud auto-redeploys on push — no extra step needed
+      - name: Commit and push updated parquet
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/processed/air_quality_weather.parquet
+          git commit -m "chore: daily update $(date -u +%Y-%m-%d)"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload log even on failure for debugging
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-log-${{ github.run_id }}
+          path: data/logs/daily_update.log
+          retention-days: 30
