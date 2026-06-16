@@ -131,8 +131,12 @@ with st.sidebar:
     st.divider()
 
     sel_pollutant = st.selectbox("Pollutant", POLLUTANTS, index=0)
-    sel_station   = st.selectbox(
-        "Station", sorted(df["station"].unique().tolist())
+    _station_list = sorted(df["station"].unique().tolist())
+    _fav = st.session_state.get("fav_station")
+    _idx = _station_list.index(_fav) if _fav in _station_list else 0
+
+    sel_station = st.selectbox(
+        "Station", _station_list, index=_idx
     )
 
     st.divider()
