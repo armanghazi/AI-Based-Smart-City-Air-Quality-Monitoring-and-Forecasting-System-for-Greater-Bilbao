@@ -520,3 +520,23 @@ with col_s2:
         "\n"
         "Temperature, Humidity, Precipitation, Wind Speed, Wind Direction"
     )
+
+
+    with st.sidebar:
+        st.divider()
+        st.markdown(
+            """
+            <div style="font-size:0.8rem; color:#888; line-height:1.6;">
+            <b style="color:#555;">GeoAI Smart City Platform</b><br>
+            Air quality monitoring & forecasting<br>
+            for Greater Bilbao · 2015–2026<br><br>
+            Built by <b style="color:#555;">Arman Ghaziaskari Naeini</b><br>
+            GIS & Spatial Data Science<br><br>
+            <a href="https://armanghazi.github.io/portfolio"
+            style="color:#16a085; text-decoration:none;">🔗 Portfolio</a> ·
+            <a href="https://github.com/armanghazi"
+            style="color:#16a085; text-decoration:none;">💻 GitHub</a>
+            </div>
+            """,
+            unsafe_allow_html=True,
+    )
