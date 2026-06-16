@@ -6,7 +6,7 @@ from pathlib import Path
 
 import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
-from spatial_utils import idw_grid, mask_idw_grid
+from spatial_utils import idw_grid, mask_idw_grid, build_mask
 
 import plotly.express as px
 import plotly.graph_objects as go
@@ -566,6 +566,30 @@ with tab_forecast:
             margin=dict(l=0, r=0, t=10, b=0),
             showlegend=False,
         )
+        # --- Hull boundary overlay ---
+        import json
+       
+
+        _mask_poly = build_mask(_lats, _lons, use_boundary=True)
+
+        # Extract exterior coordinates
+        if _mask_poly.geom_type == "Polygon":
+            _hull_coords = list(_mask_poly.exterior.coords)
+        elif _mask_poly.geom_type == "MultiPolygon":
+            _hull_coords = list(list(_mask_poly.geoms)[0].exterior.coords)
+
+        _hull_lats = [c[1] for c in _hull_coords]
+        _hull_lons = [c[0] for c in _hull_coords]
+
+        fig_idw.add_trace(go.Scattermapbox(
+            lat=_hull_lats,
+            lon=_hull_lons,
+            mode="lines",
+            line=dict(color="white", width=2),
+            opacity=0.7,
+            hoverinfo="skip",
+            name="Coverage boundary",
+        ))
         st.plotly_chart(fig_idw, width="stretch")
 
     st.divider()
@@ -898,4 +922,12 @@ with tab_action:
         "Data: Basque Government air-quality network + Open-Meteo (CC BY 4.0) · "
         "Forecasts: XGBoost next-day models (see Forecasting page for validation)."
     )
+
+
+_grid_lats, _grid_lons, _z_grid = idw_grid(_lats, _lons, _ratios)
+_z_masked = mask_idw_grid(_grid_lats, _grid_lons, _z_grid, _lats, _lons)
+
+total  = _z_grid.size
+masked = int(np.isnan(_z_masked).sum())
+print(f"Masked {masked}/{total} ({masked/total:.0%})")
 

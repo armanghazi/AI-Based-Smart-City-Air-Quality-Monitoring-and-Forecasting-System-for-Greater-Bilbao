@@ -140,7 +140,7 @@ def mask_idw_grid(
     from shapely import contains_xy
     from shapely.geometry import Point
 
-    buffered = mask_poly.buffer(0.005)   
+    buffered = mask_poly.buffer(0.025)   
     inside   = contains_xy(buffered, glon.ravel(), glat.ravel())
 
     z_masked = z.copy().astype(float)
