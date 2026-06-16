@@ -880,3 +880,24 @@
 2026-06-15 10:46:10,817  INFO  [Met] SANTURCE: T=22.9°C  WS=5.8km/h  Dir=296°  wind_u=5.21  wind_v=-2.54
 2026-06-15 10:46:10,817  INFO  [Met] Fetched 7/7 stations for 2026-06-14.
 2026-06-15 10:46:10,900  INFO  [Parquet] Nothing to add — all rows already present (idempotent).
+2026-06-16 08:39:31,935  INFO  =======================================================
+2026-06-16 08:39:31,935  INFO  Processing date: 2026-06-15
+2026-06-16 08:39:31,936  INFO  =======================================================
+2026-06-16 08:39:32,844  INFO  Loaded metadata for 7 stations.
+2026-06-16 08:39:33,780  INFO  [AQ] ALGORTA_BBIZI2: NO2=4  PM10=25  PM2.5=12  SO2=4
+2026-06-16 08:39:34,535  INFO  [AQ] SANTURCE: NO2=19  PM10=nan  PM2.5=15  SO2=3
+2026-06-16 08:39:35,189  INFO  [AQ] BASAURI: NO2=21  PM10=40  PM2.5=16  SO2=6
+2026-06-16 08:39:35,887  INFO  [AQ] BARAKALDO: NO2=18  PM10=47  PM2.5=16  SO2=4
+2026-06-16 08:39:36,633  INFO  [AQ] ERANDIO: NO2=17  PM10=28  PM2.5=16  SO2=3
+2026-06-16 08:39:37,404  INFO  [AQ] MAZARREDO: NO2=17  PM10=26  PM2.5=16  SO2=5
+2026-06-16 08:39:38,180  INFO  [AQ] MUSKIZ: NO2=10  PM10=21  PM2.5=13  SO2=6
+2026-06-16 08:39:38,181  INFO  [AQ] Fetched 7/7 stations for 2026-06-15.
+2026-06-16 08:39:38,954  INFO  [Met] ALGORTA_BBIZI2: T=21.1°C  WS=9.8km/h  Dir=315°  wind_u=6.93  wind_v=-6.93
+2026-06-16 08:39:39,985  INFO  [Met] BARAKALDO: T=21.7°C  WS=9.8km/h  Dir=315°  wind_u=6.93  wind_v=-6.93
+2026-06-16 08:39:41,481  INFO  [Met] BASAURI: T=22.1°C  WS=6.8km/h  Dir=342°  wind_u=2.10  wind_v=-6.47
+2026-06-16 08:39:42,166  INFO  [Met] ERANDIO: T=21.8°C  WS=9.8km/h  Dir=315°  wind_u=6.93  wind_v=-6.93
+2026-06-16 08:39:43,244  INFO  [Met] MAZARREDO: T=22.6°C  WS=6.7km/h  Dir=338°  wind_u=2.51  wind_v=-6.21
+2026-06-16 08:39:44,458  INFO  [Met] MUSKIZ: T=21.8°C  WS=11.4km/h  Dir=300°  wind_u=9.87  wind_v=-5.70
+2026-06-16 08:39:45,178  INFO  [Met] SANTURCE: T=20.8°C  WS=11.4km/h  Dir=300°  wind_u=9.87  wind_v=-5.70
+2026-06-16 08:39:45,178  INFO  [Met] Fetched 7/7 stations for 2026-06-15.
+2026-06-16 08:39:45,407  INFO  [Parquet] Added 7 rows. Total rows now: 29,288.
