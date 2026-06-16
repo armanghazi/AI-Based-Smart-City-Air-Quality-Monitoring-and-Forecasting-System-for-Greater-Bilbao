@@ -480,7 +480,7 @@ with tab_forecast:
         _grid_lats, _grid_lons, _z_grid = idw_grid(_lats, _lons, _ratios)
 
         # --- AOI mask: set cells outside station hull to NaN ---
-        from dashboard.spatial_utils import mask_idw_grid
+
         _z_grid = mask_idw_grid(_grid_lats, _grid_lons, _z_grid, _lats, _lons)
 
         # Flatten the regular grid to lists for the Scattermapbox surface layer.
