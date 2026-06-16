@@ -6,7 +6,7 @@ from pathlib import Path
 
 import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
-from spatial_utils import mask_idw_grid
+from spatial_utils import idw_grid, mask_idw_grid
 
 import plotly.express as px
 import plotly.graph_objects as go
