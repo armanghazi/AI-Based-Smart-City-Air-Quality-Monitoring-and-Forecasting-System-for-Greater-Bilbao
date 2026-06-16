@@ -11,3 +11,5 @@ shap
 folium
 streamlit-folium
 streamlit-cookies-manager
+geopandas
+shapely

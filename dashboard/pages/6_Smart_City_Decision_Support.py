@@ -476,12 +476,22 @@ with tab_forecast:
   
         _grid_lats, _grid_lons, _z_grid = idw_grid(_lats, _lons, _ratios)
 
+        # --- AOI mask: set cells outside station hull to NaN ---
+        from dashboard.spatial_utils import mask_idw_grid
+        _z_grid = mask_idw_grid(_grid_lats, _grid_lons, _z_grid, _lats, _lons)
+
         # Flatten the regular grid to lists for the Scattermapbox surface layer.
         _glat_mesh, _glon_mesh = np.meshgrid(_grid_lats, _grid_lons, indexing="ij")
         _flat_lats = _glat_mesh.ravel()
         _flat_lons = _glon_mesh.ravel()
         _flat_z    = _z_grid.ravel()
 
+        # Drop NaN cells before passing to Scattermapbox
+        _valid      = ~np.isnan(_flat_z)
+        _flat_lats  = _flat_lats[_valid]
+        _flat_lons  = _flat_lons[_valid]
+        _flat_z     = _flat_z[_valid]
+        
         # Shared colour scale — identical to the risk map above for consistency.
         _IDW_CS = [
             [0.00, "#2ecc71"],   # 0× — green

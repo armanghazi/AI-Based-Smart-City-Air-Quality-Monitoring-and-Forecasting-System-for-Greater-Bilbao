@@ -63,3 +63,86 @@ def idw_grid(
 
     z = (weights * values[:, np.newaxis, np.newaxis]).sum(axis=0) / weights.sum(axis=0)
     return grid_lats, grid_lons, z
+
+
+# ---------------------------------------------------------------------------
+# Phase C — AOI masking
+# Requires: geopandas, shapely  (add to requirements.txt if not present)
+# ---------------------------------------------------------------------------
+from pathlib import Path
+import geopandas as gpd
+from shapely.geometry import MultiPoint, Point
+
+_COMARCA_SHP = (
+    Path(__file__).parent.parent   # project root
+    / "GIS" / "boundaries"
+    / "COMARCAS_5000_ETRS89.shp"
+)
+WGS84 = "EPSG:4326"
+
+
+def _gran_bilbao_polygon():
+    """Return the Gran Bilbao comarca as a single Shapely polygon in WGS84."""
+    com = gpd.read_file(_COMARCA_SHP)
+    gb  = com[com["COMARCA"] == "GRAN BILBAO"].to_crs(WGS84)
+    return gb.union_all()
+
+
+def build_mask(
+    lats: np.ndarray,
+    lons: np.ndarray,
+    use_boundary: bool = True,
+):
+    """
+    Convex hull of the 7 stations, optionally clipped to the Gran Bilbao
+    comarca boundary.  Returns a Shapely geometry in WGS84.
+
+    Parameters
+    ----------
+    lats, lons    : station coordinates (WGS84 decimal degrees)
+    use_boundary  : clip hull to comarca polygon (recommended — prevents
+                    extrapolation into areas with no station coverage)
+    """
+    hull = MultiPoint(list(zip(np.asarray(lons), np.asarray(lats)))).convex_hull
+    if not use_boundary:
+        return hull
+    return hull.intersection(_gran_bilbao_polygon())
+
+
+def mask_idw_grid(
+    grid_lats: np.ndarray,
+    grid_lons: np.ndarray,
+    z: np.ndarray,
+    lats: np.ndarray,
+    lons: np.ndarray,
+    use_boundary: bool = True,
+) -> np.ndarray:
+    """
+    Set IDW grid cells outside the station convex hull (+ optional comarca
+    boundary) to NaN.  Signature mirrors idw_grid() outputs for easy chaining.
+
+    Parameters
+    ----------
+    grid_lats, grid_lons : 1-D arrays returned by idw_grid()
+    z                    : 2-D result array from idw_grid()  (shape: lat × lon)
+    lats, lons           : station coordinates (same as passed to idw_grid)
+    use_boundary         : passed to build_mask()
+
+    Returns
+    -------
+    z_masked : copy of z with out-of-mask cells set to NaN
+    """
+    mask_poly = build_mask(lats, lons, use_boundary=use_boundary)
+    glat, glon = np.meshgrid(grid_lats, grid_lons, indexing="ij")  # same as idw_grid
+
+    # Vectorised containment — avoids Python loop over 3 600 cells
+   
+    from shapely import contains_xy
+    from shapely.geometry import Point
+
+    buffered = mask_poly.buffer(0.005)   
+    inside   = contains_xy(buffered, glon.ravel(), glat.ravel())
+
+    z_masked = z.copy().astype(float)
+    z_masked[~inside.reshape(z.shape)] = np.nan
+    return z_masked
