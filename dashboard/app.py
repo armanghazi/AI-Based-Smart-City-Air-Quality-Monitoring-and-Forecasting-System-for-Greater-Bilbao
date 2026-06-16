@@ -526,7 +526,7 @@ with col_s2:
         st.divider()
         st.markdown(
             """
-            <div style="font-size:0.8rem; color:#888; line-height:1.6;">
+            <div style="font-size:0.9rem; color:#888; line-height:1.6;">
             <b style="color:#555;">GeoAI Smart City Platform</b><br>
             Air quality monitoring & forecasting<br>
             for Greater Bilbao · 2015–2026<br><br>
