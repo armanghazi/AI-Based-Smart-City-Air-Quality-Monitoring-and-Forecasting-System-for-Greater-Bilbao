@@ -208,4 +208,40 @@ def load_data() -> pd.DataFrame:
                 .transform(lambda x: x.shift(1).rolling(w, min_periods=1).mean())
             )
 
+
+    
     return df
+
+# --------------------------------------------------
+# FAVOURITE STATION (shared across pages, cookie-backed)
+# --------------------------------------------------
+
+def get_fav_station(station_list: list[str]) -> str | None:
+    """
+    Return the user's saved favourite station, or None.
+    Reads cookie first (persists across visits on Cloud), falls back to
+    session_state, then to None. Safe if cookie manager isn't installed.
+    """
+    import streamlit as st
+
+    # 1. session_state (fastest, set during this session)
+    fav = st.session_state.get("fav_station")
+    if fav in station_list:
+        return fav
+
+    # 2. cookie (survives page refresh / direct page open on Cloud)
+    try:
+        from streamlit_cookies_manager import EncryptedCookieManager
+        cookies = EncryptedCookieManager(
+            prefix="smart_city_air",
+            password=st.secrets.get("cookie_password", "local-dev-only-change-me"),
+        )
+        if cookies.ready():
+            saved = cookies.get("fav_station")
+            if saved in station_list:
+                st.session_state.fav_station = saved  # cache for this session
+                return saved
+    except ImportError:
+        pass
+
+    return None

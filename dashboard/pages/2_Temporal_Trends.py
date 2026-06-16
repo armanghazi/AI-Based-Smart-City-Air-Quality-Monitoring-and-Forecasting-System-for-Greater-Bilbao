@@ -4,7 +4,7 @@ from config import (
     POLLUTANT_COLOR, MONTH_NAMES, RISK_COLORS, RISK_ORDER,
     ZONE_MAP, ZONE_META, get_zone,
     classify_core_risk, risk_color, short_term_flag,
-    who_ratio_label, who_delta,
+    who_ratio_label, who_delta,get_fav_station,
 )
 
 import streamlit as st
@@ -12,7 +12,6 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-
 
 # -----------------------
 # Constants
@@ -49,8 +48,10 @@ with st.sidebar:
     filter_mode = st.radio("Filter by", ["Station", "Zone"], horizontal=True)
 
     if filter_mode == "Station":
-        selected_station = st.selectbox("Station", station_options)
-        selected_zone    = None
+            _fav = get_fav_station(station_options)
+            _idx = station_options.index(_fav) if _fav in station_options else 0
+            selected_station = st.selectbox("Station", station_options, index=_idx)
+            selected_zone    = None
     else:
         selected_zone    = st.selectbox(
             "Zone",

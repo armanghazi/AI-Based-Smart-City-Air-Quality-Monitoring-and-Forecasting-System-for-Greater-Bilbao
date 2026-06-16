@@ -9,7 +9,7 @@ import plotly.express as px
 
 from config import (
     load_data, POLLUTANT_COLOR, WHO_ANNUAL,
-    ZONE_META, get_zone,
+    ZONE_META, get_zone,get_fav_station,
 )
 
 
@@ -132,8 +132,7 @@ with st.sidebar:
 
     sel_pollutant = st.selectbox("Pollutant", POLLUTANTS, index=0)
 
-    st.write("DEBUG fav_station:", st.session_state.get("fav_station"))
-    
+
     _station_list = sorted(df["station"].unique().tolist())
     _fav = st.session_state.get("fav_station")
     _idx = _station_list.index(_fav) if _fav in _station_list else 0

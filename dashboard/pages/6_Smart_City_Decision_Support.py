@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 from config import (
     load_data, WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
     POLLUTANT_COLOR, ZONE_META, RISK_COLORS,
-    classify_core_risk, risk_color,
+    classify_core_risk, risk_color,get_fav_station,
 )
 from forecast_utils import prepare_features
 from spatial_utils import idw_grid
@@ -581,8 +581,11 @@ with tab_action:
         horizontal=True,
     )
 
+    _sim_list = sorted(df["station"].unique().tolist())
+    _fav = get_fav_station(_sim_list)
+    _sim_idx = _sim_list.index(_fav) if _fav in _sim_list else 0
     sim_station = st.selectbox(
-        "Station to simulate", sorted(df["station"].unique()), key="sim_station"
+        "Station to simulate", _sim_list, index=_sim_idx, key="sim_station"
     )
 
     sdf_sim = df[df["station"] == sim_station].sort_values("Date")

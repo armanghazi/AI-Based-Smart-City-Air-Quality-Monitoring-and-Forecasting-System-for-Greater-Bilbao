@@ -9,7 +9,7 @@ from config import (
     load_data,
     WHO_ANNUAL, CORE_POLLUTANTS,
     POLLUTANT_COLOR, MONTH_NAMES,
-    ZONE_META, get_zone,
+    ZONE_META, get_zone,get_fav_station,
 )
 
 # --------------------------------------------------
@@ -109,8 +109,11 @@ with st.sidebar:
             format_func=lambda z: f"{ZONE_META[z]['icon']} {z}"
         )
     elif filter_mode == "Station":
+        _station_list = sorted(df["station"].unique().tolist())
+        _fav = get_fav_station(_station_list)
+        _idx = _station_list.index(_fav) if _fav in _station_list else 0
         selected_station = st.selectbox(
-            "Station", sorted(df["station"].unique().tolist())
+            "Station", _station_list, index=_idx
         )
 
     st.markdown("### Time Range")

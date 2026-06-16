@@ -4,8 +4,9 @@ from config import (
     POLLUTANT_COLOR, MONTH_NAMES, RISK_COLORS, RISK_ORDER,
     ZONE_MAP, ZONE_META, get_zone,
     classify_core_risk, risk_color, short_term_flag,
-    who_ratio_label, who_delta,
+    who_ratio_label, who_delta,get_fav_station,
 )
+ 
 import streamlit as st
 import pandas as pd
 import folium
@@ -935,7 +936,10 @@ with tab_table:
     st.markdown("---")
     st.markdown("### Daily raw data explorer")
 
-    station_sel = st.selectbox("Select station", options=all_stations)
+    _fav = get_fav_station(all_stations)
+    _idx = all_stations.index(_fav) if _fav in all_stations else 0
+    station_sel = st.selectbox("Select station", options=all_stations, index=_idx)
+    
     raw = daily_df[daily_df["station"] == station_sel][["Date","PM2.5","PM10","NO2","SO2"]].copy()
     raw = raw.sort_values("Date")
 
