@@ -24,6 +24,32 @@ st.set_page_config(
 df = load_data()
 
 # -----------------------
+# Cookie manager — remembers the user's favourite station across visits.
+# Wrapped defensively: if streamlit-cookies-manager isn't installed (or
+# cookies aren't ready), the app still runs using session_state only.
+# -----------------------
+station_list = sorted(df["station"].unique().tolist())
+
+_cookies = None
+try:
+    from streamlit_cookies_manager import EncryptedCookieManager
+
+    _cookies = EncryptedCookieManager(
+        prefix="smart_city_air",
+        # Password comes from secrets on Cloud; dev fallback for local only.
+        password=st.secrets.get("cookie_password", "local-dev-only-change-me"),
+    )
+    if not _cookies.ready():
+        st.stop()  # wait one rerun for cookies to load
+except ImportError:
+    _cookies = None  # package not installed — degrade to session-only
+
+# Restore favourite station once per session (from cookie if available)
+if "fav_station" not in st.session_state:
+    saved = _cookies.get("fav_station") if _cookies else None
+    st.session_state.fav_station = saved if saved in station_list else station_list[0]
+
+# -----------------------
 # Header
 # -----------------------
 st.markdown("""
@@ -36,6 +62,38 @@ st.markdown("""
     </p>
 </div>
 """, unsafe_allow_html=True)
+
+st.divider()
+
+# -----------------------
+# Favourite Station selector (persists via cookie)
+# -----------------------
+fav_col1, fav_col2 = st.columns([3, 1])
+with fav_col1:
+    _default_idx = (
+        station_list.index(st.session_state.fav_station)
+        if st.session_state.fav_station in station_list else 0
+    )
+    _selected_fav = st.selectbox(
+        "⭐ Your default monitoring station "
+        "(remembered on this device for next visit)",
+        options=station_list,
+        index=_default_idx,
+    )
+with fav_col2:
+    st.write("")  # vertical spacer to align the button with the selectbox
+    st.write("")
+    if st.button("💾 Save as default", use_container_width=True):
+        st.session_state.fav_station = _selected_fav
+        if _cookies is not None:
+            _cookies["fav_station"] = _selected_fav
+            _cookies.save()
+            st.success(f"Saved {_selected_fav} as your default station.")
+        else:
+            st.info(
+                f"Saved {_selected_fav} for this session "
+                "(install streamlit-cookies-manager to persist across visits)."
+            )
 
 st.divider()
 
@@ -458,7 +516,7 @@ with col_s2:
         "**🌤️ Meteorological Data**  \n"
         "Open-Meteo · [open-meteo.com](https://open-meteo.com)  \n"
         "Historical Weather API · CC BY 4.0  \n"
-        "~29k daily records \n"   
+        "~29k daily records \n"
         "\n"
         "Temperature, Humidity, Precipitation, Wind Speed, Wind Direction"
     )
