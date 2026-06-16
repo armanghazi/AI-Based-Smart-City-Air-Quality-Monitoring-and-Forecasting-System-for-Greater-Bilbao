@@ -4,6 +4,10 @@ import numpy as np
 import joblib
 from pathlib import Path
 
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+from spatial_utils import mask_idw_grid
+
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -13,7 +17,6 @@ from config import (
     classify_core_risk, risk_color,get_fav_station,
 )
 from forecast_utils import prepare_features
-from spatial_utils import idw_grid
 from gauge_component import render_gauge_row
 from aqi import overall_aqi, compute_aqi_category, AQI_POLLUTANTS, AQI_CATEGORIES
 from aqi_components import (render_aqi_donut, render_station_aqi_cards,
