@@ -3,8 +3,10 @@ import pandas as pd
 df = pd.read_parquet('data/processed/air_quality_weather.parquet')
 june = df[df['Date'] >= '2026-06-01']
 print('NaN counts in June 2026:')
-print(june.groupby('station')[['PM2.5','PM10','NO2','SO2']].apply(lambda x: x.isna().sum()))
+print(june.groupby('station')[['PM2.5','PM10','NO2','SO2']].apply(lambda x: x.isna().sum())).
 "
+
+python -c "import pandas as pd; df = pd.read_parquet('data/processed/air_quality_weather.parquet'); df['Date'] = pd.to_datetime(df['Date']); print(df.sort_values(['Date','station']).tail(21).to_string(index=False))"
 
 پیشنهاد شاخص
 نسخه‌ای که از نظر علمی و پیاده‌سازی برای تو مناسب است این است:
