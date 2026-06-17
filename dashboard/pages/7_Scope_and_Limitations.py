@@ -144,7 +144,7 @@ with col_geo:
         "Station":   ["ALGORTA_BBIZI2", "SANTURCE",  "BASAURI",    "BARAKALDO",  "ERANDIO",  "MAZARREDO", "MUSKIZ"],
         "Town":      ["Getxo",          "Santurtzi", "Basauri",    "Barakaldo",  "Erandio",  "Bilbao",    "Muskiz"],
         "Zone":      ["Coastal",        "Port",      "Industrial", "Industrial", "Urban",    "Urban",     "Refinery"],
-        "PM10 sensor": ["✅", "❌ none", "✅", "✅", "✅", "✅", "✅"],
+        "PM10 sensor": ["✅", "✅ none", "✅", "✅", "✅", "✅", "✅"],
     }
     st.dataframe(
         pd.DataFrame(stations_data),
@@ -300,7 +300,7 @@ with col_aq:
         **Resolution:** Daily means (hourly data aggregated)  
         **Lag:** ~24 hours  
         **Known issues:**
-        - SANTURCE has no PM10 sensor
+        - Data quality depends on Basque Government maintenance
         - Occasional sensor gaps (stored as NaN, never interpolated)
         - Data quality depends on Basque Government maintenance
         """
