@@ -1,4 +1,4 @@
-﻿# 🌍 GeoAI Smart City Platform for Air Quality Monitoring and Forecasting in Greater Bilbao(Under Construction)
+﻿# 🌍 GeoAI Smart City Platform for Air Quality Monitoring and Forecasting in Greater Bilbao(in progress)
 
 **Status:** Live on Streamlit Cloud · actively developed (Phase C — spatial GeoAI — in progress)
 
