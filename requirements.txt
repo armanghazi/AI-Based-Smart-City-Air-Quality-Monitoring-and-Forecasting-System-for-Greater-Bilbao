@@ -13,3 +13,4 @@ streamlit-folium
 streamlit-cookies-manager
 geopandas
 shapely
+fpdf2

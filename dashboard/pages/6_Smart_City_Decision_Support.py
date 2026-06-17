@@ -17,7 +17,7 @@ import plotly.graph_objects as go
 from config import (
     load_data, WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
     POLLUTANT_COLOR, ZONE_META, RISK_COLORS,
-    classify_core_risk, risk_color, get_fav_station,
+    classify_core_risk, risk_color, get_fav_station, EU_ANNUAL
 )
 from forecast_utils import prepare_features
 from gauge_component import render_gauge_row
@@ -25,6 +25,11 @@ from aqi import overall_aqi, compute_aqi_category, AQI_POLLUTANTS, AQI_CATEGORIE
 from aqi_components import (
     render_aqi_donut, render_station_aqi_cards, render_aqi_calendar,
 )
+
+from pdf_report import generate_monthly_report
+from config import EU_ANNUAL
+
+from pdf_report import generate_daily_report, generate_monthly_report
 
 # ==================================================
 # 1. PAGE CONFIG
@@ -880,6 +885,43 @@ city-wide is **{worst_pollutant}** at
                 mime="text/csv",
                 width="stretch",
             )
+
+        
+    st.divider()
+    e3, e4 = st.columns([2, 3])
+    with e3:
+        pdf_bytes_monthly = generate_monthly_report(
+            latest_date      = latest_date,
+            window_label     = window_label,
+            station_means    = station_means,
+            alerts_df        = alerts_df,
+            zone_means       = zone_means,
+            summary_text     = summary,          # متغیر summary که قبلاً ساخته شده
+            n_above          = n_above,
+            worst_station    = worst_station,
+            worst_pollutant  = worst_pollutant,
+            city_ratios      = city_ratios,
+            who_annual       = WHO_ANNUAL,
+            eu_annual        = EU_ANNUAL,
+            zone_meta        = ZONE_META,
+            zone_action_tiers= ZONE_ACTION_TIERS,
+        )
+    
+        st.download_button(
+            label    = "📄 Download Monthly Risk Report (PDF)",
+            data     = pdf_bytes_monthly,
+            file_name= f"risk_report_{latest_date.strftime('%Y%m%d')}.pdf",
+            mime     = "application/pdf",
+            type     = "primary",
+            width    = "stretch",
+        )
+    
+    with e4:
+        st.caption(
+            "3-page report: executive summary, station risk ranking, "
+            "WHO vs EU comparison, tomorrow's forecast alerts, "
+            "and zone-level recommended actions."
+        )
 
     st.caption(
         "Data: Basque Government air-quality network + Open-Meteo (CC BY 4.0) · "

@@ -22,6 +22,9 @@ from config import (
     EU_ANNUAL,ALERT_LIMITS,
 )
 
+from pdf_report import generate_daily_report
+
+
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
@@ -515,6 +518,59 @@ if not zone_ratios.empty:
 
 st.divider()
 
+
+
+st.markdown('<p class="section-title">📄 Download Report</p>',
+            unsafe_allow_html=True)
+ 
+col_pdf1, col_pdf2 = st.columns([2, 3])
+with col_pdf1:
+    # Build current_values for today
+    today_means_dict = {
+        p: float(df[df["Date"] == latest_date][p].mean())
+        for p in ["PM2.5", "PM10", "NO2", "SO2"]
+    }
+ 
+    # Build zone action text
+    zone_ratios_pdf = (
+        fc_df[fc_df["Pollutant"].isin(["PM2.5", "PM10", "NO2"])]
+        .groupby("Zone")["Ratio"]
+        .mean()
+        .sort_values(ascending=False)
+    )
+    worst_zone_pdf  = zone_ratios_pdf.index[0] if not zone_ratios_pdf.empty else "Urban"
+    action_text_pdf = ZONE_ACTIONS.get(worst_zone_pdf, "Monitor closely.")
+ 
+    pdf_bytes = generate_daily_report(
+        latest_date    = latest_date,
+        current_values = today_means_dict,
+        fc_df          = fc_df,
+        zone_action    = action_text_pdf,
+        worst_zone     = worst_zone_pdf,
+        who_annual     = WHO_ANNUAL,
+        eu_annual      = EU_ANNUAL,
+        alert_limits   = ALERT_LIMITS,
+    )
+ 
+    st.download_button(
+        label    = "📄 Download Daily Alert Report (PDF)",
+        data     = pdf_bytes,
+        file_name= f"daily_alert_{latest_date.strftime('%Y%m%d')}.pdf",
+        mime     = "application/pdf",
+        type     = "primary",
+        use_container_width=True,
+    )
+ 
+with col_pdf2:
+    st.caption(
+        "One-page summary: today's city-wide averages, "
+        "tomorrow's EU Directive exceedances, "
+        "and zone-level recommended action."
+    )
+
+    
+ 
+st.divider()
 # --------------------------------------------------
 # FOOTER
 # --------------------------------------------------
@@ -525,3 +581,4 @@ st.caption(
     f"Last pipeline run: {latest_date.strftime('%d %b %Y')} · "
     f"Next update: ~06:00 UTC daily"
 )
+
