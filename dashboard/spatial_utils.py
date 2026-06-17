@@ -93,20 +93,11 @@ def build_mask(
     lons: np.ndarray,
     use_boundary: bool = True,
 ):
-    """
-    Convex hull of the 7 stations, optionally clipped to the Gran Bilbao
-    comarca boundary.  Returns a Shapely geometry in WGS84.
-
-    Parameters
-    ----------
-    lats, lons    : station coordinates (WGS84 decimal degrees)
-    use_boundary  : clip hull to comarca polygon (recommended — prevents
-                    extrapolation into areas with no station coverage)
-    """
-    hull = MultiPoint(list(zip(np.asarray(lons), np.asarray(lats)))).convex_hull
     if not use_boundary:
+        hull = MultiPoint(list(zip(np.asarray(lons), np.asarray(lats)))).convex_hull
         return hull
-    return hull.intersection(_gran_bilbao_polygon())
+    # Use comarca boundary directly — hull with 7 stations is too angular
+    return _gran_bilbao_polygon()
 
 
 def mask_idw_grid(
@@ -140,7 +131,7 @@ def mask_idw_grid(
     from shapely import contains_xy
     from shapely.geometry import Point
 
-    buffered = mask_poly.buffer(0.025)   
+    buffered = mask_poly.buffer(0.001)
     inside   = contains_xy(buffered, glon.ravel(), glat.ravel())
 
     z_masked = z.copy().astype(float)
