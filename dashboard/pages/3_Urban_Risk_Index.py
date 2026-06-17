@@ -2,7 +2,7 @@ from config import (
     load_data,
     WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
     POLLUTANT_COLOR, MONTH_NAMES, RISK_COLORS, RISK_ORDER,
-    ZONE_MAP, ZONE_META, get_zone,
+    ZONE_MAP, ZONE_META, get_zone,EU_ANNUAL, 
     classify_core_risk, risk_color, short_term_flag,
     who_ratio_label, who_delta,get_fav_station,
 )
@@ -253,6 +253,8 @@ station_year["SO2_ExceedanceRate"]  = station_year["SO2_ExceedanceRate"].fillna(
 station_year["SO2_AnnualMean"]      = station_year["SO2_AnnualMean"].fillna(0)
 station_year["SO2_PressureLevel"]   = station_year["SO2_ExceedanceRate"].apply(short_term_flag)
 
+
+
 # Final station risk (average across years if "All")
 if time_mode == "Year" and not selected_year:
     station_risk = (
@@ -483,8 +485,14 @@ Fill = air quality · Border = zone
         st.markdown("---")
         st.markdown("**WHO 2021 annual limits**")
         for p, v in WHO_ANNUAL.items():
-            st.markdown(f"<div style='font-size:12px'>{p}: <b>{v} µg/m³</b></div>",
-                        unsafe_allow_html=True)
+            eu_v = EU_ANNUAL.get(p, "—")
+            st.markdown(
+                f"<div style='font-size:12px'>"
+                f"{p}: <b>{v} µg/m³</b> WHO · <span style='color:#888'>{eu_v} µg/m³ EU</span>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        st.caption("EU = Directive 2008/50/EC")
 
 
 # ==================== TAB 2: RISK BREAKDOWN ====================
@@ -627,6 +635,36 @@ with tab_risk:
     )
     fig_so2.update_layout(height=320)
     st.plotly_chart(fig_so2,  width="stretch")
+
+    # --------------------------------------------------
+# WHO vs EU comparison table
+# --------------------------------------------------
+st.markdown("#### WHO 2021 vs EU Directive 2008/50/EC")
+st.caption(
+    "WHO guidelines are stricter than legally binding EU limits. "
+    "Exceeding WHO does NOT mean a legal violation."
+)
+
+# Build comparison per station
+eu_rows = []
+for _, row in ranking.iterrows():
+    for p in CORE_POLLUTANTS:
+        val      = row[p]
+        who_lim  = WHO_ANNUAL[p]
+        eu_lim   = EU_ANNUAL[p]
+        eu_rows.append({
+            "Station":    row["station"].split("_")[0],
+            "Zone":       row.get("Zone", ""),
+            "Pollutant":  p,
+            "Mean (µg/m³)": round(val, 1),
+            "vs WHO":     f"{val/who_lim:.1f}×",
+            "vs EU":      f"{val/eu_lim:.1f}×",
+            "WHO status": "⚠️ Above" if val > who_lim else "✅ Below",
+            "EU status":  "⚠️ Above" if val > eu_lim  else "✅ Below",
+        })
+
+eu_df = pd.DataFrame(eu_rows)
+st.dataframe(eu_df, hide_index=True, use_container_width=True)
 
 
 # ==================== TAB 3: TRENDS ====================

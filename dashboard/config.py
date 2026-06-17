@@ -26,6 +26,33 @@ WHO_SO2_DAILY: float = 40.0          # µg/m³ — 24-hour guideline
 CORE_POLLUTANTS: list[str] = ["PM2.5", "PM10", "NO2"]
 
 # --------------------------------------------------
+# EU DIRECTIVE 2008/50/EC — legally binding in Spain
+# Stricter WHO guidelines are used for health benchmarking;
+# EU limits are required for official compliance reporting.
+# --------------------------------------------------
+
+EU_ANNUAL: dict[str, float] = {
+    "PM2.5": 25.0,
+    "PM10":  40.0,
+    "NO2":   40.0,
+}
+
+EU_SO2_DAILY: float  = 125.0
+EU_PM10_DAILY: float =  50.0
+EU_NOTE: str = "EU Directive 2008/50/EC — legally binding in Spain"
+
+# Alert thresholds — EU Directive limits for operational alerts
+# WHO limits are used for health analysis in other pages
+ALERT_LIMITS: dict[str, float] = {
+    "PM2.5": EU_ANNUAL["PM2.5"],   # 25.0
+    "PM10":  EU_ANNUAL["PM10"],    # 40.0
+    "NO2":   EU_ANNUAL["NO2"],     # 40.0
+    "SO2":   EU_SO2_DAILY,         # 125.0
+}
+
+
+
+# --------------------------------------------------
 # VISUAL CONSTANTS
 # --------------------------------------------------
 
@@ -144,6 +171,10 @@ def who_delta(val: float, pollutant: str) -> tuple[str | None, str]:
         return None, "off"
     ratio = val / limit
     return f"{ratio:.1f}× WHO limit", "inverse" if ratio > 1 else "normal"
+
+
+
+
 
 # --------------------------------------------------
 # SHARED DATA LOADER
