@@ -118,9 +118,21 @@ h1, h2, h3, h4 { letter-spacing: -0.02em; font-weight: 600; }
     border: 1px solid transparent;
 }
 .alert a { color: inherit; font-weight: 600; text-decoration: underline; }
-.alert-good { background: #dcfce7; color: #14532d; border-color: #86efac; }
-.alert-warn { background: #fef3c7; color: #78350f; border-color: #fcd34d; }
-.alert-bad  { background: #fee2e2; color: #7f1d1d; border-color: #fca5a5; }
+.alert-good {
+    background: linear-gradient(135deg,#2ecc71,#27ae60);
+    color: white; border-color: transparent;
+    box-shadow: 0 2px 8px #2ecc7144;
+}
+.alert-warn {
+    background: linear-gradient(135deg,#f39c12,#e67e22);
+    color: white; border-color: transparent;
+    box-shadow: 0 2px 8px #f39c1244;
+}
+.alert-bad {
+    background: linear-gradient(135deg,#e74c3c,#c0392b);
+    color: white; border-color: transparent;
+    box-shadow: 0 2px 8px #e74c3c44;
+}
 
 /* ---- Section eyebrow ---- */
 .eyebrow {
