@@ -1,10 +1,10 @@
 name: Daily Air Quality Update
 
 on:
-  # Run every day at 06:00 UTC (08:00 Madrid time)
+  # Run every day at 04:07 UTC (06:07 Madrid time)
   # Euskadi D-1 is typically published by ~04:00 UTC — 06:00 gives a safe margin
   schedule:
-    - cron: "0 6 * * *"
+    - cron: "7 4 * * *"
 
   # Allow manual trigger with optional date for backfill
   workflow_dispatch:
