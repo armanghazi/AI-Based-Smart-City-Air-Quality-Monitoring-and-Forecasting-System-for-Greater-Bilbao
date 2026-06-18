@@ -1,3 +1,4 @@
 config.yaml
 ven
 cookie_password = "PassworD!"
+.streamlit/secrets.toml

@@ -348,6 +348,18 @@ else:
 st.write("")
 st.write("")
 
+# ── Chat with me (centered call-to-action) ──────────
+st.markdown(
+    '<div style="display:flex; justify-content:center; margin:0.25rem 0 1.5rem;">'
+    '<a href="/Project_Assistant" target="_self" '
+    'style="display:inline-flex; align-items:center; gap:.5rem; '
+    'padding:.7rem 1.6rem; border-radius:999px; '
+    'background:linear-gradient(135deg,#2563eb,#0ea5e9); color:#fff; '
+    'font-weight:600; text-decoration:none; '
+    'box-shadow:0 4px 14px rgba(37,99,235,.35);">'
+    '💬 Chat with me</a></div>',
+    unsafe_allow_html=True)
+
 # ==================================================
 # QUICK STATUS
 # ==================================================
@@ -397,6 +409,7 @@ with col_snap:
         )
 
 st.divider()
+
 
 # ==================================================
 # ENVIRONMENTAL ZONES
