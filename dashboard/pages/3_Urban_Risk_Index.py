@@ -4,7 +4,7 @@ from config import (
     POLLUTANT_COLOR, MONTH_NAMES, RISK_COLORS, RISK_ORDER,
     ZONE_MAP, ZONE_META, get_zone,EU_ANNUAL, 
     classify_core_risk, risk_color, short_term_flag,
-    who_ratio_label, who_delta,get_fav_station,
+    who_ratio_label, who_delta,get_fav_station, center_tables
 )
  
 import streamlit as st
@@ -27,6 +27,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+center_tables()
 
 st.markdown("""
 <style>

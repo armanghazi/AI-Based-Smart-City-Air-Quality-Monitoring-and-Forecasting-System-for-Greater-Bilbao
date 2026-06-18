@@ -25,10 +25,11 @@ import streamlit as st
 
 # --- Streamlit Cloud import pattern (pages can't use package-relative imports) ---
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import load_data, DATA_FILE  # noqa: E402
+from config import load_data, DATA_FILE, center_tables
 from auth import require_auth, logout_button  # noqa: E402
 
 st.set_page_config(page_title="Data Health", page_icon="🩺", layout="wide")
+center_tables()
 
 # ==================================================
 # AUTH GATE — nothing below renders for non-admins

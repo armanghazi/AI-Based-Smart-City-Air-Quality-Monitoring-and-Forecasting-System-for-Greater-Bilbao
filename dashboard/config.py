@@ -276,3 +276,26 @@ def get_fav_station(station_list: list[str]) -> str | None:
         pass
 
     return None
+
+# --------------------------------------------------
+# SHARED UI HELPERS
+# --------------------------------------------------
+
+def center_tables() -> None:
+    """Center all st.dataframe cell text and headers on the current page.
+
+    Relies on Streamlit's internal data-testid selectors, which may change in a
+    future Streamlit release (another reason to pin the streamlit version).
+    """
+    st.markdown(
+        """
+        <style>
+        [data-testid="stDataFrame"] [role="gridcell"],
+        [data-testid="stDataFrame"] [role="columnheader"] {
+            justify-content: center;
+            text-align: center;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )

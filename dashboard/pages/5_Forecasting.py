@@ -9,7 +9,7 @@ import plotly.express as px
 
 from config import (
     load_data, POLLUTANT_COLOR, WHO_ANNUAL,
-    ZONE_META, get_zone,get_fav_station,
+    ZONE_META, get_zone,get_fav_station, center_tables
 )
 
 
@@ -22,6 +22,7 @@ st.set_page_config(
     page_icon="🔮",
     layout="wide",
 )
+center_tables()
 
 # --------------------------------------------------
 # CONSTANTS

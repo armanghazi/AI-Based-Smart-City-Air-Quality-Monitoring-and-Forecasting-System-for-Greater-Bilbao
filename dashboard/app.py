@@ -9,7 +9,7 @@ from datetime import timedelta
 from config import (
     load_data,
     WHO_ANNUAL, WHO_SO2_DAILY, POLLUTANT_COLOR,
-    ZONE_META, who_delta, EU_ANNUAL, ALERT_LIMITS,
+    ZONE_META, who_delta, EU_ANNUAL, ALERT_LIMITS, center_tables
 )
 
 # ==================================================
@@ -22,6 +22,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+center_tables()
 
 # ==================================================
 # DESIGN SYSTEM

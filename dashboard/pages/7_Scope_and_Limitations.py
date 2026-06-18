@@ -3,7 +3,7 @@ import joblib
 import pandas as pd
 from pathlib import Path
 
-from config import WHO_ANNUAL, WHO_SO2_DAILY, POLLUTANT_COLOR
+from config import WHO_ANNUAL, WHO_SO2_DAILY, POLLUTANT_COLOR, center_tables
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -14,6 +14,7 @@ st.set_page_config(
     page_icon="📋",
     layout="wide",
 )
+center_tables()
 
 # --------------------------------------------------
 # CONSTANTS
@@ -144,7 +145,7 @@ with col_geo:
         "Station":   ["ALGORTA_BBIZI2", "SANTURCE",  "BASAURI",    "BARAKALDO",  "ERANDIO",  "MAZARREDO", "MUSKIZ"],
         "Town":      ["Getxo",          "Santurtzi", "Basauri",    "Barakaldo",  "Erandio",  "Bilbao",    "Muskiz"],
         "Zone":      ["Coastal",        "Port",      "Industrial", "Industrial", "Urban",    "Urban",     "Refinery"],
-        "PM10 sensor": ["✅", "✅ none", "✅", "✅", "✅", "✅", "✅"],
+        "PM10 sensor": ["✅", "✅", "✅", "✅", "✅", "✅", "✅"],
     }
     st.dataframe(
         pd.DataFrame(stations_data),

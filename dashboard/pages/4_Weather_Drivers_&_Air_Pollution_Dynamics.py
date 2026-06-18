@@ -9,7 +9,7 @@ from config import (
     load_data,
     WHO_ANNUAL, CORE_POLLUTANTS,
     POLLUTANT_COLOR, MONTH_NAMES,
-    ZONE_META, get_zone,get_fav_station,
+    ZONE_META, get_zone,get_fav_station, center_tables
 )
 
 # --------------------------------------------------
@@ -21,6 +21,7 @@ st.set_page_config(
     page_icon="🌦️",
     layout="wide"
 )
+center_tables()
 
 # --------------------------------------------------
 # CONSTANTS

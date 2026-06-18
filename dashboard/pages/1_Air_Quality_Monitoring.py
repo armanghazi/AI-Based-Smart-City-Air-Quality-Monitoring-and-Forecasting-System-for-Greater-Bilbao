@@ -6,7 +6,7 @@ from streamlit_folium import st_folium
 from config import (
     load_data,
     WHO_ANNUAL, POLLUTANT_COLOR, MONTH_NAMES,
-    ZONE_MAP, ZONE_META, get_zone,
+    ZONE_MAP, ZONE_META, get_zone, center_tables
 )
 
 # -----------------------
@@ -16,6 +16,7 @@ st.set_page_config(
     page_title="Smart City Air Intelligence",
     layout="wide"
 )
+center_tables()
 st.title("🌍 Smart City Air Quality Dashboard")
 st.markdown("Greater Bilbao Air Quality Monitoring System")
 

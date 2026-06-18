@@ -27,7 +27,7 @@ from config import (  # noqa: E402
     WHO_ANNUAL,
     WHO_SO2_DAILY,
     CORE_POLLUTANTS,
-    get_zone,
+    get_zone, center_tables
 )
 
 # EU limits exist only in newer config versions — import defensively
@@ -52,6 +52,7 @@ MAX_HISTORY = 8                     # prior turns sent to the model (keeps us un
 POLLUTANTS = ["PM2.5", "PM10", "NO2", "SO2"]
 
 st.set_page_config(page_title="Project Assistant", page_icon="💬", layout="wide")
+center_tables()
 
 # --------------------------------------------------
 # STATIC PROJECT KNOWLEDGE  (distilled from README / Architecture docs)

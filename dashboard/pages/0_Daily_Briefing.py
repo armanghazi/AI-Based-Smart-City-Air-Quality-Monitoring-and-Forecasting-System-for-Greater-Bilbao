@@ -19,7 +19,7 @@ import plotly.express as px
 from config import (
     load_data, WHO_ANNUAL, WHO_SO2_DAILY,
     POLLUTANT_COLOR, ZONE_META, get_fav_station,
-    EU_ANNUAL,ALERT_LIMITS,
+    EU_ANNUAL,ALERT_LIMITS, center_tables
 )
 
 from pdf_report import generate_daily_report
@@ -34,6 +34,7 @@ st.set_page_config(
     page_icon="🌅",
     layout="wide",
 )
+center_tables()
 
 # --------------------------------------------------
 # CUSTOM CSS — clean, modern look

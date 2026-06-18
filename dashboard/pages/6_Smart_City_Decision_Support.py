@@ -17,7 +17,7 @@ import plotly.graph_objects as go
 from config import (
     load_data, WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
     POLLUTANT_COLOR, ZONE_META, RISK_COLORS,
-    classify_core_risk, risk_color, get_fav_station, EU_ANNUAL
+    classify_core_risk, risk_color, get_fav_station, EU_ANNUAL, center_tables
 )
 from forecast_utils import prepare_features
 from gauge_component import render_gauge_row
@@ -40,7 +40,7 @@ st.set_page_config(
     page_icon="🏛️",
     layout="wide",
 )
-
+center_tables()
 # ==================================================
 # 2. CONSTANTS
 # ==================================================
