@@ -257,11 +257,11 @@ with tab_status:
         delta_color="inverse",
     )
     k3.metric(
-        "Most critical pollutant", worst_pollutant,
+        "Worst pollutant", worst_pollutant,
         f"{city_ratios[worst_pollutant]:.1f}× WHO limit",
         delta_color="inverse",
     )
-    k4.metric("Observations analyzed", f"{len(recent):,}")
+    k4.metric("Records", f"{len(recent):,}")
 
     st.divider()
 
