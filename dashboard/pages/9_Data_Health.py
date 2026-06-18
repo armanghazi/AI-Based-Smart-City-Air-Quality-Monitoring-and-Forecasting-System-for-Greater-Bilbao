@@ -101,6 +101,19 @@ elif status.startswith("🟡"):
 else:
     st.error(f"{status} — data is {days_behind} days behind. The pipeline may have failed.")
 
+# Last ingestion delta — who reported on the most recent day
+st.subheader("Last ingestion")
+on_latest = df[df["Date"] == latest]
+all_stations = sorted(df["station"].unique())
+present = sorted(on_latest["station"].unique())
+missing = [s for s in all_stations if s not in present]
+d1, d2 = st.columns([1, 2])
+d1.metric("Rows on latest day", f"{len(on_latest)}", f"{len(present)}/{len(all_stations)} stations")
+if missing:
+    d2.warning("Not yet updated on the latest day: " + ", ".join(missing))
+else:
+    d2.success("All stations reported on the latest day.")
+
 st.divider()
 
 # ==================================================
@@ -108,8 +121,14 @@ st.divider()
 # ==================================================
 st.subheader("Per-station freshness")
 g = df.groupby("station")
+zone_by_station = g["Zone"].first()
+# Coverage fraction (0..1) per station x pollutant — reused below to flag "no sensor"
+cov = pd.DataFrame(
+    {p: g[p].apply(lambda s: s.notna().mean()) for p in POLLUTANTS if p in df.columns}
+)
 latest_per = g["Date"].max()
 fresh = pd.DataFrame({
+    "Zone": zone_by_station,
     "Latest date": latest_per.dt.strftime("%d %b %Y"),
     "Days behind": (today - latest_per).dt.days.astype(int),
 })
@@ -118,26 +137,65 @@ fresh = fresh.sort_values("Days behind", ascending=False)
 st.dataframe(fresh, width="stretch")
 
 # ==================================================
-# COMPLETENESS — per station x pollutant (raw NaN kept, never interpolated)
+# SENSOR COVERAGE & COMPLETENESS
+# A pollutant a station GENUINELY never reports (all-time coverage < 10%) is shown
+# as "not monitored", NOT as a failure. A short recent gap in an otherwise-reported
+# series is a possible outage and is handled in the next section — not here.
 # ==================================================
-st.subheader("Data completeness")
-st.caption("Share of non-missing daily values. Gaps are kept raw — the pipeline never interpolates.")
-comp = pd.DataFrame(
-    {p: g[p].apply(lambda s: 100 * s.notna().mean()) for p in POLLUTANTS if p in df.columns}
-).round(1)
+NO_SENSOR = 0.10  # all-time coverage below this = pollutant genuinely not monitored here
 
-fig = px.imshow(
-    comp.values,
-    x=list(comp.columns),
-    y=list(comp.index),
-    color_continuous_scale="RdYlGn",
-    range_color=[0, 100],
-    text_auto=True,
-    aspect="auto",
-    labels=dict(color="% present"),
-)
-fig.update_layout(height=60 + 32 * len(comp), margin=dict(l=0, r=0, t=10, b=0))
-st.plotly_chart(fig, width="stretch")
+st.subheader("Sensor coverage & completeness")
+st.caption('All-time completeness per pollutant. A pollutant a station genuinely never '
+           'reports (all-time coverage under 10%) is marked "not monitored" — not a failure. '
+           'Short recent gaps appear below as possible outages.')
+
+
+def _cov_cell(frac: float) -> str:
+    return "not monitored" if frac < NO_SENSOR else f"{100 * frac:.1f}%"
+
+
+cov_display = cov.map(_cov_cell)  # DataFrame.map (pandas >= 2.1; applymap removed in 3.0)
+cov_display.insert(0, "Zone", zone_by_station)
+st.dataframe(cov_display, width="stretch")
+
+# ==================================================
+# RECENT DATA GAPS (last 30 days) — possible sensor outages
+# ==================================================
+st.subheader("Recent data gaps (last 30 days)")
+st.caption('Missing values over the last 30 days in pollutants the station does monitor — '
+           'a likely sensor outage. Not-monitored pollutants are excluded (shown as —).')
+
+cutoff = latest - pd.Timedelta(days=30)
+recent = df[df["Date"] >= cutoff]
+gr = recent.groupby("station")
+
+gap_rows = {}
+for stn in cov.index:
+    row = {}
+    for p in POLLUTANTS:
+        if p not in df.columns:
+            continue
+        if cov.loc[stn, p] < NO_SENSOR:
+            row[p] = "—"  # structurally absent: not a gap
+        elif stn in gr.groups:
+            row[p] = int(gr.get_group(stn)[p].isna().sum())
+        else:
+            row[p] = 0
+    gap_rows[stn] = row
+gaps = pd.DataFrame(gap_rows).T[[p for p in POLLUTANTS if p in cov.columns]]
+st.dataframe(gaps, width="stretch")
+
+# Actionable summary: which measured series actually have recent gaps
+flagged = []
+for stn in gaps.index:
+    for p in gaps.columns:
+        val = gaps.loc[stn, p]
+        if val != "—" and int(val) > 0:
+            flagged.append(f"{stn}/{p} ({int(val)})")
+if flagged:
+    st.warning("⚠️ Possible sensor outage (recent gaps): " + ", ".join(flagged))
+else:
+    st.success("No recent gaps in any monitored series over the last 30 days.")
 
 # ==================================================
 # INTEGRITY + RECENT INGESTION
