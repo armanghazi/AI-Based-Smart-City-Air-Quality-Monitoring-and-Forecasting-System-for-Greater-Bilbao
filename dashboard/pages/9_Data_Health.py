@@ -30,12 +30,7 @@ from auth import require_auth, logout_button  # noqa: E402
 
 st.set_page_config(page_title="Data Health", page_icon="🩺", layout="wide")
 
-# ==================================================
-# AUTH GATE — nothing below renders for non-admins
-# ==================================================
-user = require_auth(role="admin")
-st.sidebar.success(f"Signed in: {user['name']}\n\nRole: {user['role']}")
-logout_button()
+
 
 POLLUTANTS = ["PM2.5", "PM10", "NO2", "SO2"]
 
