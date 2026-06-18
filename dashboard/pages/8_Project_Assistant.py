@@ -36,6 +36,14 @@ try:
 except ImportError:
     EU_ANNUAL, ALERT_LIMITS = {}, {}
 
+# AQI module (European/ICA primary + EPA reference) — single source of truth,
+# the same logic the dashboard uses. Import defensively so the page still runs
+# if an older config layout lacks aqi.py.
+try:
+    from aqi import overall_aqi  # noqa: E402
+except ImportError:
+    overall_aqi = None
+
 # --------------------------------------------------
 # CONFIG
 # --------------------------------------------------
@@ -66,6 +74,12 @@ Muskiz = Refinery (Petronor petrochemical profile).
 GUIDELINES: PM2.5/PM10/NO2 compared to WHO 2021 ANNUAL limits (5 / 15 / 10 ug/m3).
 SO2 is handled SEPARATELY against the WHO 24-HOUR guideline (40 ug/m3) because its behavior is
 episodic (industrial/port), not annual. Dashboard also benchmarks against EU regulatory limits.
+
+AIR QUALITY INDEX (AQI): the dashboard shows a DUAL index. Primary = European Air Quality Index
+(EEA), which the Spanish ICA (MITECO) follows; secondary reference = US EPA AQI. The overall AQI
+of a station is the WORST (highest) pollutant category, NOT an average (official EAQI/ICA rule).
+Because the data is daily means while the official index uses shorter windows, it is a
+daily-mean-based APPROXIMATION. The logic lives in the shared aqi.py module (single source of truth).
 
 FORECASTING (production = XGBoost, one model per pollutant, 62 features each):
 - Task: next-day forecast, target(t+1) per station.
@@ -162,6 +176,37 @@ def build_data_digest() -> tuple[str, str]:
             f"  SO2 (WHO 24h {WHO_SO2_DAILY}): % days over limit, highest {pct_over.index[0]} "
             f"= {pct_over.iloc[0]:.1f}%."
         )
+
+    # Air Quality Index — reuses the dashboard's shared aqi module (EAQI/ICA + EPA).
+    # Overall AQI per station = WORST pollutant category (official rule, not an average),
+    # computed on the latest daily reading (a daily-mean approximation of the official index).
+    if overall_aqi is not None:
+        lines.append(
+            "\nAir Quality Index (EAQI/ICA on latest reading; overall = WORST pollutant, "
+            "not an average; daily-mean approximation):"
+        )
+        ranking = []
+        for stn, g in df.sort_values("Date").groupby("station"):
+            last = g.iloc[-1]
+            vals = {
+                p: (None if pd.isna(last[p]) else float(last[p]))
+                for p in POLLUTANTS
+                if p in g.columns
+            }
+            res = overall_aqi(vals)
+            if res:
+                ranking.append((stn, last.get("Town", stn), res))
+        # Best -> worst: lower EAQI level first, EPA AQI breaks ties
+        ranking.sort(key=lambda r: (r[2]["level"], r[2].get("epa_aqi") or 0))
+        for stn, town, res in ranking:
+            epa = res.get("epa_aqi")
+            epa_s = f", EPA {epa} ({res.get('epa_label')})" if epa is not None else ""
+            lines.append(
+                f"  {stn} ({town}): EAQI {res['level']}/6 \"{res['label']}\", "
+                f"driver {res['driver']}{epa_s}."
+            )
+        if ranking:
+            lines.append(f"  => Best (cleanest) AQI: {ranking[0][0]}; worst: {ranking[-1][0]}.")
 
     return "\n".join(lines), str(dmax)
 
