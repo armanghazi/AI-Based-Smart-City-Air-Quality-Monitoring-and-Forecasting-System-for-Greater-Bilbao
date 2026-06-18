@@ -114,6 +114,8 @@ DASHBOARD PAGES: 1 Monitoring, 2 Temporal Trends, 3 Urban Risk Index, 4 Weather 
 
 # Example questions shown as quick-start buttons
 EXAMPLES = [
+    "Which station has the best air quality index right now?",
+    "Which station has the worst PM10, and how does it compare to theEAQI limit?",
     "Which station has the worst NO2, and how does it compare to the WHO limit?",
     "Why is SO2 handled separately, and why is its R2 lower than the others?",
     "How were the forecasting models protected against data leakage?",
