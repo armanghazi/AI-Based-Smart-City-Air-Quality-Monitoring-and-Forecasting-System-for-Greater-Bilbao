@@ -49,6 +49,7 @@ st.markdown("""
     --bad:        #dc2626;
 }
 
+
 html, body, [class*="css"] {
     font-family: 'IBM Plex Sans', system-ui, sans-serif;
     color: var(--ink);
@@ -178,6 +179,7 @@ h1, h2, h3, h4 { letter-spacing: -0.02em; font-weight: 600; }
 .nav-title { font-weight: 600; font-size: 0.98rem; margin: 8px 0 4px; }
 .nav-desc { color: var(--mist); font-size: 0.8rem; line-height: 1.45; }
 
+
 /* ---- Metric tuning ---- */
 div[data-testid="stMetric"] {
     background: var(--haze);
@@ -191,6 +193,8 @@ div[data-testid="stMetricValue"] {
 hr { border-color: var(--line); }
 </style>
 """, unsafe_allow_html=True)
+
+
 
 # ==================================================
 # LOAD DATA
