@@ -14,3 +14,4 @@ streamlit-cookies-manager
 geopandas
 shapely
 fpdf2
+groq

@@ -1,0 +1,268 @@
+"""
+7_Project_Assistant.py
+In-dashboard conversational assistant for the GeoAI Air Quality project.
+
+Answers questions about BOTH the live data and the project methodology, grounded in:
+  (a) a runtime DATA DIGEST computed from config.load_data(), and
+  (b) a static PROJECT KNOWLEDGE block.
+
+Backend: Groq API (OpenAI-compatible chat completions).
+Key is read from st.secrets["GROQ_API_KEY"] — add it in Streamlit Cloud > Settings > Secrets.
+Provider-agnostic by design: to swap providers, only the client and MODEL name change.
+Requires the 'groq' package (add `groq` to requirements.txt).
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pandas as pd
+import streamlit as st
+
+# --- Streamlit Cloud import pattern: pages cannot use package-relative imports ---
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import (  # noqa: E402
+    load_data,
+    WHO_ANNUAL,
+    WHO_SO2_DAILY,
+    CORE_POLLUTANTS,
+    get_zone,
+)
+
+# EU limits exist only in newer config versions — import defensively
+try:
+    from config import EU_ANNUAL, ALERT_LIMITS  # noqa: E402
+except ImportError:
+    EU_ANNUAL, ALERT_LIMITS = {}, {}
+
+# --------------------------------------------------
+# CONFIG
+# --------------------------------------------------
+MODEL = "llama-3.3-70b-versatile"   # Groq free-tier high-quota model (verify name on console.groq.com)
+MAX_HISTORY = 8                     # prior turns sent to the model (keeps us under free-tier TPM)
+POLLUTANTS = ["PM2.5", "PM10", "NO2", "SO2"]
+
+st.set_page_config(page_title="Project Assistant", page_icon="💬", layout="wide")
+
+# --------------------------------------------------
+# STATIC PROJECT KNOWLEDGE  (distilled from README / Architecture docs)
+# --------------------------------------------------
+PROJECT_TITLE = "GeoAI Smart City Air Quality Dashboard — Greater Bilbao"
+
+PROJECT_KNOWLEDGE = """
+PURPOSE: End-to-end GeoAI platform that monitors, analyzes, visualizes, and forecasts
+urban air quality across Greater Bilbao (Bizkaia, Basque Country, Spain). Live on Streamlit Cloud.
+
+DATA: 7 monitoring stations, 4 pollutants (PM2.5, PM10, NO2, SO2), daily resolution, 2015-2026.
+Air quality from Open Data Euskadi; weather from Open-Meteo (ERA5). Stored as Parquet.
+Two files: forecasting_dataset.parquet (frozen ML snapshot, MICE-imputed) and
+air_quality_weather.parquet (live dashboard source, raw NaN kept, never interpolated).
+
+ZONES: Mazarredo/Erandio = Urban (traffic, highest NO2); Basauri/Barakaldo = Industrial (high PM);
+Santurtzi = Port (marine + traffic, SO2); Algorta = Coastal (best dispersion);
+Muskiz = Refinery (Petronor petrochemical profile).
+
+GUIDELINES: PM2.5/PM10/NO2 compared to WHO 2021 ANNUAL limits (5 / 15 / 10 ug/m3).
+SO2 is handled SEPARATELY against the WHO 24-HOUR guideline (40 ug/m3) because its behavior is
+episodic (industrial/port), not annual. Dashboard also benchmarks against EU regulatory limits.
+
+FORECASTING (production = XGBoost, one model per pollutant, 62 features each):
+- Task: next-day forecast, target(t+1) per station.
+- Test-set results (held out 2024-2026): NO2 R2=0.560, PM2.5 R2=0.479, PM10 R2=0.460, SO2 R2=0.390.
+- SO2's lower R2 is EXPECTED (episodic emissions), not a bug.
+METHODOLOGY (rigor):
+- Strict TIME-BASED split (train <2023, validation 2023, test >=2024). A row-based split once
+  produced an inflated R2=0.84 via leakage; this was found and fixed. When R2 jumps, suspect leakage.
+- Keeping TODAY's pollutant value as a feature is VALID (available at prediction time, not leakage).
+  Removing PM2.5 drops its R2 from 0.48 to 0.34.
+- SHAP confirmed physically meaningful behavior: higher wind speed and precipitation push predictions
+  DOWN (dispersion, wet deposition). NO2 shows strong day-of-week (traffic) importance.
+- Benchmarks (notebook 08): XGBoost 0.479 > SARIMA one-step 0.463 (single station only) > MLP 0.208.
+  XGBoost chosen for production: 4 models cover all stations (vs 28 for SARIMA), uses weather signal,
+  degrades gracefully on multi-day horizons. ARIMA/SARIMA/LSTM are benchmark-only, never production.
+- Models are FROZEN: runtime feature engineering means live daily data improves predictions
+  without retraining.
+
+SPATIAL GeoAI (Phase C): IDW interpolation surfaces masked to the Gran Bilbao comarca boundary
+(EPSG:25830). Covariate analysis: distance to Petronor refinery vs mean SO2 gave Pearson r = -0.15,
+interpreted as SO2 having DISTRIBUTED sources (traffic, local combustion) rather than one point source.
+Road-density (osmnx) vs NO2 analysis is in progress.
+
+PIPELINE (Phase B, live): GitHub Actions cron runs scripts/daily_update.py to fetch new records from
+Open Data Euskadi + Open-Meteo and append to the dashboard parquet (idempotent, current day rejected,
+zero duplicates). The commit triggers a Streamlit Cloud redeploy. No retraining.
+
+DASHBOARD PAGES: 1 Monitoring, 2 Temporal Trends, 3 Urban Risk Index, 4 Weather Drivers,
+5 Forecasting (backtest + recursive forecast + SHAP), 6 Smart City Decision Support
+(GeoAI risk map, IDW surface, scenario simulator, recommended actions, PDF/CSV export).
+""".strip()
+
+# Example questions shown as quick-start buttons
+EXAMPLES = [
+    "Which station has the worst NO2, and how does it compare to the WHO limit?",
+    "Why is SO2 handled separately, and why is its R2 lower than the others?",
+    "How were the forecasting models protected against data leakage?",
+    "What does the spatial analysis say about the Petronor refinery and SO2?",
+]
+
+
+# --------------------------------------------------
+# DATA DIGEST  (cached — recomputed only when the parquet changes)
+# --------------------------------------------------
+@st.cache_data(show_spinner=False)
+def build_data_digest() -> tuple[str, str]:
+    """Return (digest_text, freshness_label). Degrades gracefully if data is unavailable."""
+    try:
+        df = load_data()
+    except Exception as exc:  # data not reachable (e.g. local run without parquet)
+        return f"DATA DIGEST UNAVAILABLE ({exc}).", "unknown"
+
+    lines: list[str] = []
+    dmin, dmax = df["Date"].min().date(), df["Date"].max().date()
+    n_stations = df["station"].nunique()
+    lines.append(f"Coverage: {n_stations} stations, {len(df):,} daily rows, {dmin} to {dmax}.")
+    lines.append(f"Most recent date in data: {dmax} (freshness indicator).")
+
+    # Raw NaN counts (the dashboard parquet keeps gaps, never interpolates)
+    nan_bits = [f"{p}={int(df[p].isna().sum())}" for p in POLLUTANTS if p in df.columns]
+    lines.append("Missing values (kept raw, not interpolated): " + ", ".join(nan_bits) + ".")
+
+    # Per-station latest value | period mean
+    lines.append("\nPer-station (latest | period mean), ug/m3:")
+    for stn, g in df.sort_values("Date").groupby("station"):
+        last = g.iloc[-1]
+        town = last.get("Town", stn)
+        zone = get_zone(town)
+        parts = []
+        for p in POLLUTANTS:
+            if p in g.columns:
+                lv = last[p]
+                lv_s = "NA" if pd.isna(lv) else f"{lv:.1f}"
+                parts.append(f"{p} {lv_s}|{g[p].mean():.1f}")
+        lines.append(f"  {stn} ({town}, {zone}): " + "; ".join(parts))
+
+    # WHO exceedance summary
+    lines.append("\nWHO exceedance (period mean vs guideline):")
+    for p in CORE_POLLUTANTS:
+        if p in df.columns:
+            limit = WHO_ANNUAL[p]
+            means = df.groupby("station")[p].mean().sort_values(ascending=False)
+            top = means.index[0]
+            lines.append(
+                f"  {p} (WHO annual {limit}): highest mean {top} = {means.iloc[0]:.1f} "
+                f"({means.iloc[0] / limit:.1f}x limit)."
+            )
+    if "SO2" in df.columns:
+        pct_over = (
+            df.groupby("station")["SO2"].apply(lambda s: (s > WHO_SO2_DAILY).mean() * 100)
+            .sort_values(ascending=False)
+        )
+        lines.append(
+            f"  SO2 (WHO 24h {WHO_SO2_DAILY}): % days over limit, highest {pct_over.index[0]} "
+            f"= {pct_over.iloc[0]:.1f}%."
+        )
+
+    return "\n".join(lines), str(dmax)
+
+
+def build_system_prompt(digest: str) -> str:
+    """Assemble the grounded system prompt: rules + project knowledge + live digest."""
+    return (
+        f"You are the Project Assistant for \"{PROJECT_TITLE}\". "
+        "You help visitors understand both the air-quality DATA and the project's METHODOLOGY.\n\n"
+        "GROUND RULES:\n"
+        "- Answer ONLY from the PROJECT KNOWLEDGE and LIVE DATA DIGEST below.\n"
+        "- If something is not covered, say you don't have that information. Never invent numbers, "
+        "dates, or station values.\n"
+        "- The digest holds aggregates and latest values, not arbitrary history. For a specific "
+        "past date at a specific station, explain that you only have aggregate/latest figures.\n"
+        "- Be concise and precise; use ug/m3 for concentrations. Answer as a knowledgeable guide "
+        "to this portfolio/class project.\n\n"
+        f"=== PROJECT KNOWLEDGE ===\n{PROJECT_KNOWLEDGE}\n\n"
+        f"=== LIVE DATA DIGEST ===\n{digest}"
+    )
+
+
+# --------------------------------------------------
+# GROQ CALL  (returns (ok, text); never raises to the UI)
+# --------------------------------------------------
+def get_assistant_reply(history: list[dict], digest: str) -> tuple[bool, str]:
+    api_key = st.secrets.get("GROQ_API_KEY", None)
+    if not api_key:
+        return False, (
+            "The assistant is offline because no `GROQ_API_KEY` is configured. "
+            "Add it under Streamlit Cloud → Settings → Secrets to enable chat. "
+            "Meanwhile, the project facts are available in the **Project facts** panel above."
+        )
+    try:
+        from groq import Groq
+
+        client = Groq(api_key=api_key)
+        messages = [{"role": "system", "content": build_system_prompt(digest)}]
+        messages += history[-MAX_HISTORY:]
+        resp = client.chat.completions.create(
+            model=MODEL,
+            messages=messages,
+            temperature=0.3,
+            max_tokens=800,
+        )
+        return True, resp.choices[0].message.content.strip()
+    except Exception as exc:  # rate limit (429), network, bad key, etc.
+        return False, (
+            "The assistant could not answer right now (possibly a free-tier rate limit — "
+            f"try again in a moment). Details: `{exc}`"
+        )
+
+
+# --------------------------------------------------
+# UI
+# --------------------------------------------------
+st.title("💬 Project Assistant")
+st.caption(
+    "Ask about the data or the methodology. Answers are grounded in the live dataset and the "
+    "project documentation — the assistant will not guess beyond them."
+)
+
+digest_text, freshness = build_data_digest()
+st.caption(f"Grounded on data through **{freshness}** · model `{MODEL}` via Groq")
+
+with st.expander("📋 Project facts (what the assistant is grounded on)"):
+    st.code(digest_text, language="text")
+
+# Quick-start buttons
+st.markdown("##### Quick start")
+cols = st.columns(2)
+for i, q in enumerate(EXAMPLES):
+    if cols[i % 2].button(q, key=f"ex_{i}", width="stretch"):
+        st.session_state.queued_prompt = q
+        st.rerun()
+
+# Chat state
+if "assistant_msgs" not in st.session_state:
+    st.session_state.assistant_msgs = []
+
+# Render history
+for m in st.session_state.assistant_msgs:
+    with st.chat_message(m["role"]):
+        st.markdown(m["content"])
+
+# New input: typed prompt OR a queued quick-start question
+typed = st.chat_input("Ask about the data or the project…")
+prompt = typed or st.session_state.pop("queued_prompt", None)
+
+if prompt:
+    st.session_state.assistant_msgs.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking…"):
+            ok, reply = get_assistant_reply(st.session_state.assistant_msgs, digest_text)
+        st.markdown(reply)
+    st.session_state.assistant_msgs.append({"role": "assistant", "content": reply})
+
+# Reset
+if st.session_state.assistant_msgs:
+    if st.button("Clear conversation"):
+        st.session_state.assistant_msgs = []
+        st.rerun()
