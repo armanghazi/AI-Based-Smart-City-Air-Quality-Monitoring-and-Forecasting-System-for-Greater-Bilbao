@@ -26,11 +26,13 @@ st.set_page_config(
 )
 
 # Auto-redirect admin BEFORE rendering anything
+# Auto-redirect admin to Operations Dashboard once per session after login
 try:
     if st.user.is_logged_in:
         from auth import current_role
         role = current_role()
-        if role == "admin" and "code" in st.query_params:
+        if role == "admin" and not st.session_state.get("_admin_welcomed"):
+            st.session_state["_admin_welcomed"] = True
             st.switch_page("pages/9_Smart_City_Operations.py")
 except Exception:
     pass
