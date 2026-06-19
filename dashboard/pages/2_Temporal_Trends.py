@@ -8,8 +8,9 @@ from config import (
     POLLUTANT_COLOR, MONTH_NAMES, RISK_COLORS, RISK_ORDER,
     ZONE_MAP, ZONE_META, get_zone,
     classify_core_risk, risk_color, short_term_flag,
-    who_ratio_label, who_delta,get_fav_station, center_tables
+    who_ratio_label, who_delta, get_fav_station, center_tables
 )
+from i18n_auto import language_selector, apply_lang_styles, tr
 
 import streamlit as st
 import pandas as pd
@@ -20,19 +21,12 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="Temporal Trends", layout="wide")
 language_selector()
 apply_lang_styles()
-
-from i18n_auto import language_selector, apply_lang_styles, tr
-
-language_selector()     # sidebar — باید اول صدا زده شود
-apply_lang_styles()     # RTL + فونت اگر فارسی بود
-st.caption(tr("Each station sits in a zone defined by its dominant emission source."))
+center_tables()
 
 # -----------------------
 # Constants
 # -----------------------
-
 COVID_PERIODS = ["Pre-COVID", "COVID", "Post-COVID"]
-
 # -----------------------
 # Load Data
 # -----------------------
