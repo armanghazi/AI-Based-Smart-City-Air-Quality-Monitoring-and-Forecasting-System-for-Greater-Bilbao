@@ -392,7 +392,7 @@ with col_fav:
         index=default_idx,
         help=tr("Remembered on this device for your next visit."),
     )
-    if st.button(tr("Save as default"), type="primary", use_container_width=True):
+    if st.button(tr("Save as default"), type="primary", width="stretch"):
         st.session_state.fav_station = selected_fav
         if _cookies is not None:
             _cookies["fav_station"] = selected_fav
@@ -596,7 +596,7 @@ for i in range(0, len(NAV), 4):
                 <div class="nav-desc">{tr(m['desc'])}</div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button(tr("Open →"), key=f"nav_{i+j}", use_container_width=True):
+            if st.button(tr("Open →"), key=f"nav_{i+j}", width="stretch"):
                 st.switch_page(m["page"])
 
 st.divider()

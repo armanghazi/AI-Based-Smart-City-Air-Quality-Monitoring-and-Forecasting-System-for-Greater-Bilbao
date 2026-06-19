@@ -157,7 +157,7 @@ with col_geo:
     st.dataframe(
         pd.DataFrame(stations_data),
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
     )
     st.caption(
         tr("SANTURCE has no PM10 sensor — PM10 values are always NaN for this station.")
@@ -197,7 +197,7 @@ poll_data = {
     "Not covered": ["—", "—", "—", "—"],
 }
 
-st.dataframe(pd.DataFrame(poll_data), hide_index=True, use_container_width=True)
+st.dataframe(pd.DataFrame(poll_data), hide_index=True, width="stretch")
 
 st.warning(
     tr("**Pollutants NOT monitored:** O₃ (ozone), CO (carbon monoxide), "
@@ -228,7 +228,7 @@ compare_data = {
     "Legal basis": ["Guidance only", "Guidance only", "Guidance only", "Guidance only"],
 }
 
-st.dataframe(pd.DataFrame(compare_data), hide_index=True, use_container_width=True)
+st.dataframe(pd.DataFrame(compare_data), hide_index=True, width="stretch")
 
 st.caption(
     tr("WHO guidelines are typically 2–5× stricter than EU legal limits. "

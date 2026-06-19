@@ -673,7 +673,7 @@ for _, row in ranking.iterrows():
         })
 
 eu_df = pd.DataFrame(eu_rows)
-st.dataframe(eu_df, hide_index=True, use_container_width=True)
+st.dataframe(eu_df, hide_index=True, width="stretch")
 
 
 # ==================== TAB 3: TRENDS ====================

@@ -565,7 +565,7 @@ with col_pdf1:
         file_name= f"daily_alert_{latest_date.strftime('%Y%m%d')}.pdf",
         mime     = "application/pdf",
         type     = "primary",
-        use_container_width=True,
+        width="stretch",
     )
 
 with col_pdf2:
