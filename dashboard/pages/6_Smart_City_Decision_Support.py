@@ -31,6 +31,12 @@ from config import EU_ANNUAL
 
 from pdf_report import generate_daily_report, generate_monthly_report
 
+from i18n_auto import language_selector, apply_lang_styles, tr
+
+language_selector()     # sidebar — باید اول صدا زده شود
+apply_lang_styles()     # RTL + فونت اگر فارسی بود
+st.caption(tr("Each station sits in a zone defined by its dominant emission source."))
+
 # ==================================================
 # 1. PAGE CONFIG
 # ==================================================

@@ -8,6 +8,11 @@ from config import (
     WHO_ANNUAL, POLLUTANT_COLOR, MONTH_NAMES,
     ZONE_MAP, ZONE_META, get_zone, center_tables
 )
+from i18n_auto import language_selector, apply_lang_styles, tr
+
+language_selector()     # sidebar — باید اول صدا زده شود
+apply_lang_styles()     # RTL + فونت اگر فارسی بود
+st.caption(tr("Each station sits in a zone defined by its dominant emission source."))
 
 # -----------------------
 # Page Config

@@ -17,6 +17,12 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 
+from i18n_auto import language_selector, apply_lang_styles, tr
+
+language_selector()     # sidebar — باید اول صدا زده شود
+apply_lang_styles()     # RTL + فونت اگر فارسی بود
+st.caption(tr("Each station sits in a zone defined by its dominant emission source."))
+
 
 # --------------------------------------------------
 # PAGE CONFIG

@@ -30,6 +30,13 @@ from config import (  # noqa: E402
     get_zone,
 )
 
+
+from i18n_auto import language_selector, apply_lang_styles, tr
+
+language_selector()     # sidebar — باید اول صدا زده شود
+apply_lang_styles()     # RTL + فونت اگر فارسی بود
+st.caption(tr("Each station sits in a zone defined by its dominant emission source."))
+
 # EU limits exist only in newer config versions — import defensively
 try:
     from config import EU_ANNUAL, ALERT_LIMITS  # noqa: E402

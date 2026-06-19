@@ -5,6 +5,12 @@ from pathlib import Path
 
 from config import WHO_ANNUAL, WHO_SO2_DAILY, POLLUTANT_COLOR, center_tables
 
+from i18n_auto import language_selector, apply_lang_styles, tr
+
+language_selector()     # sidebar — باید اول صدا زده شود
+apply_lang_styles()     # RTL + فونت اگر فارسی بود
+st.caption(tr("Each station sits in a zone defined by its dominant emission source."))
+
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
