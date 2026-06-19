@@ -172,7 +172,7 @@ A professional operational intelligence page modelled after enterprise observabi
 **AI/LLM:** Groq API (Llama 3.3 70B) · parametric query tool (pandas)
 **Auth:** Streamlit native OIDC (`st.login` / `st.user`) · Google OAuth
 **Data & Ops:** Parquet · Open Data Euskadi API · Open-Meteo API · GitHub Actions · pytest
-**i18n:** Bilingual EN/ES via `i18n_auto.py`; RTL-ready for Persian (Vazirmatn)
+**i18n:** Bilingual EN/ES via `i18n_auto.py` (machine translation via `deep-translator` + Google Translate); RTL-ready for Persian (Vazirmatn)
 
 ---
 
@@ -182,10 +182,17 @@ A professional operational intelligence page modelled after enterprise observabi
 project/
 │
 ├── data/
-│   ├── raw/
+│   ├── raw/                                 # original CSVs per station per year
+│   │   ├── 2012/ … 2026/
+│   │   └── *_weather.csv
 │   └── processed/
-│       ├── forecasting_dataset.parquet      # ML-ready snapshot (62 features) — FROZEN
-│       └── air_quality_weather.parquet      # dashboard source — live, pipeline appends daily
+│       ├── air_quality_bilbao_2012_2026.csv
+│       ├── air_quality_weather.csv
+│       ├── air_quality_weather.parquet       # dashboard source — live, pipeline appends daily
+│       ├── cleaned_air_quality_bilbao_2015_2026.csv
+│       ├── final_air_quality.parquet
+│       ├── forecasting_dataset.parquet       # ML-ready snapshot (62 features) — FROZEN
+│       └── weather_data.csv
 │
 ├── notebooks/
 │   ├── 01_data_loading.ipynb
@@ -220,13 +227,16 @@ project/
 │   ├── app.py                               # homepage + post-login admin redirect
 │   ├── config.py                            # shared loader, zones, WHO + EU limits
 │   ├── auth.py                              # OIDC gate: require_auth, current_role, logout_button
-│   ├── forecast_utils.py                    # shared prepare_features
-│   ├── spatial_utils.py                     # IDW mask (comarca boundary)
-│   ├── aqi.py                               # EAQI/ICA + EPA dual index
+│   ├── aqi.py                               # EAQI/ICA + EPA dual index (single source of truth)
+│   ├── aqi_components.py                    # visual AQI components: donut chart, gauge row
 │   ├── assistant_query.py                   # parametric query tool for the AI assistant
-│   ├── i18n_auto.py                         # bilingual EN/ES + RTL support
+│   ├── forecast_utils.py                    # shared prepare_features (62 features)
+│   ├── gauge_component.py                   # WHO-referenced gauge row for decision support
+│   ├── i18n_auto.py                         # bilingual EN/ES + RTL-ready (Vazirmatn)
 │   ├── pdf_report.py                        # PDF export
+│   ├── spatial_utils.py                     # IDW + comarca boundary mask
 │   ├── assets/                              # pre-computed SHAP plots
+│   ├── .streamlit/                          # config.toml; secrets.toml (gitignored)
 │   └── pages/
 │       ├── 0_Daily_Briefing.py
 │       ├── 1_Air_Quality_Monitoring.py
