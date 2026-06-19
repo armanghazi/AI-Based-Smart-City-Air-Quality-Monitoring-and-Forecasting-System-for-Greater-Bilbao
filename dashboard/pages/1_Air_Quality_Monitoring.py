@@ -24,8 +24,8 @@ st.set_page_config(
 language_selector()
 apply_lang_styles()
 center_tables()
-st.title("🌍 Smart City Air Quality Dashboard")
-st.markdown("Greater Bilbao Air Quality Monitoring System")
+st.title(tr("🌍 Smart City Air Quality Dashboard"))
+st.markdown(tr("Greater Bilbao Air Quality Monitoring System"))
 
 # -----------------------
 # Load Data
@@ -57,10 +57,10 @@ def get_quality_label(value, pollutant):
 # -----------------------
 # Sidebar — Pollutant
 # -----------------------
-st.sidebar.header("Filters")
+st.sidebar.header(tr("Filters"))
 
 pollutant = st.sidebar.selectbox(
-    "Select Pollutant",
+    tr("Select Pollutant"),
     ["PM2.5", "PM10", "NO2", "SO2"]
 )
 
@@ -68,7 +68,7 @@ pollutant = st.sidebar.selectbox(
 # Sidebar — Time granularity
 # -----------------------
 time_mode = st.sidebar.radio(
-    "Time Granularity",
+    tr("Time Granularity"),
     options=["Year", "Month", "Day"],
     index=0,
     horizontal=True
@@ -82,7 +82,7 @@ MONTH_NAMES_FULL = {
 
 if time_mode == "Year":
     year_options  = ["All"] + sorted(df["Year"].dropna().unique().tolist())
-    selected_year = st.sidebar.selectbox("Select Year", year_options, index=0)
+    selected_year = st.sidebar.selectbox(tr("Select Year"), year_options, index=0)
 
     if selected_year == "All":
         filtered     = df.copy()
@@ -93,13 +93,13 @@ if time_mode == "Year":
 
 elif time_mode == "Month":
     year_options    = sorted(df["Year"].dropna().unique().tolist())
-    selected_year_m = st.sidebar.selectbox("Select Year", year_options,
+    selected_year_m = st.sidebar.selectbox(tr("Select Year"), year_options,
                                            index=len(year_options) - 1)
     available_months = sorted(
         df[df["Year"] == selected_year_m]["Month"].dropna().unique().tolist()
     )
     month_options       = ["All"] + [MONTH_NAMES_FULL[m] for m in available_months]
-    selected_month_label = st.sidebar.selectbox("Select Month", month_options, index=0)
+    selected_month_label = st.sidebar.selectbox(tr("Select Month"), month_options, index=0)
 
     if selected_month_label == "All":
         filtered     = df[df["Year"] == selected_year_m].copy()
@@ -113,19 +113,19 @@ elif time_mode == "Month":
 
 else:  # Day
     year_options    = sorted(df["Year"].dropna().unique().tolist())
-    selected_year_d = st.sidebar.selectbox("Select Year", year_options,
+    selected_year_d = st.sidebar.selectbox(tr("Select Year"), year_options,
                                            index=len(year_options) - 1)
     available_months_d = sorted(
         df[df["Year"] == selected_year_d]["Month"].dropna().unique().tolist()
     )
     month_options_d      = [MONTH_NAMES_FULL[m] for m in available_months_d]
-    selected_month_label_d = st.sidebar.selectbox("Select Month", month_options_d, index=0)
+    selected_month_label_d = st.sidebar.selectbox(tr("Select Month"), month_options_d, index=0)
     month_num_d          = {v: k for k, v in MONTH_NAMES_FULL.items()}[selected_month_label_d]
 
     df_month      = df[(df["Year"] == selected_year_d) & (df["Month"] == month_num_d)]
     available_days = sorted(df_month["Day"].dropna().unique().tolist())
     selected_day  = st.sidebar.selectbox(
-        "Select Day", available_days,
+        tr("Select Day"), available_days,
         format_func=lambda d: pd.Timestamp(d).strftime("%d %b %Y")
     )
     filtered     = df[df["Day"] == selected_day].copy()
@@ -136,18 +136,18 @@ else:  # Day
 # -----------------------
 t = THRESHOLDS[pollutant]
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 📊 Thresholds (µg/m³)")
+st.sidebar.markdown(f"### 📊 {tr('Thresholds')} (µg/m³)")
 st.sidebar.markdown(
-    f"🟢 **Good** : ≤ {t['low']}\n\n"
-    f"🟡 **Moderate** : {t['low']+1} – {t['mid']}\n\n"
-    f"🔴 **Poor** : > {t['mid']}"
+    f"🟢 **{tr('Good')}** : ≤ {t['low']}\n\n"
+    f"🟡 **{tr('Moderate')}** : {t['low']+1} – {t['mid']}\n\n"
+    f"🔴 **{tr('Poor')}** : > {t['mid']}"
 )
 
 # -----------------------
 # Zone legend in sidebar
 # -----------------------
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🗺️ Environmental Zones")
+st.sidebar.markdown(f"### 🗺️ {tr('Environmental Zones')}")
 for zone, meta in ZONE_META.items():
     st.sidebar.markdown(
         f"{meta['icon']} **{zone}**  \n"
@@ -159,7 +159,7 @@ for zone, meta in ZONE_META.items():
 # Safety check
 # -----------------------
 if filtered.empty:
-    st.warning("No data available for the selected filters.")
+    st.warning(tr("No data available for the selected filters."))
     st.stop()
 
 # -----------------------
@@ -173,7 +173,7 @@ station_mean = (
 )
 
 if station_mean.empty:
-    st.warning("No station data after aggregation.")
+    st.warning(tr("No station data after aggregation."))
     st.stop()
 
 station_mean["Zone"] = station_mean["Town"].apply(get_zone)
@@ -197,26 +197,26 @@ poor_count    = int((station_mean[pollutant].apply(
 st.subheader(f"{pollutant} Mean Values — {period_label}")
 
 c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric(f"Avg {pollutant}", f"{avg_value:.1f} µg/m³")
+c1.metric(f"{tr('Avg')} {pollutant}", f"{avg_value:.1f} µg/m³")
 c2.metric(
-    "Most Polluted",
+    tr("Most Polluted"),
     worst_station["station"].split("_")[0],
     f"{worst_station[pollutant]:.1f} µg/m³",
     delta_color="inverse"
 )
 c3.metric(
-    "Cleanest",
+    tr("Cleanest"),
     best_station["station"].split("_")[0],
     f"{best_station[pollutant]:.1f} µg/m³"
 )
-c4.metric("🟢 Good / 🟡 Moderate", f"{good_count} / {mod_count}")
-c5.metric("🔴 Poor stations", poor_count)
+c4.metric(f"🟢 {tr('Good')} / 🟡 {tr('Moderate')}", f"{good_count} / {mod_count}")
+c5.metric(f"🔴 {tr('Poor stations')}", poor_count)
 
 # -----------------------
 # Zone Summary Cards — 5 zones, 2 rows
 # -----------------------
 st.markdown("---")
-st.subheader("🗺️ Environmental Zone Summary")
+st.subheader(tr("🗺️ Environmental Zone Summary"))
 
 zones_list  = list(ZONE_META.items())
 # row 1: first 3 zones, row 2: remaining zones
@@ -428,8 +428,8 @@ st.dataframe(
             max_value=float(ranking[pollutant].max() * 1.1),
             format="%.1f"
         ),
-        "Quality": st.column_config.TextColumn("Quality Level"),
-        "Zone":    st.column_config.TextColumn("Environmental Zone"),
+        "Quality": st.column_config.TextColumn(tr("Quality Level")),
+        "Zone":    st.column_config.TextColumn(tr("Environmental Zone")),
     },
     hide_index=False
 )
@@ -437,7 +437,7 @@ st.dataframe(
 # -----------------------
 # Zone breakdown table
 # -----------------------
-with st.expander("📊 Zone Comparison Table"):
+with st.expander(tr("📊 Zone Comparison Table")):
     zone_summary = (
         station_mean
         .groupby("Zone")[pollutant]

@@ -271,7 +271,7 @@ st.markdown("")
 # SECTION 2 — TODAY vs TOMORROW KPIs
 # --------------------------------------------------
 
-st.markdown('<p class="section-title">📊 City-wide averages</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="section-title">{tr("📊 City-wide averages")}</p>', unsafe_allow_html=True)
 
 # Today — latest available day
 today_means = (
@@ -328,13 +328,13 @@ st.divider()
 # SECTION 3 — TOMORROW'S STATION HEATMAP
 # --------------------------------------------------
 
-st.markdown('<p class="section-title">🔮 Tomorrow\'s forecast by station & pollutant</p>',
+st.markdown(f'<p class="section-title">{tr("🔮 Tomorrow\'s forecast by station & pollutant")}</p>',
             unsafe_allow_html=True)
 st.caption(
-    "Colour = ratio vs EU Directive limit (legally binding in Spain) · "
-    ">1.0 = legal exceedance · "
-    f"Forecast date: {tomorrow.strftime('%d %b %Y')} · "
-    "For WHO-based analysis see Urban Risk Index"
+    tr("Colour = ratio vs EU Directive limit (legally binding in Spain) · "
+       ">1.0 = legal exceedance") +
+    f" · {tr('Forecast date')}: {tomorrow.strftime('%d %b %Y')} · " +
+    tr("For WHO-based analysis see Urban Risk Index")
 )
 
 if not fc_df.empty:
@@ -400,12 +400,12 @@ if n_exceed > 0:
         f"mailto:?subject={urllib.parse.quote(mailto_subject)}"
         f"&body={urllib.parse.quote(mailto_body)}"
     )
-    st.link_button("📧 Share alert by email", mailto_link, type="primary")
+    st.link_button(tr("📧 Share alert by email"), mailto_link, type="primary")
 
 else:
     st.success(
-        f"✅ No WHO exceedances forecast for {tomorrow.strftime('%d %b %Y')}. "
-        "All stations within safe limits."
+        f"✅ {tr('No WHO exceedances forecast for')} {tomorrow.strftime('%d %b %Y')}. "
+        f"{tr('All stations within safe limits.')}"
     )
 
 st.divider()
@@ -414,7 +414,7 @@ st.divider()
 # SECTION 5 — 7-DAY SPARKLINES
 # --------------------------------------------------
 
-st.markdown('<p class="section-title">📈 Last 7 days — city-wide trend</p>',
+st.markdown(f'<p class="section-title">{tr("📈 Last 7 days — city-wide trend")}</p>',
             unsafe_allow_html=True)
 
 last7 = (
@@ -460,7 +460,7 @@ st.divider()
 # SECTION 6 — RECOMMENDED ACTION
 # --------------------------------------------------
 
-st.markdown('<p class="section-title">🎯 Recommended action for today</p>',
+st.markdown(f'<p class="section-title">{tr("🎯 Recommended action for today")}</p>',
             unsafe_allow_html=True)
 
 # Find worst zone by forecast ratio
@@ -527,7 +527,7 @@ st.divider()
 
 
 
-st.markdown('<p class="section-title">📄 Download Report</p>',
+st.markdown(f'<p class="section-title">{tr("📄 Download Report")}</p>',
             unsafe_allow_html=True)
  
 col_pdf1, col_pdf2 = st.columns([2, 3])
@@ -560,19 +560,19 @@ with col_pdf1:
     )
  
     st.download_button(
-        label    = "📄 Download Daily Alert Report (PDF)",
+        label    = tr("📄 Download Daily Alert Report (PDF)"),
         data     = pdf_bytes,
         file_name= f"daily_alert_{latest_date.strftime('%Y%m%d')}.pdf",
         mime     = "application/pdf",
         type     = "primary",
         use_container_width=True,
     )
- 
+
 with col_pdf2:
     st.caption(
-        "One-page summary: today's city-wide averages, "
-        "tomorrow's EU Directive exceedances, "
-        "and zone-level recommended action."
+        tr("One-page summary: today's city-wide averages, "
+           "tomorrow's EU Directive exceedances, "
+           "and zone-level recommended action.")
     )
 
     
@@ -583,9 +583,9 @@ st.divider()
 # --------------------------------------------------
 
 st.caption(
-    f"Data: Basque Government (CC BY 4.0) + Open-Meteo (CC BY 4.0) · "
-    f"Forecasts: XGBoost models (test R²=0.39–0.56) · "
-    f"Last pipeline run: {latest_date.strftime('%d %b %Y')} · "
-    f"Next update: ~06:00 UTC daily"
+    f"{tr('Data: Basque Government (CC BY 4.0) + Open-Meteo (CC BY 4.0)')} · "
+    f"{tr('Forecasts: XGBoost models (test R²=0.39–0.56)')} · "
+    f"{tr('Last pipeline run')}: {latest_date.strftime('%d %b %Y')} · "
+    f"{tr('Next update: ~06:00 UTC daily')}"
 )
 

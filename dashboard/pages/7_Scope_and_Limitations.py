@@ -66,10 +66,10 @@ def load_metrics() -> dict:
 # HEADER
 # --------------------------------------------------
 
-st.title("📋 Scope & Limitations")
+st.title(tr("📋 Scope & Limitations"))
 st.markdown(
-    "Understanding what this platform **can** and **cannot** do "
-    "is essential for responsible use in decision-making."
+    tr("Understanding what this platform **can** and **cannot** do "
+       "is essential for responsible use in decision-making.")
 )
 st.divider()
 
@@ -77,7 +77,7 @@ st.divider()
 # SECTION 1 — WHAT THIS PLATFORM DOES
 # ==================================================
 
-st.markdown("## ✅ What This Platform Does")
+st.markdown("## ✅ " + tr("What This Platform Does"))
 
 col1, col2 = st.columns(2)
 
@@ -96,10 +96,10 @@ with col1:
 
 with col2:
     st.info(
-        "**One-sentence summary:**\n\n"
-        "This platform monitors air pollution across Greater Bilbao, "
-        "forecasts tomorrow's levels 24 hours in advance, and identifies "
-        "which zones require priority action — updated daily, automatically."
+        tr("**One-sentence summary:**\n\n"
+           "This platform monitors air pollution across Greater Bilbao, "
+           "forecasts tomorrow's levels 24 hours in advance, and identifies "
+           "which zones require priority action — updated daily, automatically.")
     )
 
 st.divider()
@@ -108,30 +108,30 @@ st.divider()
 # SECTION 2 — WHAT THIS PLATFORM DOES NOT DO
 # ==================================================
 
-st.markdown("## ❌ What This Platform Does NOT Do")
+st.markdown("## ❌ " + tr("What This Platform Does NOT Do"))
 
 c1, c2, c3 = st.columns(3)
 
 with c1:
     st.error(
-        "**Not for legal compliance**\n\n"
-        "Uses WHO 2021 guidelines, not EU Directive 2008/50/EC "
-        "limit values. Cannot be used as a substitute for official "
-        "compliance reporting to Spanish authorities."
+        tr("**Not for legal compliance**\n\n"
+           "Uses WHO 2021 guidelines, not EU Directive 2008/50/EC "
+           "limit values. Cannot be used as a substitute for official "
+           "compliance reporting to Spanish authorities.")
     )
 
 with c2:
     st.error(
-        "**Not for real-time emergencies**\n\n"
-        "Data has a ~24-hour lag (D-1). Not suitable for immediate "
-        "emergency response or real-time pollution events."
+        tr("**Not for real-time emergencies**\n\n"
+           "Data has a ~24-hour lag (D-1). Not suitable for immediate "
+           "emergency response or real-time pollution events.")
     )
 
 with c3:
     st.error(
-        "**Not spatially continuous**\n\n"
-        "Point measurements only. No spatial interpolation between "
-        "stations. Areas between monitoring points are not covered."
+        tr("**Not spatially continuous**\n\n"
+           "Point measurements only. No spatial interpolation between "
+           "stations. Areas between monitoring points are not covered.")
     )
 
 st.divider()
@@ -140,12 +140,12 @@ st.divider()
 # SECTION 3 — GEOGRAPHIC & TEMPORAL SCOPE
 # ==================================================
 
-st.markdown("## 🗺️ Geographic & Temporal Scope")
+st.markdown("## 🗺️ " + tr("Geographic & Temporal Scope"))
 
 col_geo, col_time = st.columns(2)
 
 with col_geo:
-    st.markdown("### Geographic Coverage")
+    st.markdown("### " + tr("Geographic Coverage"))
 
     # Station table
     stations_data = {
@@ -160,11 +160,11 @@ with col_geo:
         use_container_width=True,
     )
     st.caption(
-        "SANTURCE has no PM10 sensor — PM10 values are always NaN for this station."
+        tr("SANTURCE has no PM10 sensor — PM10 values are always NaN for this station.")
     )
 
 with col_time:
-    st.markdown("### Temporal Coverage")
+    st.markdown("### " + tr("Temporal Coverage"))
     st.markdown(
         """
         | Parameter | Value |
@@ -184,7 +184,7 @@ st.divider()
 # SECTION 4 — POLLUTANTS COVERED
 # ==================================================
 
-st.markdown("## 🧪 Pollutants Covered")
+st.markdown("## 🧪 " + tr("Pollutants Covered"))
 
 poll_data = {
     "Pollutant": ["PM2.5", "PM10", "NO₂", "SO₂"],
@@ -200,9 +200,9 @@ poll_data = {
 st.dataframe(pd.DataFrame(poll_data), hide_index=True, use_container_width=True)
 
 st.warning(
-    "**Pollutants NOT monitored:** O₃ (ozone), CO (carbon monoxide), "
-    "benzene, NO (nitric oxide), heavy metals. "
-    "These may be relevant for full air quality assessment."
+    tr("**Pollutants NOT monitored:** O₃ (ozone), CO (carbon monoxide), "
+       "benzene, NO (nitric oxide), heavy metals. "
+       "These may be relevant for full air quality assessment.")
 )
 
 st.divider()
@@ -211,12 +211,12 @@ st.divider()
 # SECTION 5 — STANDARDS USED
 # ==================================================
 
-st.markdown("## ⚖️ Air Quality Standards")
+st.markdown("## ⚖️ " + tr("Air Quality Standards"))
 
 st.markdown(
-    "This platform uses **WHO 2021 guidelines** as the primary benchmark. "
-    "These are stricter than legally binding EU limits. "
-    "For official compliance reporting in Spain, EU Directive 2008/50/EC applies."
+    tr("This platform uses **WHO 2021 guidelines** as the primary benchmark. "
+       "These are stricter than legally binding EU limits. "
+       "For official compliance reporting in Spain, EU Directive 2008/50/EC applies.")
 )
 
 # Comparison table
@@ -231,9 +231,9 @@ compare_data = {
 st.dataframe(pd.DataFrame(compare_data), hide_index=True, use_container_width=True)
 
 st.caption(
-    "WHO guidelines are typically 2–5× stricter than EU legal limits. "
-    "Exceeding WHO limits does NOT mean a legal violation — "
-    "it means concentrations are above the health-optimal level."
+    tr("WHO guidelines are typically 2–5× stricter than EU legal limits. "
+       "Exceeding WHO limits does NOT mean a legal violation — "
+       "it means concentrations are above the health-optimal level.")
 )
 
 st.divider()
@@ -242,10 +242,10 @@ st.divider()
 # SECTION 6 — MODEL PERFORMANCE
 # ==================================================
 
-st.markdown("## 🤖 Forecast Model Performance")
+st.markdown("## 🤖 " + tr("Forecast Model Performance"))
 st.markdown(
-    "XGBoost models trained on 2015–2022, validated on 2023, "
-    "tested on 2024–2026 (strict time-based split — no data leakage)."
+    tr("XGBoost models trained on 2015–2022, validated on 2023, "
+       "tested on 2024–2026 (strict time-based split — no data leakage).")
 )
 
 metrics = load_metrics()
@@ -277,12 +277,12 @@ for col, pollutant in zip(cols, POLLUTANTS):
 
 st.markdown("")
 st.info(
-    "**What these numbers mean:**\n\n"
-    "- R² of 0.48 for PM2.5 means the model explains 48% of day-to-day variation. "
-    "The remaining 52% is driven by unpredictable events (dust storms, industrial episodes).\n"
-    "- SO₂ has the lowest R² (0.39) because its emissions are episodic "
-    "(industrial/port events), not regular like traffic-driven NO₂.\n"
-    "- Accuracy degrades for multi-day forecasts — only next-day predictions are published."
+    tr("**What these numbers mean:**\n\n"
+       "- R² of 0.48 for PM2.5 means the model explains 48% of day-to-day variation. "
+       "The remaining 52% is driven by unpredictable events (dust storms, industrial episodes).\n"
+       "- SO₂ has the lowest R² (0.39) because its emissions are episodic "
+       "(industrial/port events), not regular like traffic-driven NO₂.\n"
+       "- Accuracy degrades for multi-day forecasts — only next-day predictions are published.")
 )
 
 st.divider()
@@ -291,12 +291,12 @@ st.divider()
 # SECTION 7 — DATA SOURCES
 # ==================================================
 
-st.markdown("## 📡 Data Sources")
+st.markdown("## 📡 " + tr("Data Sources"))
 
 col_aq, col_met = st.columns(2)
 
 with col_aq:
-    st.markdown("### Air Quality")
+    st.markdown("### " + tr("Air Quality"))
     st.markdown(
         """
         **Source:** Basque Government Open Data  
@@ -315,7 +315,7 @@ with col_aq:
     )
 
 with col_met:
-    st.markdown("### Meteorology")
+    st.markdown("### " + tr("Meteorology"))
     st.markdown(
         """
         **Source:** Open-Meteo ERA5 Archive API  
@@ -337,34 +337,34 @@ st.divider()
 # SECTION 8 — RECOMMENDED & NOT RECOMMENDED USE CASES
 # ==================================================
 
-st.markdown("## 🎯 Use Cases")
+st.markdown("## 🎯 " + tr("Use Cases"))
 
 col_yes, col_no = st.columns(2)
 
 with col_yes:
     st.success(
-        "**✅ Recommended for:**\n\n"
-        "- Daily air quality monitoring by municipal staff\n"
-        "- Early warning before pollution episodes\n"
-        "- Long-term trend analysis (annual/seasonal)\n"
-        "- Environmental zone comparison\n"
-        "- Public communication and awareness\n"
-        "- Research and academic analysis\n"
-        "- Smart City dashboard integration\n"
-        "- Environmental consultancy reporting (indicative)"
+        tr("**✅ Recommended for:**\n\n"
+           "- Daily air quality monitoring by municipal staff\n"
+           "- Early warning before pollution episodes\n"
+           "- Long-term trend analysis (annual/seasonal)\n"
+           "- Environmental zone comparison\n"
+           "- Public communication and awareness\n"
+           "- Research and academic analysis\n"
+           "- Smart City dashboard integration\n"
+           "- Environmental consultancy reporting (indicative)")
     )
 
 with col_no:
     st.error(
-        "**❌ Not recommended for:**\n\n"
-        "- Legal compliance reporting to Spanish authorities\n"
-        "- Real-time emergency response\n"
-        "- Health risk assessment for individuals\n"
-        "- Regulatory enforcement decisions\n"
-        "- Areas outside Greater Bilbao\n"
-        "- Pollutants not covered (O₃, CO, benzene)\n"
-        "- Multi-day forecasts beyond tomorrow\n"
-        "- Replacing official monitoring networks"
+        tr("**❌ Not recommended for:**\n\n"
+           "- Legal compliance reporting to Spanish authorities\n"
+           "- Real-time emergency response\n"
+           "- Health risk assessment for individuals\n"
+           "- Regulatory enforcement decisions\n"
+           "- Areas outside Greater Bilbao\n"
+           "- Pollutants not covered (O₃, CO, benzene)\n"
+           "- Multi-day forecasts beyond tomorrow\n"
+           "- Replacing official monitoring networks")
     )
 
 st.divider()
@@ -373,7 +373,7 @@ st.divider()
 # SECTION 9 — KNOWN LIMITATIONS SUMMARY
 # ==================================================
 
-st.markdown("## ⚠️ Known Limitations Summary")
+st.markdown("## ⚠️ " + tr("Known Limitations Summary"))
 
 limitations = [
     ("Spatial coverage",    "7 stations only — large areas between stations have no direct measurement"),
@@ -389,7 +389,7 @@ limitations = [
 ]
 
 for title, description in limitations:
-    st.markdown(f"**{title}:** {description}")
+    st.markdown(f"**{tr(title)}:** {tr(description)}")
 
 st.divider()
 
@@ -397,7 +397,7 @@ st.divider()
 # FOOTER
 # ==================================================
 
-st.markdown("## 📬 Contact & Feedback")
+st.markdown("## 📬 " + tr("Contact & Feedback"))
 st.markdown(
     "For questions, data requests, or collaboration enquiries:\n\n"
     "**Arman Ghaziaskari Naeini**  \n"
@@ -408,6 +408,6 @@ st.markdown(
 )
 
 st.caption(
-    "Platform version: Phase C · Last pipeline update: automated daily · "
-    "Data: Basque Government (CC BY 4.0) + Open-Meteo (CC BY 4.0)"
+    tr("Platform version: Phase C · Last pipeline update: automated daily · "
+       "Data: Basque Government (CC BY 4.0) + Open-Meteo (CC BY 4.0)")
 )

@@ -113,10 +113,10 @@ STATION_CODES = {s: i for i, s in enumerate(sorted(df["station"].unique()))}
 # 4. HEADER
 # ==================================================
 
-st.title("🏛️ Smart City Decision Support")
+st.title(tr("🏛️ Smart City Decision Support"))
 st.markdown(
-    "Actionable air-quality intelligence for urban decision-makers · "
-    f"Latest data: **{latest_date.strftime('%d %b %Y')}**"
+    f"{tr('Actionable air-quality intelligence for urban decision-makers')} · "
+    f"{tr('Latest data:')} **{latest_date.strftime('%d %b %Y')}**"
 )
 
 # ==================================================
@@ -124,11 +124,11 @@ st.markdown(
 # ==================================================
 
 with st.sidebar:
-    st.markdown("## 🏛️ Analysis Settings")
+    st.markdown("## 🏛️ " + tr("Analysis Settings"))
     st.divider()
 
     window_label = st.radio(
-        "Risk assessment window",
+        tr("Risk assessment window"),
         ["Last 30 days", "Last 90 days", "Last 365 days"],
         index=2,
     )
@@ -139,7 +139,7 @@ with st.sidebar:
     }[window_label]
 
     st.divider()
-    st.markdown("### 🗺️ Zone Legend")
+    st.markdown("### 🗺️ " + tr("Zone Legend"))
     for z, meta in ZONE_META.items():
         st.markdown(f"{meta['icon']} **{z}**")
 
@@ -236,9 +236,9 @@ zone_means = (
 # ==================================================
 
 tab_status, tab_forecast, tab_action = st.tabs([
-    "🚦 Current Status",
-    "🔮 Forecast & Map",
-    "🎯 Decisions & Actions",
+    tr("🚦 Current Status"),
+    tr("🔮 Forecast & Map"),
+    tr("🎯 Decisions & Actions"),
 ])
 
 # --------------------------------------------------
@@ -248,61 +248,61 @@ tab_status, tab_forecast, tab_action = st.tabs([
 with tab_status:
 
     # 7a-1. Gauge row
-    st.markdown(f"## 🚦 City-Wide Status — {window_label}")
+    st.markdown(f"## 🚦 {tr('City-Wide Status')} — {window_label}")
     fig_gauges = render_gauge_row(current_values, WHO_ANNUAL, WHO_SO2_DAILY)
     st.plotly_chart(fig_gauges, width="stretch")
 
     # 7a-2. KPI metrics
     k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Stations above WHO", f"{n_above} / {len(station_means)}")
+    k1.metric(tr("Stations above WHO"), f"{n_above} / {len(station_means)}")
     k2.metric(
-        "Highest-risk station", worst_station["station"],
-        f"{worst_station['RiskScore']:.0f} risk score",
+        tr("Highest-risk station"), worst_station["station"],
+        f"{worst_station['RiskScore']:.0f} {tr('risk score')}",
         delta_color="inverse",
     )
     k3.metric(
-        "Worst pollutant", worst_pollutant,
-        f"{city_ratios[worst_pollutant]:.1f}× WHO limit",
+        tr("Worst pollutant"), worst_pollutant,
+        f"{city_ratios[worst_pollutant]:.1f}× {tr('WHO limit')}",
         delta_color="inverse",
     )
-    k4.metric("Records", f"{len(recent):,}")
+    k4.metric(tr("Records"), f"{len(recent):,}")
 
     st.divider()
 
     # 7a-3. AQI donut + station cards
     col_d, col_c = st.columns([1, 2])
     with col_d:
-        render_aqi_donut(current_values, title="City-wide AQI Today")
+        render_aqi_donut(current_values, title=tr("City-wide AQI Today"))
         aqi_info = overall_aqi(current_values)
         st.caption(
-            "European/ICA standard — 6 levels from Good to Extremely poor. "
-            f"International reference: US EPA AQI ≈ {aqi_info.get('epa_aqi', '—')} "
-            f"({aqi_info.get('epa_label', '—')}). "
-            "⚠️ Daily-mean approximation — official indices use shorter windows."
+            tr("European/ICA standard — 6 levels from Good to Extremely poor. ") +
+            f"{tr('International reference: US EPA AQI')} ≈ {aqi_info.get('epa_aqi', '—')} "
+            f"({aqi_info.get('epa_label', '—')}). " +
+            tr("⚠️ Daily-mean approximation — official indices use shorter windows.")
         )
     with col_c:
-        st.markdown("##### Air quality by station")
+        st.markdown("##### " + tr("Air quality by station"))
         render_station_aqi_cards(df, n_cols=4)
 
     st.divider()
 
     # 7a-4. Pollution calendar
-    st.markdown("#### 📅 Pollution Calendar")
+    st.markdown("#### 📅 " + tr("Pollution Calendar"))
     cc1, cc2 = st.columns(2)
     with cc1:
         cal_station = st.selectbox(
-            "Station", sorted(df["station"].unique()), key="cal_st"
+            tr("Station"), sorted(df["station"].unique()), key="cal_st"
         )
     with cc2:
         cal_year = st.selectbox(
-            "Year",
+            tr("Year"),
             sorted(df["Date"].dt.year.unique(), reverse=True),
             key="cal_yr",
         )
     render_aqi_calendar(df, cal_station, cal_year)
 
     # 7a-5. AQI explainer
-    with st.expander("ℹ️ Why two different air quality indicators?"):
+    with st.expander(tr("ℹ️ Why two different air quality indicators?")):
         st.markdown("""
 **AQI (European/ICA)** answers: *"Is the air safe to go outside today?"*
 It uses short-term thresholds calibrated for daily public communication.
@@ -328,10 +328,10 @@ the European index as an internationally familiar reference point.
     st.divider()
 
     # 7a-6. Station risk prioritization table
-    st.markdown(f"## 📊 Station Risk Prioritization — {window_label}")
+    st.markdown(f"## 📊 {tr('Station Risk Prioritization')} — {window_label}")
     st.caption(
-        "Composite risk = mean of (concentration ÷ WHO limit) across PM2.5, "
-        "PM10, NO₂ · ×100. Below 100 = within guidelines."
+        tr("Composite risk = mean of (concentration ÷ WHO limit) across PM2.5, "
+           "PM10, NO₂ · ×100. Below 100 = within guidelines.")
     )
 
     col_t, col_c = st.columns([3, 2])
@@ -341,7 +341,7 @@ the European index as an internationally familiar reference point.
             width="stretch", hide_index=True,
             column_config={
                 "RiskScore": st.column_config.ProgressColumn(
-                    "Risk Score", min_value=0, max_value=300, format="%d"
+                    tr("Risk Score"), min_value=0, max_value=300, format="%d"
                 )
             },
         )
@@ -359,9 +359,9 @@ the European index as an internationally familiar reference point.
         )
         fig_rank.update_layout(
             height=340, margin=dict(l=10, r=40, t=30, b=10),
-            xaxis_title="Composite risk score",
+            xaxis_title=tr("Composite risk score"),
             yaxis=dict(autorange="reversed"),
-            title="Priority ranking",
+            title=tr("Priority ranking"),
         )
         st.plotly_chart(fig_rank, width="stretch")
 
@@ -372,27 +372,27 @@ the European index as an internationally familiar reference point.
 with tab_forecast:
 
     # 7b-1. Forecast exceedance banner
-    st.markdown(f"## 🔮 Forecast Alerts — {forecast_date.strftime('%d %b %Y')}")
+    st.markdown(f"## 🔮 {tr('Forecast Alerts')} — {forecast_date.strftime('%d %b %Y')}")
     st.caption(
-        f"XGBoost next-day forecast based on latest available data "
+        f"{tr('XGBoost next-day forecast based on latest available data')} "
         f"({latest_date.strftime('%d %b %Y')}). "
-        "Limits: WHO 2021 annual guidelines (SO₂: 24-hour guideline)."
+        + tr("Limits: WHO 2021 annual guidelines (SO₂: 24-hour guideline).")
     )
 
     if missing_models:
-        st.warning(f"Models not found for: {', '.join(missing_models)}")
+        st.warning(f"{tr('Models not found for:')} {', '.join(missing_models)}")
 
     if not alerts_df.empty:
         if exceed.empty:
             st.success(
-                f"✅ No WHO exceedances forecast for "
-                f"{forecast_date.strftime('%d %b %Y')} at any station."
+                f"✅ {tr('No WHO exceedances forecast for')} "
+                f"{forecast_date.strftime('%d %b %Y')} {tr('at any station.')}"
             )
         else:
             st.error(
-                f"⚠️ {len(exceed)} forecast exceedance(s) for "
+                f"⚠️ {len(exceed)} {tr('forecast exceedance(s) for')} "
                 f"{forecast_date.strftime('%d %b %Y')} — "
-                f"stations: {', '.join(exceed['Station'].unique())}"
+                f"{tr('stations:')} {', '.join(exceed['Station'].unique())}"
             )
 
         # 7b-2. Forecast heatmap (station × pollutant)
@@ -405,14 +405,14 @@ with tab_forecast:
             text_auto=".2f",
             aspect="auto",
             title=(
-                f"Forecast for {forecast_date.strftime('%d %b %Y')} — "
-                "ratio of WHO limit (> 1 = exceedance)"
+                f"{tr('Forecast for')} {forecast_date.strftime('%d %b %Y')} — "
+                + tr("ratio of WHO limit (> 1 = exceedance)")
             ),
         )
         fig_hm.update_layout(height=340, margin=dict(t=80, b=10))
         st.plotly_chart(fig_hm, width="stretch")
 
-        with st.expander("📋 Full forecast table"):
+        with st.expander(tr("📋 Full forecast table")):
             st.dataframe(
                 alerts_df.sort_values("Ratio", ascending=False),
                 width="stretch", hide_index=True,
@@ -422,16 +422,16 @@ with tab_forecast:
 
     # 7b-3. GeoAI risk map — station markers
     st.markdown(
-        f"## 🗺️ GeoAI Risk Map — Forecast for {forecast_date.strftime('%d %b %Y')}"
+        f"## 🗺️ {tr('GeoAI Risk Map')} — {tr('Forecast for')} {forecast_date.strftime('%d %b %Y')}"
     )
     st.caption(
-        f"Based on latest available data ({latest_date.strftime('%d %b %Y')}). "
-        "Marker colour = worst-case forecast as a ratio of the WHO limit "
-        "(max across the 4 pollutants). > 1 = exceedance."
+        f"{tr('Based on latest available data')} ({latest_date.strftime('%d %b %Y')}). "
+        + tr("Marker colour = worst-case forecast as a ratio of the WHO limit "
+             "(max across the 4 pollutants). > 1 = exceedance.")
     )
 
     if alerts_df.empty:
-        st.info("No forecasts available to map.")
+        st.info(tr("No forecasts available to map."))
     else:
         # Worst-case ratio per station (max over pollutants)
         station_risk = (
@@ -488,13 +488,13 @@ with tab_forecast:
         st.divider()
 
         # 7b-4. IDW interpolated surface
-        st.markdown("## 🌡️ Interpolated Forecast Surface (IDW)")
+        st.markdown("## 🌡️ " + tr("Interpolated Forecast Surface (IDW)"))
         st.caption(
-            "⚠️ **Interpolated surface (IDW) from 7 station forecasts — "
-            "colour = worst-case forecast ratio (× WHO limit), same scale as markers. "
-            "Clipped to Gran Bilbao comarca boundary. "
-            "Visual approximation only: terrain, local sources, and road density "
-            "are not modelled.**"
+            tr("⚠️ **Interpolated surface (IDW) from 7 station forecasts — "
+               "colour = worst-case forecast ratio (× WHO limit), same scale as markers. "
+               "Clipped to Gran Bilbao comarca boundary. "
+               "Visual approximation only: terrain, local sources, and road density "
+               "are not modelled.**")
         )
 
         _lats   = map_df["Latitude"].values
@@ -596,14 +596,14 @@ with tab_forecast:
 with tab_action:
 
     # 7c-1. Scenario simulator
-    st.markdown("## 🧪 Scenario Simulator")
+    st.markdown("## 🧪 " + tr("Scenario Simulator"))
     st.caption(
-        "Explore how the composite risk score responds to interventions. "
-        "Two modes with different epistemic status — read the labels."
+        tr("Explore how the composite risk score responds to interventions. "
+           "Two modes with different epistemic status — read the labels.")
     )
 
     sim_mode = st.radio(
-        "Simulation mode",
+        tr("Simulation mode"),
         ["Model-based counterfactual", "Policy elasticity assumption"],
         horizontal=True,
     )
@@ -612,7 +612,7 @@ with tab_action:
     _fav      = get_fav_station(_sim_list)
     _sim_idx  = _sim_list.index(_fav) if _fav in _sim_list else 0
     sim_station = st.selectbox(
-        "Station to simulate", _sim_list, index=_sim_idx, key="sim_station"
+        tr("Station to simulate"), _sim_list, index=_sim_idx, key="sim_station"
     )
 
     sdf_sim = df[df["station"] == sim_station].sort_values("Date")
@@ -645,15 +645,15 @@ with tab_action:
 
     if sim_mode == "Model-based counterfactual":
         st.info(
-            "🟢 **Honest what-if:** perturbs features the model actually uses "
-            "(weather + today's levels), then re-runs `model.predict()`. "
-            "This is a real model output."
+            tr("🟢 **Honest what-if:** perturbs features the model actually uses "
+               "(weather + today's levels), then re-runs `model.predict()`. "
+               "This is a real model output.")
         )
 
         c1, c2, c3 = st.columns(3)
-        wind_mult   = c1.slider("Wind speed ×",          0.5, 2.0, 1.0, 0.1)
-        precip_mult = c2.slider("Precipitation ×",        0.0, 3.0, 1.0, 0.1)
-        today_mult  = c3.slider("Today's pollutant level ×", 0.5, 1.5, 1.0, 0.05)
+        wind_mult   = c1.slider(tr("Wind speed ×"),          0.5, 2.0, 1.0, 0.1)
+        precip_mult = c2.slider(tr("Precipitation ×"),        0.0, 3.0, 1.0, 0.1)
+        today_mult  = c3.slider(tr("Today's pollutant level ×"), 0.5, 1.5, 1.0, 0.05)
 
         scenario = {}
         for pollutant in POLLUTANTS:
@@ -683,15 +683,15 @@ with tab_action:
 
     else:  # Policy elasticity assumption
         st.warning(
-            "🟡 **Policy elasticity — NOT a model prediction.** The model has no "
-            "traffic/emission features, so this applies an *assumed* linear "
-            "response. Use for illustrative policy framing only; "
-            "the elasticity is a stated assumption."
+            tr("🟡 **Policy elasticity — NOT a model prediction.** The model has no "
+               "traffic/emission features, so this applies an *assumed* linear "
+               "response. Use for illustrative policy framing only; "
+               "the elasticity is a stated assumption.")
         )
 
         c1, c2 = st.columns(2)
-        traffic_cut  = c1.slider("Traffic reduction (%)", 0, 50, 0, 5)
-        emission_cut = c2.slider("Industrial emission reduction (%)", 0, 50, 0, 5)
+        traffic_cut  = c1.slider(tr("Traffic reduction (%)"), 0, 50, 0, 5)
+        emission_cut = c2.slider(tr("Industrial emission reduction (%)"), 0, 50, 0, 5)
 
         # Stated elasticities — not 1:1
         NO2_ELASTICITY = 0.7   # ~70% traffic-attributable
@@ -712,13 +712,13 @@ with tab_action:
 
     # 7c-2. Scenario results
     m1, m2, m3 = st.columns(3)
-    m1.metric("Baseline risk score",  f"{baseline_score:.0f}")
-    m2.metric("Scenario risk score",  f"{scenario_score:.0f}")
+    m1.metric(tr("Baseline risk score"),  f"{baseline_score:.0f}")
+    m2.metric(tr("Scenario risk score"),  f"{scenario_score:.0f}")
     delta = (
         (scenario_score - baseline_score) / baseline_score * 100
         if baseline_score else 0
     )
-    m3.metric("Change", f"{delta:+.1f}%", delta_color="inverse")
+    m3.metric(tr("Change"), f"{delta:+.1f}%", delta_color="inverse")
 
     comp = pd.DataFrame({
         "Pollutant": [p for p in POLLUTANTS if p in baseline],
@@ -733,7 +733,7 @@ with tab_action:
     st.divider()
 
     # 7c-3. Executive summary
-    st.markdown("## 📋 Executive Summary")
+    st.markdown("## 📋 " + tr("Executive Summary"))
 
     worst_zone_line = ""
     if not zone_means.empty:
@@ -784,14 +784,14 @@ city-wide is **{worst_pollutant}** at
     with st.container(border=True):
         st.markdown(summary)
         st.caption(
-            "Auto-generated from the current analysis window and latest forecasts. "
-            f"Window: {window_label} · Latest data: {latest_date.strftime('%d %b %Y')}."
+            tr("Auto-generated from the current analysis window and latest forecasts.") +
+            f" {tr('Window:')} {window_label} · {tr('Latest data:')} {latest_date.strftime('%d %b %Y')}."
         )
 
     st.divider()
 
     # 7c-4. Zone-level recommendations
-    st.markdown("## 🗺️ Zone Recommendations")
+    st.markdown("## 🗺️ " + tr("Zone Recommendations"))
 
     ZONE_ACTION_TIERS = {
         "Urban": {
@@ -847,33 +847,33 @@ city-wide is **{worst_pollutant}** at
             with c1:
                 st.markdown(f"### {meta['icon']} {zone}")
                 st.metric(
-                    f"Key pollutant: {key_p}",
+                    f"{tr('Key pollutant:')} {key_p}",
                     f"{zrow[key_p]:.1f} µg/m³",
                     f"{ratio:.1f}× WHO" if ratio else None,
                     delta_color="inverse" if ratio and ratio > 1 else "normal",
                 )
             with c2:
-                st.markdown(f"**Profile:** {meta['description']}")
+                st.markdown(f"**{tr('Profile:')}** {meta['description']}")
                 tier       = action_tier(ratio)
                 tier_badge = {
-                    "low":  "🟢 Routine",
-                    "mid":  "🟡 Elevated",
-                    "high": "🔴 Action required",
+                    "low":  tr("🟢 Routine"),
+                    "mid":  tr("🟡 Elevated"),
+                    "high": tr("🔴 Action required"),
                 }[tier]
                 action_text = ZONE_ACTION_TIERS.get(zone, {}).get(tier, "—")
-                st.markdown(f"**Status:** {tier_badge}")
-                st.markdown(f"**Recommended action:** {action_text}")
+                st.markdown(f"**{tr('Status:')}** {tier_badge}")
+                st.markdown(f"**{tr('Recommended action:')}** {tr(action_text)}")
 
     st.divider()
 
     # 7c-5. Export
-    st.markdown("## 📥 Export for Reporting")
+    st.markdown("## 📥 " + tr("Export for Reporting"))
 
     e1, e2 = st.columns(2)
     with e1:
         csv_priority = display.to_csv(index=False).encode("utf-8")
         st.download_button(
-            "⬇️ Station risk ranking (CSV)",
+            tr("⬇️ Station risk ranking (CSV)"),
             data=csv_priority,
             file_name=f"risk_ranking_{latest_date.strftime('%Y%m%d')}.csv",
             mime="text/csv",
@@ -883,7 +883,7 @@ city-wide is **{worst_pollutant}** at
         if not alerts_df.empty:
             csv_alerts = alerts_df.to_csv(index=False).encode("utf-8")
             st.download_button(
-                "⬇️ Tomorrow's forecast alerts (CSV)",
+                tr("⬇️ Tomorrow's forecast alerts (CSV)"),
                 data=csv_alerts,
                 file_name=f"forecast_alerts_{latest_date.strftime('%Y%m%d')}.csv",
                 mime="text/csv",
@@ -912,22 +912,22 @@ city-wide is **{worst_pollutant}** at
         )
     
         st.download_button(
-            label    = "📄 Download Monthly Risk Report (PDF)",
+            label    = tr("📄 Download Monthly Risk Report (PDF)"),
             data     = pdf_bytes_monthly,
             file_name= f"risk_report_{latest_date.strftime('%Y%m%d')}.pdf",
             mime     = "application/pdf",
             type     = "primary",
             width    = "stretch",
         )
-    
+
     with e4:
         st.caption(
-            "3-page report: executive summary, station risk ranking, "
-            "WHO vs EU comparison, tomorrow's forecast alerts, "
-            "and zone-level recommended actions."
+            tr("3-page report: executive summary, station risk ranking, "
+               "WHO vs EU comparison, tomorrow's forecast alerts, "
+               "and zone-level recommended actions.")
         )
 
     st.caption(
-        "Data: Basque Government air-quality network + Open-Meteo (CC BY 4.0) · "
-        "Forecasts: XGBoost next-day models (see Forecasting page for validation)."
+        tr("Data: Basque Government air-quality network + Open-Meteo (CC BY 4.0) · "
+           "Forecasts: XGBoost next-day models (see Forecasting page for validation).")
     )

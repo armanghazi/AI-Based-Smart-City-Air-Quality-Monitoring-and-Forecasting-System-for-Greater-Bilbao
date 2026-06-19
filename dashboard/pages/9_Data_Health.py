@@ -59,17 +59,17 @@ def freshness_status(days_behind: int) -> str:
 # ==================================================
 # LOAD
 # ==================================================
-st.title("🩺 Pipeline & Data Health")
-st.caption("Operational view of the live dataset and the automated daily pipeline.")
+st.title(tr("🩺 Pipeline & Data Health"))
+st.caption(tr("Operational view of the live dataset and the automated daily pipeline."))
 
-if st.button("🔄 Reload data (clear cache)"):
+if st.button(tr("🔄 Reload data (clear cache)")):
     st.cache_data.clear()
     st.rerun()
 
 try:
     df = load_data()
 except Exception as exc:
-    st.error(f"Could not load the dataset: {exc}")
+    st.error(f"{tr('Could not load the dataset:')} {exc}")
     st.stop()
 
 today = pd.Timestamp(datetime.now().date())
@@ -93,40 +93,40 @@ coverage = 100 * n_days / expected_days if expected_days else 0
 # TOP METRICS
 # ==================================================
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Latest data point", latest.strftime("%d %b %Y"), f"{days_behind} day(s) behind")
-c2.metric("Total records", f"{len(df):,}")
-c3.metric("Calendar coverage", f"{coverage:.1f}%", f"{n_days:,} of {expected_days:,} days")
-c4.metric("Data file written", written_str)
+c1.metric(tr("Latest data point"), latest.strftime("%d %b %Y"), f"{days_behind} {tr('day(s) behind')}")
+c2.metric(tr("Total records"), f"{len(df):,}")
+c3.metric(tr("Calendar coverage"), f"{coverage:.1f}%", f"{n_days:,} {tr('of')} {expected_days:,} {tr('days')}")
+c4.metric(tr("Data file written"), written_str)
 
 # Pipeline status banner
 status = freshness_status(days_behind)
 if status.startswith("🟢"):
-    st.success(f"{status} — latest data is {latest.strftime('%d %b %Y')} "
-               f"({days_behind} day(s) behind today; D-0 is rejected by design).")
+    st.success(f"{status} — {tr('latest data is')} {latest.strftime('%d %b %Y')} "
+               f"({days_behind} {tr('day(s) behind today; D-0 is rejected by design.')})")
 elif status.startswith("🟡"):
-    st.warning(f"{status} — data is {days_behind} days behind. Check the last GitHub Actions run.")
+    st.warning(f"{status} — {tr('data is')} {days_behind} {tr('days behind. Check the last GitHub Actions run.')}")
 else:
-    st.error(f"{status} — data is {days_behind} days behind. The pipeline may have failed.")
+    st.error(f"{status} — {tr('data is')} {days_behind} {tr('days behind. The pipeline may have failed.')}")
 
 # Last ingestion delta — who reported on the most recent day
-st.subheader("Last ingestion")
+st.subheader(tr("Last ingestion"))
 on_latest = df[df["Date"] == latest]
 all_stations = sorted(df["station"].unique())
 present = sorted(on_latest["station"].unique())
 missing = [s for s in all_stations if s not in present]
 d1, d2 = st.columns([1, 2])
-d1.metric("Rows on latest day", f"{len(on_latest)}", f"{len(present)}/{len(all_stations)} stations")
+d1.metric(tr("Rows on latest day"), f"{len(on_latest)}", f"{len(present)}/{len(all_stations)} {tr('stations')}")
 if missing:
-    d2.warning("Not yet updated on the latest day: " + ", ".join(missing))
+    d2.warning(tr("Not yet updated on the latest day:") + " " + ", ".join(missing))
 else:
-    d2.success("All stations reported on the latest day.")
+    d2.success(tr("All stations reported on the latest day."))
 
 st.divider()
 
 # ==================================================
 # PER-STATION FRESHNESS (catches a single stalled sensor)
 # ==================================================
-st.subheader("Per-station freshness")
+st.subheader(tr("Per-station freshness"))
 g = df.groupby("station")
 zone_by_station = g["Zone"].first()
 # Coverage fraction (0..1) per station x pollutant — reused below to flag "no sensor"
@@ -151,10 +151,10 @@ st.dataframe(fresh, width="stretch")
 # ==================================================
 NO_SENSOR = 0.10  # all-time coverage below this = pollutant genuinely not monitored here
 
-st.subheader("Sensor coverage & completeness")
-st.caption('All-time completeness per pollutant. A pollutant a station genuinely never '
-           'reports (all-time coverage under 10%) is marked "not monitored" — not a failure. '
-           'Short recent gaps appear below as possible outages.')
+st.subheader(tr("Sensor coverage & completeness"))
+st.caption(tr('All-time completeness per pollutant. A pollutant a station genuinely never '
+              'reports (all-time coverage under 10%) is marked "not monitored" — not a failure. '
+              'Short recent gaps appear below as possible outages.'))
 
 
 def _cov_cell(frac: float) -> str:
@@ -168,9 +168,9 @@ st.dataframe(cov_display, width="stretch")
 # ==================================================
 # RECENT DATA GAPS (last 30 days) — possible sensor outages
 # ==================================================
-st.subheader("Recent data gaps (last 30 days)")
-st.caption('Missing values over the last 30 days in pollutants the station does monitor — '
-           'a likely sensor outage. Not-monitored pollutants are excluded (shown as —).')
+st.subheader(tr("Recent data gaps (last 30 days)"))
+st.caption(tr('Missing values over the last 30 days in pollutants the station does monitor — '
+              'a likely sensor outage. Not-monitored pollutants are excluded (shown as —).'))
 
 cutoff = latest - pd.Timedelta(days=30)
 recent = df[df["Date"] >= cutoff]
@@ -200,9 +200,9 @@ for stn in gaps.index:
         if val != "—" and int(val) > 0:
             flagged.append(f"{stn}/{p} ({int(val)})")
 if flagged:
-    st.warning("⚠️ Possible sensor outage (recent gaps): " + ", ".join(flagged))
+    st.warning(tr("⚠️ Possible sensor outage (recent gaps):") + " " + ", ".join(flagged))
 else:
-    st.success("No recent gaps in any monitored series over the last 30 days.")
+    st.success(tr("No recent gaps in any monitored series over the last 30 days."))
 
 # ==================================================
 # INTEGRITY + RECENT INGESTION
@@ -210,22 +210,22 @@ else:
 col_a, col_b = st.columns([1, 2])
 
 with col_a:
-    st.subheader("Integrity")
+    st.subheader(tr("Integrity"))
     dups = int(df.duplicated(subset=["Date", "station"]).sum())
     if dups == 0:
-        st.success("✅ No duplicate (date, station) rows.")
+        st.success(tr("✅ No duplicate (date, station) rows."))
     else:
-        st.error(f"⚠️ {dups} duplicate (date, station) rows found.")
+        st.error(f"⚠️ {dups} {tr('duplicate (date, station) rows found.')}")
     total_nan = int(df[POLLUTANTS].isna().sum().sum())
-    st.metric("Total missing pollutant values", f"{total_nan:,}")
+    st.metric(tr("Total missing pollutant values"), f"{total_nan:,}")
 
 with col_b:
-    st.subheader("Recent daily ingestion")
+    st.subheader(tr("Recent daily ingestion"))
     per_day = df.groupby(df["Date"].dt.normalize()).size().tail(30)
     bar = px.bar(
         x=per_day.index, y=per_day.values,
-        labels={"x": "Date", "y": "Records appended"},
+        labels={"x": tr("Date"), "y": tr("Records appended")},
     )
     bar.update_layout(height=240, margin=dict(l=0, r=0, t=10, b=0), showlegend=False)
     st.plotly_chart(bar, width="stretch")
-    st.caption("Healthy days show one record per reporting station (≈7).")
+    st.caption(tr("Healthy days show one record per reporting station (≈7)."))

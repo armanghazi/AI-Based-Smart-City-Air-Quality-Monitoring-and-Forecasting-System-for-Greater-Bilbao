@@ -70,25 +70,25 @@ all_years    = sorted(df["Year"].dropna().unique().tolist())
 # --------------------------------------------------
 
 with st.sidebar:
-    st.markdown("## 🌍 Urban Air Quality")
-    st.markdown("Greater Bilbao · WHO 2021 Guidelines")
+    st.markdown("## 🌍 " + tr("Urban Air Quality"))
+    st.markdown(tr("Greater Bilbao · WHO 2021 Guidelines"))
     st.divider()
 
-    st.markdown("### Filters")
+    st.markdown("### " + tr("Filters"))
 
     # ── Station / Zone filter ──────────────────────
-    filter_mode = st.radio("Filter by", ["Station", "Zone"], horizontal=True)
+    filter_mode = st.radio(tr("Filter by"), ["Station", "Zone"], horizontal=True)
 
     if filter_mode == "Station":
         selected_stations = st.multiselect(
-            "Stations (leave empty = all)",
+            tr("Stations (leave empty = all)"),
             options=all_stations,
             default=[]
         )
         selected_zone = None
     else:
         selected_zone = st.selectbox(
-            "Zone",
+            tr("Zone"),
             list(ZONE_META.keys()),
             format_func=lambda z: f"{ZONE_META[z]['icon']} {z}"
         )
@@ -97,21 +97,21 @@ with st.sidebar:
     st.divider()
 
     # ── Time granularity ──────────────────────────
-    st.markdown("### Time Range")
-    time_mode = st.radio("Granularity", ["Year", "Month", "Day"], horizontal=True)
+    st.markdown("### " + tr("Time Range"))
+    time_mode = st.radio(tr("Granularity"), ["Year", "Month", "Day"], horizontal=True)
 
     if time_mode == "Year":
         year_options     = ["All years"] + [str(y) for y in all_years]
-        selected_year_str = st.selectbox("Year", year_options, index=0)
+        selected_year_str = st.selectbox(tr("Year"), year_options, index=0)
         selected_year    = None if selected_year_str == "All years" else int(selected_year_str)
         selected_month   = None
         selected_day     = None
 
     elif time_mode == "Month":
-        selected_year    = st.selectbox("Year", all_years, index=len(all_years) - 1)
+        selected_year    = st.selectbox(tr("Year"), all_years, index=len(all_years) - 1)
         month_avail      = sorted(df[df["Year"] == selected_year]["Month"].dropna().unique().tolist())
         month_opts       = ["All"] + [MONTH_NAMES[m] for m in month_avail]
-        sel_month_label  = st.selectbox("Month", month_opts, index=0)
+        sel_month_label  = st.selectbox(tr("Month"), month_opts, index=0)
         selected_month   = (
             {v: k for k, v in MONTH_NAMES.items()}[sel_month_label]
             if sel_month_label != "All" else None
@@ -120,16 +120,16 @@ with st.sidebar:
         selected_year_str = str(selected_year)
 
     else:  # Day
-        selected_year    = st.selectbox("Year", all_years, index=len(all_years) - 1)
+        selected_year    = st.selectbox(tr("Year"), all_years, index=len(all_years) - 1)
         month_avail      = sorted(df[df["Year"] == selected_year]["Month"].dropna().unique().tolist())
-        sel_month_label  = st.selectbox("Month", [MONTH_NAMES[m] for m in month_avail])
+        sel_month_label  = st.selectbox(tr("Month"), [MONTH_NAMES[m] for m in month_avail])
         selected_month   = {v: k for k, v in MONTH_NAMES.items()}[sel_month_label]
         day_avail        = sorted(
             df[(df["Year"] == selected_year) & (df["Month"] == selected_month)]["Day"]
             .dropna().unique().tolist()
         )
         selected_day     = st.selectbox(
-            "Day", day_avail,
+            tr("Day"), day_avail,
             format_func=lambda d: pd.Timestamp(d).strftime("%d %b %Y")
         )
         selected_year_str = pd.Timestamp(selected_day).strftime("%d %B %Y")
@@ -137,14 +137,14 @@ with st.sidebar:
     st.divider()
 
     # ── Display options ───────────────────────────
-    st.markdown("### Display")
-    map_mode       = st.radio("Map layer", ["Risk score", "Heatmap — PM2.5", "Heatmap — NO2", "Heatmap — PM10"])
-    show_who_lines = st.toggle("Show WHO guideline lines", value=True)
+    st.markdown("### " + tr("Display"))
+    map_mode       = st.radio(tr("Map layer"), ["Risk score", "Heatmap — PM2.5", "Heatmap — NO2", "Heatmap — PM10"])
+    show_who_lines = st.toggle(tr("Show WHO guideline lines"), value=True)
 
     st.divider()
 
     # ── Zone legend ───────────────────────────────
-    st.markdown("### 🗺️ Environmental Zones")
+    st.markdown("### 🗺️ " + tr("Environmental Zones"))
     for z, meta in ZONE_META.items():
         stations_in_zone = df[df["Zone"] == z]["station"].unique().tolist()
         short = [s.split("_")[0] for s in stations_in_zone]
@@ -155,7 +155,7 @@ with st.sidebar:
         )
 
     st.divider()
-    st.caption("Data: 7 monitoring stations, 2015–2026 (~27k daily records)")
+    st.caption(tr("Data: 7 monitoring stations, 2015–2026 (~27k daily records)"))
 
 # --------------------------------------------------
 # APPLY FILTERS — station / zone
@@ -191,7 +191,7 @@ else:  # Day
     period_label = selected_year_str
 
 if base_df.empty:
-    st.warning("No data for selected filters.")
+    st.warning(tr("No data for selected filters."))
     st.stop()
 
 # --------------------------------------------------
@@ -229,7 +229,7 @@ else:
 station_year = station_year[station_year["ValidDays"] >= min_valid].copy()
 
 if station_year.empty:
-    st.warning("Not enough data coverage for the selected period. Try 'All years'.")
+    st.warning(tr("Not enough data coverage for the selected period. Try 'All years'."))
     st.stop()
 
 # WHO ratios & core risk
@@ -295,7 +295,7 @@ ranking = station_risk.sort_values("CoreRiskScore", ascending=False).reset_index
 # HEADER & KPIs
 # --------------------------------------------------
 
-st.title("🌍 Urban Air Quality — Greater Bilbao")
+st.title(tr("🌍 Urban Air Quality — Greater Bilbao"))
 st.caption(
     f"Period: **{period_label}** · Scope: **{scope_label}** · "
     f"Stations: **{len(ranking)}** · WHO 2021 annual guidelines"
@@ -307,16 +307,16 @@ best         = ranking.sort_values("CoreRiskScore").iloc[0]
 so2_stations = int((ranking["SO2_ExceedanceRate"] > 0).sum())
 
 c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Mean Core Risk Score", f"{avg_risk:.1f}", help="100 = 1× WHO limit")
-c2.metric("Worst Station",  worst["station"], f"Score {worst['CoreRiskScore']:.1f}")
-c3.metric("Best Station",   best["station"],  f"Score {best['CoreRiskScore']:.1f}")
-c4.metric("Avg NO₂",        f"{ranking['NO2'].mean():.1f} µg/m³",
+c1.metric(tr("Mean Core Risk Score"), f"{avg_risk:.1f}", help=tr("100 = 1× WHO limit"))
+c2.metric(tr("Worst Station"),  worst["station"], f"{tr('Score')} {worst['CoreRiskScore']:.1f}")
+c3.metric(tr("Best Station"),   best["station"],  f"{tr('Score')} {best['CoreRiskScore']:.1f}")
+c4.metric(tr("Avg NO₂"),        f"{ranking['NO2'].mean():.1f} µg/m³",
           f"WHO limit: {WHO_ANNUAL['NO2']} µg/m³")
-c5.metric("SO₂ exceedance stations", f"{so2_stations} / {len(ranking)}")
+c5.metric(tr("SO₂ exceedance stations"), f"{so2_stations} / {len(ranking)}")
 
 # ── Zone summary banner ───────────────────────────
 st.markdown("---")
-st.subheader("🗺️ Environmental Zone Summary")
+st.subheader(tr("🗺️ Environmental Zone Summary"))
 
 zones_present = [z for z in ZONE_META if z in ranking["Zone"].values]
 zone_cols     = st.columns(len(zones_present) or 1)
@@ -366,11 +366,11 @@ st.divider()
 # --------------------------------------------------
 
 tab_map, tab_risk, tab_trend, tab_seasonal, tab_table = st.tabs([
-    "🗺️ Risk Map",
-    "📊 Risk Breakdown",
-    "📈 Trends over Time",
-    "🌡️ Seasonal Patterns",
-    "🔢 Data Table"
+    tr("🗺️ Risk Map"),
+    tr("📊 Risk Breakdown"),
+    tr("📈 Trends over Time"),
+    tr("🌡️ Seasonal Patterns"),
+    tr("🔢 Data Table"),
 ])
 
 # ==================== TAB 1: MAP ====================
@@ -460,7 +460,7 @@ with tab_map:
                   key=f"map_{time_mode}_{period_label}_{scope_label}")
 
     with col_legend:
-        st.markdown("#### Air Quality")
+        st.markdown("#### " + tr("Air Quality"))
         for level, color in RISK_COLORS.items():
             n = int((ranking["CoreRiskLevel"] == level).sum())
             st.markdown(
@@ -471,7 +471,7 @@ with tab_map:
             )
 
         st.markdown("---")
-        st.markdown("#### Zones (border)")
+        st.markdown("#### " + tr("Zones (border)"))
         for z, meta in ZONE_META.items():
             st.markdown(
                 f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
@@ -481,18 +481,18 @@ with tab_map:
             )
 
         st.markdown("---")
-        st.markdown("**Score guide**")
-        st.markdown("""
+        st.markdown(f"**{tr('Score guide')}**")
+        st.markdown(f"""
 <div style='font-size:12px;line-height:1.8'>
-• <b>&lt;100</b>: below WHO<br>
+• <b>&lt;100</b>: {tr('below WHO')}<br>
 • <b>100–200</b>: 1–2× WHO<br>
 • <b>&gt;200</b>: &gt;2× WHO<br><br>
-Fill = air quality · Border = zone
+{tr('Fill = air quality · Border = zone')}
 </div>
 """, unsafe_allow_html=True)
 
         st.markdown("---")
-        st.markdown("**WHO 2021 annual limits**")
+        st.markdown(f"**{tr('WHO 2021 annual limits')}**")
         for p, v in WHO_ANNUAL.items():
             eu_v = EU_ANNUAL.get(p, "—")
             st.markdown(
@@ -501,7 +501,7 @@ Fill = air quality · Border = zone
                 f"</div>",
                 unsafe_allow_html=True
             )
-        st.caption("EU = Directive 2008/50/EC")
+        st.caption(tr("EU = Directive 2008/50/EC"))
 
 
 # ==================== TAB 2: RISK BREAKDOWN ====================
@@ -517,10 +517,10 @@ with tab_risk:
             color_discrete_map=RISK_COLORS,
             category_orders={"CoreRiskLevel": RISK_ORDER},
             orientation="h",
-            title="Annual Core Risk Score by Station",
-            labels={"CoreRiskScore": "Core Risk Score", "station": ""},
+            title=tr("Annual Core Risk Score by Station"),
+            labels={"CoreRiskScore": tr("Core Risk Score"), "station": ""},
             text="CoreRiskScore",
-            pattern_shape="Zone",          # extra visual separation by zone
+            pattern_shape="Zone",
         )
         fig_bar.update_traces(texttemplate="%{text:.0f}", textposition="outside")
         if show_who_lines:
@@ -558,7 +558,7 @@ with tab_risk:
         st.plotly_chart(fig_radar,  width="stretch")
 
     # Grouped bar — by zone
-    st.markdown("#### Zone-level Pollutant Comparison")
+    st.markdown("#### " + tr("Zone-level Pollutant Comparison"))
 
     zone_poll_rows = []
     for zone_name in ZONE_META:
@@ -595,7 +595,7 @@ with tab_risk:
         st.plotly_chart(fig_zone_poll,  width="stretch")
 
     # Individual pollutant means per station
-    st.markdown("#### Individual Pollutant Annual Means vs WHO Guideline")
+    st.markdown("#### " + tr("Individual Pollutant Annual Means vs WHO Guideline"))
 
     pollutant_rows = []
     for _, row in ranking.iterrows():
@@ -630,7 +630,7 @@ with tab_risk:
     st.plotly_chart(fig_grouped,  width="stretch")
 
     # SO2
-    st.markdown("#### SO₂ Short-Term Pressure")
+    st.markdown("#### " + tr("SO₂ Short-Term Pressure"))
     fig_so2 = px.bar(
         ranking.sort_values("SO2_ExceedanceRate", ascending=False),
         x="station",
@@ -648,10 +648,10 @@ with tab_risk:
     # --------------------------------------------------
 # WHO vs EU comparison table
 # --------------------------------------------------
-st.markdown("#### WHO 2021 vs EU Directive 2008/50/EC")
+st.markdown("#### " + tr("WHO 2021 vs EU Directive 2008/50/EC"))
 st.caption(
-    "WHO guidelines are stricter than legally binding EU limits. "
-    "Exceeding WHO does NOT mean a legal violation."
+    tr("WHO guidelines are stricter than legally binding EU limits. "
+       "Exceeding WHO does NOT mean a legal violation.")
 )
 
 # Build comparison per station
@@ -681,7 +681,7 @@ with tab_trend:
 
     # In Day mode: no time-series trend makes sense — show snapshot bar
     if time_mode == "Day":
-        st.markdown(f"### {period_label} — station snapshot")
+        st.markdown(f"### {period_label} — {tr('station snapshot')}")
 
         snap = (
             daily_df
@@ -689,7 +689,7 @@ with tab_trend:
             .mean()
             .reset_index()
         )
-        poll_day = st.selectbox("Pollutant", CORE_POLLUTANTS + ["SO2"],
+        poll_day = st.selectbox(tr("Pollutant"), CORE_POLLUTANTS + ["SO2"],
                                 key="trend_day_poll")
         fig_snap = px.bar(
             snap.sort_values(poll_day, ascending=False),
@@ -708,7 +708,7 @@ with tab_trend:
         st.plotly_chart(fig_snap,  width="stretch")
 
     else:
-        st.markdown("### Trends — stations colored by zone")
+        st.markdown("### " + tr("Trends — stations colored by zone"))
 
         # Use full df for trend (all years), restricted to station/zone scope
         trend_base = df.copy()
@@ -718,7 +718,7 @@ with tab_trend:
             trend_base = trend_base[trend_base["station"].isin(selected_stations)]
 
         pollutant_choice = st.selectbox(
-            "Pollutant", CORE_POLLUTANTS + ["SO2"], index=0, key="trend_poll"
+            tr("Pollutant"), CORE_POLLUTANTS + ["SO2"], index=0, key="trend_poll"
         )
 
         if time_mode == "Year":
@@ -775,7 +775,7 @@ with tab_trend:
 
         # Zone-level trend (Year mode only)
         if time_mode == "Year":
-            st.markdown("### Zone-level trend (aggregated)")
+            st.markdown("### " + tr("Zone-level trend (aggregated)"))
 
             zone_yearly = (
                 trend_base
@@ -799,7 +799,7 @@ with tab_trend:
             st.plotly_chart(fig_zone_trend,  width="stretch")
 
             # City-wide rolling area chart
-            st.markdown("### City-wide monthly average (3-month rolling)")
+            st.markdown("### " + tr("City-wide monthly average (3-month rolling)"))
             monthly_all = (
                 trend_base
                 .groupby("YearMonth", as_index=False)
@@ -832,9 +832,9 @@ with tab_trend:
 
 # ==================== TAB 4: SEASONAL ====================
 with tab_seasonal:
-    st.markdown("### Monthly seasonality by zone")
+    st.markdown("### " + tr("Monthly seasonality by zone"))
 
-    poll_s = st.selectbox("Pollutant", CORE_POLLUTANTS + ["SO2"],
+    poll_s = st.selectbox(tr("Pollutant"), CORE_POLLUTANTS + ["SO2"],
                           index=2, key="seas_poll")
 
     # Zone-level seasonality
@@ -867,7 +867,7 @@ with tab_seasonal:
     st.plotly_chart(fig_zone_season,  width="stretch")
 
     # Station-level seasonality
-    st.markdown("### Monthly seasonality by station")
+    st.markdown("### " + tr("Monthly seasonality by station"))
 
     monthly_station = (
         daily_df
@@ -904,7 +904,7 @@ with tab_seasonal:
     st.plotly_chart(fig_season,  width="stretch")
 
     # Heatmap: station × month
-    st.markdown("### Station × Month heatmap")
+    st.markdown("### " + tr("Station × Month heatmap"))
 
     pivot = monthly_station.pivot(index="station", columns="Month", values=poll_s)
     pivot.columns = [MONTH_NAMES[c] for c in pivot.columns]
@@ -934,7 +934,7 @@ with tab_seasonal:
 
 # ==================== TAB 5: TABLE ====================
 with tab_table:
-    st.markdown("### Station risk summary table")
+    st.markdown("### " + tr("Station risk summary table"))
 
     display_cols = [
         "station", "Town", "Zone", "CoreRiskScore", "CoreRiskLevel",
@@ -959,19 +959,19 @@ with tab_table:
         hide_index=True,
         column_config={
             "CoreRiskScore": st.column_config.ProgressColumn(
-                "Core Risk Score", min_value=0,
+                tr("Core Risk Score"), min_value=0,
                 max_value=float(display_df["CoreRiskScore"].max() * 1.1),
                 format="%.1f"
             ),
             "SO2_ExceedanceRate": st.column_config.ProgressColumn(
-                "SO₂ Exceedance Rate", min_value=0, max_value=1, format="%.1%"
+                tr("SO₂ Exceedance Rate"), min_value=0, max_value=1, format="%.1%"
             ),
-            "Zone": st.column_config.TextColumn("Environmental Zone")
+            "Zone": st.column_config.TextColumn(tr("Environmental Zone"))
         }
     )
 
     # Zone comparison expander
-    with st.expander("📊 Zone Comparison Table"):
+    with st.expander(tr("📊 Zone Comparison Table")):
         zone_comp = (
             ranking
             .groupby("Zone")[["CoreRiskScore", "PM2.5", "PM10", "NO2", "SO2_ExceedanceRate"]]
@@ -981,11 +981,11 @@ with tab_table:
         st.dataframe(zone_comp, width="stretch")
 
     st.markdown("---")
-    st.markdown("### Daily raw data explorer")
+    st.markdown("### " + tr("Daily raw data explorer"))
 
     _fav = get_fav_station(all_stations)
     _idx = all_stations.index(_fav) if _fav in all_stations else 0
-    station_sel = st.selectbox("Select station", options=all_stations, index=_idx)
+    station_sel = st.selectbox(tr("Select station"), options=all_stations, index=_idx)
     
     raw = daily_df[daily_df["station"] == station_sel][["Date","PM2.5","PM10","NO2","SO2"]].copy()
     raw = raw.sort_values("Date")
@@ -1019,6 +1019,6 @@ with tab_table:
     )
     st.plotly_chart(fig_raw,  width="stretch")
 
-    with st.expander("Show raw daily data"):
+    with st.expander(tr("Show raw daily data")):
         st.dataframe(raw,  width="stretch", hide_index=True)
 

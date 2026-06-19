@@ -93,10 +93,10 @@ df = load_data()
 # HEADER
 # --------------------------------------------------
 
-st.title("🌦️ Weather Drivers & Air Pollution Dynamics")
+st.title(tr("🌦️ Weather Drivers & Air Pollution Dynamics"))
 st.markdown(
-    "How meteorological conditions influence air pollution patterns "
-    "across Greater Bilbao · 2015–2026"
+    tr("How meteorological conditions influence air pollution patterns "
+       "across Greater Bilbao · 2015–2026")
 )
 
 # --------------------------------------------------
@@ -104,17 +104,17 @@ st.markdown(
 # --------------------------------------------------
 
 with st.sidebar:
-    st.markdown("## 🌦️ Filters")
+    st.markdown("## 🌦️ " + tr("Filters"))
     st.divider()
 
     filter_mode = st.radio(
-        "Filter by", ["All Stations", "Zone", "Station"],
+        tr("Filter by"), ["All Stations", "Zone", "Station"],
         horizontal=True
     )
 
     if filter_mode == "Zone":
         selected_zone = st.selectbox(
-            "Zone", list(ZONE_META.keys()),
+            tr("Zone"), list(ZONE_META.keys()),
             format_func=lambda z: f"{ZONE_META[z]['icon']} {z}"
         )
     elif filter_mode == "Station":
@@ -122,25 +122,25 @@ with st.sidebar:
         _fav = get_fav_station(_station_list)
         _idx = _station_list.index(_fav) if _fav in _station_list else 0
         selected_station = st.selectbox(
-            "Station", _station_list, index=_idx
+            tr("Station"), _station_list, index=_idx
         )
 
-    st.markdown("### Time Range")
+    st.markdown("### " + tr("Time Range"))
     all_years = sorted(df["Year"].dropna().unique().tolist())
-    time_mode = st.radio("Granularity", ["Year", "Month", "Day"], horizontal=True)
+    time_mode = st.radio(tr("Granularity"), ["Year", "Month", "Day"], horizontal=True)
 
     if time_mode == "Year":
         year_opts    = ["All"] + [str(y) for y in all_years]
-        sel_year_str = st.selectbox("Year", year_opts, index=0)
+        sel_year_str = st.selectbox(tr("Year"), year_opts, index=0)
         sel_year     = None if sel_year_str == "All" else int(sel_year_str)
         sel_month    = None
         sel_day      = None
 
     elif time_mode == "Month":
-        sel_year      = st.selectbox("Year", all_years, index=len(all_years) - 1)
+        sel_year      = st.selectbox(tr("Year"), all_years, index=len(all_years) - 1)
         month_avail   = sorted(df[df["Year"] == sel_year]["Month"].dropna().unique().tolist())
         month_opts    = ["All"] + [MONTH_NAMES[m] for m in month_avail]
-        sel_month_lbl = st.selectbox("Month", month_opts, index=0)
+        sel_month_lbl = st.selectbox(tr("Month"), month_opts, index=0)
         sel_month     = (
             {v: k for k, v in MONTH_NAMES.items()}[sel_month_lbl]
             if sel_month_lbl != "All" else None
@@ -148,21 +148,21 @@ with st.sidebar:
         sel_day       = None
 
     else:  # Day
-        sel_year      = st.selectbox("Year", all_years, index=len(all_years) - 1)
+        sel_year      = st.selectbox(tr("Year"), all_years, index=len(all_years) - 1)
         month_avail   = sorted(df[df["Year"] == sel_year]["Month"].dropna().unique().tolist())
-        sel_month_lbl = st.selectbox("Month", [MONTH_NAMES[m] for m in month_avail])
+        sel_month_lbl = st.selectbox(tr("Month"), [MONTH_NAMES[m] for m in month_avail])
         sel_month     = {v: k for k, v in MONTH_NAMES.items()}[sel_month_lbl]
         day_avail     = sorted(
             df[(df["Year"] == sel_year) & (df["Month"] == sel_month)]["Date"]
             .dt.date.dropna().unique().tolist()
         )
         sel_day = st.selectbox(
-            "Day", day_avail,
+            tr("Day"), day_avail,
             format_func=lambda d: pd.Timestamp(d).strftime("%d %b %Y")
         )
 
     st.divider()
-    st.markdown("### 🗺️ Zone Legend")
+    st.markdown("### 🗺️ " + tr("Zone Legend"))
     for z, meta in ZONE_META.items():
         st.markdown(f"{meta['icon']} **{z}**")
 
@@ -201,7 +201,7 @@ else:  # Day
     period_label = pd.Timestamp(sel_day).strftime("%d %B %Y")
 
 if base.empty:
-    st.warning("No data for selected filters.")
+    st.warning(tr("No data for selected filters."))
     st.stop()
 
 # --------------------------------------------------
@@ -211,11 +211,11 @@ if base.empty:
 st.markdown(f"### 📡 Overview — {scope_label} · {period_label}")
 
 k1, k2, k3, k4, k5 = st.columns(5)
-k1.metric("🌡️ Avg Temperature",    f"{base['Temperature'].mean():.1f} °C")
-k2.metric("💧 Avg Humidity",        f"{base['Humidity'].mean():.1f} %")
-k3.metric("🌧️ Avg Precipitation",   f"{base['Precipitation'].mean():.1f} mm")
-k4.metric("💨 Avg Wind Speed",      f"{base['WindSpeed'].mean():.1f} km/h")
-k5.metric("📋 Daily observations",  f"{len(base):,}")
+k1.metric(f"🌡️ {tr('Avg Temperature')}",    f"{base['Temperature'].mean():.1f} °C")
+k2.metric(f"💧 {tr('Avg Humidity')}",        f"{base['Humidity'].mean():.1f} %")
+k3.metric(f"🌧️ {tr('Avg Precipitation')}",   f"{base['Precipitation'].mean():.1f} mm")
+k4.metric(f"💨 {tr('Avg Wind Speed')}",      f"{base['WindSpeed'].mean():.1f} km/h")
+k5.metric(f"📋 {tr('Daily observations')}",  f"{len(base):,}")
 
 st.divider()
 
@@ -224,17 +224,17 @@ st.divider()
 # --------------------------------------------------
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📊 Correlation Matrix",
-    "🌡️ Weather Relationships",
-    "🍂 Seasonal Effects",
-    "⏳ Lag Analysis",
-    "🤖 Forecast Features",
+    tr("📊 Correlation Matrix"),
+    tr("🌡️ Weather Relationships"),
+    tr("🍂 Seasonal Effects"),
+    tr("⏳ Lag Analysis"),
+    tr("🤖 Forecast Features"),
 ])
 
 # ==================== TAB 1: CORRELATION MATRIX ====================
 with tab1:
-    st.markdown("### Correlation Matrix — Pollutants × Weather")
-    st.caption("Pearson r · −1 = inverse · 0 = no relation · +1 = direct")
+    st.markdown("### " + tr("Correlation Matrix — Pollutants × Weather"))
+    st.caption(tr("Pearson r · −1 = inverse · 0 = no relation · +1 = direct"))
 
     corr_cols    = ALL_POLLUTANTS + [v for v in WEATHER_VARS if v in base.columns]
     corr_matrix  = base[corr_cols].dropna().corr()
@@ -256,7 +256,7 @@ with tab1:
         st.plotly_chart(fig_focus,  width="stretch")
 
     with col_full:
-        st.markdown("#### Strongest pairs")
+        st.markdown("#### " + tr("Strongest pairs"))
         pairs = []
         for p in ALL_POLLUTANTS:
             for w in weather_present:
@@ -284,7 +284,7 @@ with tab1:
             }
         )
 
-    with st.expander("View full correlation matrix"):
+    with st.expander(tr("View full correlation matrix")):
         fig_full_m = px.imshow(
             corr_matrix,
             color_continuous_scale="RdBu_r",
@@ -298,19 +298,19 @@ with tab1:
 
 # ==================== TAB 2: WEATHER RELATIONSHIPS ====================
 with tab2:
-    st.markdown("### Scatter — Pollutant vs Weather Variable")
+    st.markdown("### " + tr("Scatter — Pollutant vs Weather Variable"))
 
     sc1, sc2, sc3 = st.columns(3)
     with sc1:
         x_var = st.selectbox(
-            "Weather variable (X)",
+            tr("Weather variable (X)"),
             [v for v in WEATHER_VARS if v in base.columns],
             index=0
         )
     with sc2:
-        y_var = st.selectbox("Pollutant (Y)", ALL_POLLUTANTS, index=0)
+        y_var = st.selectbox(tr("Pollutant (Y)"), ALL_POLLUTANTS, index=0)
     with sc3:
-        color_by = st.radio("Color by", ["Zone", "Season", "None"], horizontal=True)
+        color_by = st.radio(tr("Color by"), ["Zone", "Season", "None"], horizontal=True)
 
     scatter_cols = [x_var, y_var, "Zone", "season"]
     scatter_df   = base[[c for c in scatter_cols if c in base.columns]].dropna().copy()
@@ -377,7 +377,7 @@ with tab2:
         )
 
         wr_poll = st.selectbox(
-            "Color wind rose by pollutant",
+            tr("Color wind rose by pollutant"),
             ALL_POLLUTANTS, index=0, key="wr_poll"
         )
 
@@ -478,20 +478,20 @@ with tab2:
                 st.plotly_chart(fig_wc,  width="stretch")
     else:
         st.info(
-            "Wind_X and Wind_Y columns not found. "
-            "Add them to the dataset to enable wind component analysis."
+            tr("Wind_X and Wind_Y columns not found. "
+               "Add them to the dataset to enable wind component analysis.")
         )
 
    
 
 # ==================== TAB 3: SEASONAL EFFECTS ====================
 with tab3:
-    st.markdown("### 🍂 Seasonal Pollution Patterns")
+    st.markdown("### 🍂 " + tr("Seasonal Pollution Patterns"))
 
     if "season" not in base.columns:
-        st.warning("Season column not found in dataset.")
+        st.warning(tr("Season column not found in dataset."))
     else:
-        seas_poll = st.selectbox("Pollutant", ALL_POLLUTANTS, index=0, key="seas_poll")
+        seas_poll = st.selectbox(tr("Pollutant"), ALL_POLLUTANTS, index=0, key="seas_poll")
 
         seasonal = (
             base.groupby("season")[
@@ -557,7 +557,7 @@ with tab3:
             st.plotly_chart(fig_sw,  width="stretch")
 
         # Zone × Season heatmap
-        st.markdown("#### Zone × Season heatmap")
+        st.markdown("#### " + tr("Zone × Season heatmap"))
         zone_seas = (
             base.groupby(["Zone", "season"])[seas_poll]
             .mean().round(2).reset_index()
@@ -579,19 +579,19 @@ with tab3:
         fig_zs.update_layout(height=280)
         st.plotly_chart(fig_zs,  width="stretch")
 
-        with st.expander("📊 Full seasonal statistics"):
+        with st.expander(tr("📊 Full seasonal statistics")):
             st.dataframe(seasonal.set_index("season"), width="stretch")
 
 # ==================== TAB 4: LAG ANALYSIS ====================
 with tab4:
-    st.markdown("### ⏳ Lag Correlation Analysis")
+    st.markdown("### ⏳ " + tr("Lag Correlation Analysis"))
     st.caption(
-        "How well does today's pollution predict future pollution? "
-        "High lag correlation = persistent pollution events."
+        tr("How well does today's pollution predict future pollution? "
+           "High lag correlation = persistent pollution events.")
     )
 
     lag_poll = st.selectbox(
-        "Pollutant", ALL_POLLUTANTS, index=0, key="lag_poll"
+        tr("Pollutant"), ALL_POLLUTANTS, index=0, key="lag_poll"
     )
 
     # ── داینامیک: prefix و target ──────────────────────────────
@@ -644,7 +644,7 @@ with tab4:
         st.plotly_chart(fig_lag,  width="stretch")
 
         # ── Rolling Mean ───────────────────────────────────────
-        st.markdown("#### Rolling Mean Features")
+        st.markdown("#### " + tr("Rolling Mean Features"))
         ROLL_WINDOWS  = [7, 30, 90, 365]
         roll_cols_use = [f"{poll_prefix}_roll_mean_{w}" for w in ROLL_WINDOWS
                          if f"{poll_prefix}_roll_mean_{w}" in base.columns]
@@ -681,7 +681,7 @@ with tab4:
         else:
             st.info(f"No rolling mean columns found for {lag_poll}.")
 
-        with st.expander("📊 Lag correlation table"):
+        with st.expander(tr("📊 Lag correlation table")):
             st.dataframe(
                 lag_df.set_index("Lag feature"),
                  width="stretch"
@@ -691,14 +691,14 @@ with tab4:
 
 # ==================== TAB 5: FORECAST FEATURES ====================
 with tab5:
-    st.markdown("### 🤖 Feature Ranking for Forecasting")
+    st.markdown("### 🤖 " + tr("Feature Ranking for Forecasting"))
     st.caption(
-        "Pearson correlation of all candidate features with target_PM25. "
-        "High absolute correlation = potentially useful predictor."
+        tr("Pearson correlation of all candidate features with target_PM25. "
+           "High absolute correlation = potentially useful predictor.")
     )
 
     if "target_PM25" not in base.columns:
-        st.warning("target_PM25 column not found in dataset.")
+        st.warning(tr("target_PM25 column not found in dataset."))
         st.stop()
 
     candidate_features = (
@@ -737,7 +737,7 @@ with tab5:
         "Other":        "#95a5a6",
     }
 
-    top_n = st.slider("Show top N features", 10, len(corr_target), 20)
+    top_n = st.slider(tr("Show top N features"), 10, len(corr_target), 20)
 
     fig_feat = px.bar(
         corr_target.head(top_n),
@@ -758,7 +758,7 @@ with tab5:
     )
     st.plotly_chart(fig_feat,  width="stretch")
 
-    st.markdown("#### Summary by feature category")
+    st.markdown("#### " + tr("Summary by feature category"))
     cat_summary = (
         corr_target.groupby("Category")["abs_r"]
         .agg(["mean", "max", "count"])
@@ -768,7 +768,7 @@ with tab5:
     )
     st.dataframe(cat_summary, width="stretch")
 
-    with st.expander("📊 Full feature ranking table"):
+    with st.expander(tr("📊 Full feature ranking table")):
         st.dataframe(
             corr_target.drop(columns="abs_r"),
             width="stretch",

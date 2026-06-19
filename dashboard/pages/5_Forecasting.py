@@ -123,10 +123,10 @@ STATION_CODES = {s: i for i, s in enumerate(sorted(df["station"].unique()))}
 # HEADER
 # --------------------------------------------------
 
-st.title("🔮 Air Quality Forecasting")
+st.title(tr("🔮 Air Quality Forecasting"))
 st.markdown(
-    "Machine-learning forecasts for Greater Bilbao · XGBoost models trained "
-    "on 2015–2023, validated on 2024–2026."
+    tr("Machine-learning forecasts for Greater Bilbao · XGBoost models trained "
+       "on 2015–2023, validated on 2024–2026.")
 )
 
 # --------------------------------------------------
@@ -134,10 +134,10 @@ st.markdown(
 # --------------------------------------------------
 
 with st.sidebar:
-    st.markdown("## 🔮 Forecast Settings")
+    st.markdown("## 🔮 " + tr("Forecast Settings"))
     st.divider()
 
-    sel_pollutant = st.selectbox("Pollutant", POLLUTANTS, index=0)
+    sel_pollutant = st.selectbox(tr("Pollutant"), POLLUTANTS, index=0)
 
 
     _station_list = sorted(df["station"].unique().tolist())
@@ -145,20 +145,20 @@ with st.sidebar:
     _idx = _station_list.index(_fav) if _fav in _station_list else 0
 
     sel_station = st.selectbox(
-        "Station", _station_list, index=_idx
+        tr("Station"), _station_list, index=_idx
     )
 
     st.divider()
-    st.markdown("### Model Info")
+    st.markdown("### " + tr("Model Info"))
 
     bundle = load_model(sel_pollutant)
     if bundle:
         m = bundle["metrics"]
-        st.metric("Model R²",  f"{m['R2']:.3f}")
-        st.metric("Model MAE", f"{m['MAE']:.2f} µg/m³")
-        st.metric("Model RMSE", f"{m['RMSE']:.2f} µg/m³")
+        st.metric(tr("Model R²"),  f"{m['R2']:.3f}")
+        st.metric(tr("Model MAE"), f"{m['MAE']:.2f} µg/m³")
+        st.metric(tr("Model RMSE"), f"{m['RMSE']:.2f} µg/m³")
     else:
-        st.error(f"Model for {sel_pollutant} not found in {MODELS_DIR}")
+        st.error(f"{tr('Model for')} {sel_pollutant} {tr('not found in')} {MODELS_DIR}")
 
 # --------------------------------------------------
 # GUARD
@@ -166,8 +166,8 @@ with st.sidebar:
 
 if bundle is None:
     st.error(
-        f"No saved model for {sel_pollutant}. "
-        f"Expected file: {model_path(sel_pollutant).name} in /models."
+        f"{tr('No saved model for')} {sel_pollutant}. "
+        f"{tr('Expected file:')} {model_path(sel_pollutant).name} {tr('in /models.')}"
     )
     st.stop()
 
@@ -178,7 +178,7 @@ features = bundle["features"]
 station_df = df[df["station"] == sel_station].sort_values("Date").copy()
 
 if station_df.empty:
-    st.warning("No data for this station.")
+    st.warning(tr("No data for this station."))
     st.stop()
 
 # --------------------------------------------------
@@ -186,17 +186,17 @@ if station_df.empty:
 # --------------------------------------------------
 
 tab1, tab2, tab3 = st.tabs([
-    "📈 Next-Day Forecast (Backtest)",
-    "🔮 Multi-Day Forecast (Recursive)",
-    "🧠 Model Explainability",
+    tr("📈 Next-Day Forecast (Backtest)"),
+    tr("🔮 Multi-Day Forecast (Recursive)"),
+    tr("🧠 Model Explainability"),
 ])
 
 # ==================== TAB 1: NEXT-DAY BACKTEST ====================
 with tab1:
-    st.markdown(f"### Next-Day Forecast vs Actual — {sel_pollutant} at {sel_station}")
+    st.markdown(f"### {tr('Next-Day Forecast vs Actual')} — {sel_pollutant} {tr('at')} {sel_station}")
     st.caption(
-        "The model predicts the next day's value using today's data. "
-        "Shown on the held-out test period (2024+) for honest evaluation."
+        tr("The model predicts the next day's value using today's data. "
+           "Shown on the held-out test period (2024+) for honest evaluation.")
     )
 
     # Prepare features and predict on the test period
@@ -205,7 +205,7 @@ with tab1:
     test_period = test_period.dropna(subset=features)
 
     if test_period.empty:
-        st.warning("Not enough 2024+ data for this station to backtest.")
+        st.warning(tr("Not enough 2024+ data for this station to backtest."))
     else:
         X_test = test_period[features]
         test_period["prediction"] = model.predict(X_test)
@@ -252,21 +252,21 @@ with tab1:
         mae = mean_absolute_error(plot_df["actual"], plot_df["prediction"])
         r2  = r2_score(plot_df["actual"], plot_df["prediction"])
         c1, c2 = st.columns(2)
-        c1.metric(f"Station MAE", f"{mae:.2f} µg/m³")
-        c2.metric(f"Station R²",  f"{r2:.3f}")
+        c1.metric(tr("Station MAE"), f"{mae:.2f} µg/m³")
+        c2.metric(tr("Station R²"),  f"{r2:.3f}")
 
 # ==================== TAB 2: RECURSIVE MULTI-DAY ====================
 with tab2:
-    st.markdown(f"### Multi-Day Forecast — {sel_pollutant} at {sel_station}")
+    st.markdown(f"### {tr('Multi-Day Forecast')} — {sel_pollutant} {tr('at')} {sel_station}")
 
     st.warning(
-        "⚠️ **Recursive forecasting limitation:** each day's prediction feeds "
-        "into the next, and future weather is held constant at the last known "
-        "values. Accuracy decreases as the horizon grows — treat days 4+ as "
-        "indicative trend, not precise values."
+        tr("⚠️ **Recursive forecasting limitation:** each day's prediction feeds "
+           "into the next, and future weather is held constant at the last known "
+           "values. Accuracy decreases as the horizon grows — treat days 4+ as "
+           "indicative trend, not precise values.")
     )
 
-    horizon = st.slider("Forecast horizon (days)", 1, 14, 7)
+    horizon = st.slider(tr("Forecast horizon (days)"), 1, 14, 7)
 
     prep_station = prepare_features(station_df, features, station_codes=STATION_CODES)
 
@@ -277,7 +277,7 @@ with tab2:
     valid = prep_filled.dropna(subset=features)
 
     if valid.empty:
-        st.warning("Not enough complete data to forecast for this station.")
+        st.warning(tr("Not enough complete data to forecast for this station."))
     else:
         fc = recursive_forecast(
             valid, model, features, sel_pollutant,
@@ -314,7 +314,7 @@ with tab2:
         st.plotly_chart(fig2,  width="stretch")
 
         # Forecast table
-        st.markdown("#### Forecast values")
+        st.markdown("#### " + tr("Forecast values"))
         show = fc.copy()
         show["Date"] = show["Date"].dt.strftime("%a %d %b %Y")
         show["prediction"] = show["prediction"].round(1)
@@ -323,18 +323,18 @@ with tab2:
         # Flag WHO exceedances
         limit = WHO_ANNUAL.get(sel_pollutant)
         if limit:
-            show["WHO status"] = fc["prediction"].apply(
-                lambda v: "⚠️ Above" if v > limit else "✅ Below"
+            show[tr("WHO status")] = fc["prediction"].apply(
+                lambda v: tr("⚠️ Above") if v > limit else tr("✅ Below")
             )
         st.dataframe(show, width="stretch", hide_index=True)
 
 
 # ==================== TAB 3: EXPLAINABILITY ====================
 with tab3:
-    st.markdown(f"### Why does the model predict this way? — {sel_pollutant}")
+    st.markdown(f"### {tr('Why does the model predict this way?')} — {sel_pollutant}")
     st.caption(
-        "SHAP (SHapley Additive exPlanations) shows how each feature pushes "
-        "individual predictions up or down — beyond simple importance ranking."
+        tr("SHAP (SHapley Additive exPlanations) shows how each feature pushes "
+           "individual predictions up or down — beyond simple importance ranking.")
     )
 
     col1, col2 = st.columns([3, 2])
@@ -348,17 +348,17 @@ with tab3:
         if img_path.exists():
             st.image(str(img_path), width="stretch")
             st.caption(
-                "Each dot = one prediction · red = high feature value, "
-                "blue = low · right = pushes forecast up, left = down"
+                tr("Each dot = one prediction · red = high feature value, "
+                   "blue = low · right = pushes forecast up, left = down")
             )
         else:
             st.info(
-                f"SHAP plot not found ({img_path.name}). "
-                "Generate it in notebook 07 and place it in dashboard/assets/."
+                f"{tr('SHAP plot not found')} ({img_path.name}). "
+                + tr("Generate it in notebook 07 and place it in dashboard/assets/.")
             )
 
     with col2:
-        st.markdown("#### Key physical insights")
+        st.markdown("#### " + tr("Key physical insights"))
         st.markdown(
             """
 - **Today's pollutant level** is the strongest predictor — pollution
@@ -371,14 +371,14 @@ with tab3:
             """
         )
         st.success(
-            "✅ SHAP confirms the model learned real atmospheric mechanisms — "
-            "not spurious correlations."
+            tr("✅ SHAP confirms the model learned real atmospheric mechanisms — "
+               "not spurious correlations.")
         )
 
     st.divider()
 
     # Live top-10 importance from the loaded model (instant, no SHAP needed)
-    st.markdown(f"#### Top 10 features — {sel_pollutant} model (XGBoost importance)")
+    st.markdown(f"#### {tr('Top 10 features')} — {sel_pollutant} {tr('model (XGBoost importance)')}")
 
     imp = (
         pd.DataFrame({
@@ -400,7 +400,7 @@ with tab3:
     st.plotly_chart(fig_imp, width="stretch")
 
     # Model card
-    with st.expander("ℹ️ Model details"):
+    with st.expander(tr("ℹ️ Model details")):
         st.markdown(
             f"""
 | | |

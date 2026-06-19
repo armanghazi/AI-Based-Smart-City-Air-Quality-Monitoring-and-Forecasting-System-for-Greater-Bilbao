@@ -12,6 +12,8 @@ from config import (
     ZONE_META, who_delta, EU_ANNUAL, ALERT_LIMITS, center_tables
 )
 
+from i18n_auto import language_selector, apply_lang_styles, tr
+
 # ==================================================
 # PAGE CONFIG
 # ==================================================
@@ -23,6 +25,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 center_tables()
+language_selector()
+apply_lang_styles()
 
 # ==================================================
 # DESIGN SYSTEM
@@ -374,7 +378,7 @@ st.markdown("""
 # QUICK STATUS
 # ==================================================
 
-st.markdown('<p class="eyebrow">Latest reading</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="eyebrow">{tr("Latest reading")}</p>', unsafe_allow_html=True)
 st.markdown(f"### Today across the network — {latest_date.strftime('%d %b %Y')}")
 
 col_fav, col_snap = st.columns([2, 5], gap="large")
@@ -383,19 +387,19 @@ with col_fav:
     default_idx = (station_list.index(st.session_state.fav_station)
                    if st.session_state.fav_station in station_list else 0)
     selected_fav = st.selectbox(
-        "Your default station",
+        tr("Your default station"),
         options=station_list,
         index=default_idx,
-        help="Remembered on this device for your next visit.",
+        help=tr("Remembered on this device for your next visit."),
     )
-    if st.button("Save as default", type="primary", use_container_width=True):
+    if st.button(tr("Save as default"), type="primary", use_container_width=True):
         st.session_state.fav_station = selected_fav
         if _cookies is not None:
             _cookies["fav_station"] = selected_fav
             _cookies.save()
             st.success(f"{selected_fav} saved.")
         else:
-            st.info("Saved for this session.")
+            st.info(tr("Saved for this session."))
 
 with col_snap:
     latest_means = (
@@ -425,11 +429,11 @@ st.divider()
 # ENVIRONMENTAL ZONES
 # ==================================================
 
-st.markdown('<p class="eyebrow">The network, by character</p>', unsafe_allow_html=True)
-st.markdown("### Five environmental zones")
+st.markdown(f'<p class="eyebrow">{tr("The network, by character")}</p>', unsafe_allow_html=True)
+st.markdown("### " + tr("Five environmental zones"))
 st.caption(
-    "Each station sits in a zone defined by its dominant emission source — "
-    "traffic, industry, port, coast, or refinery. Latest-year averages shown."
+    tr("Each station sits in a zone defined by its dominant emission source — "
+       "traffic, industry, port, coast, or refinery. Latest-year averages shown.")
 )
 
 zone_summary = (
@@ -487,14 +491,14 @@ st.divider()
 # CITY-WIDE INSIGHTS
 # ==================================================
 
-st.markdown('<p class="eyebrow">A decade in view</p>', unsafe_allow_html=True)
-st.markdown("### City-wide trends")
+st.markdown(f'<p class="eyebrow">{tr("A decade in view")}</p>', unsafe_allow_html=True)
+st.markdown("### " + tr("City-wide trends"))
 
 col_left, col_right = st.columns([3, 2], gap="large")
 latest_year = int(df["Year"].max())
 
 with col_left:
-    st.markdown("#### Annual mean concentration")
+    st.markdown("#### " + tr("Annual mean concentration"))
     annual = df.groupby("Year")[["PM2.5", "PM10", "NO2"]].mean().reset_index()
     annual_long = annual.melt(id_vars="Year", var_name="Pollutant",
                               value_name="Concentration")
@@ -518,7 +522,7 @@ with col_left:
     st.plotly_chart(fig_trend, width="stretch")
 
 with col_right:
-    st.markdown("#### Station risk ranking")
+    st.markdown("#### " + tr("Station risk ranking"))
 
     station_latest = (
         df[df["Year"] == latest_year]
@@ -557,8 +561,8 @@ with col_right:
     st.plotly_chart(fig_status, width="stretch")
 
 st.caption(
-    "Risk score = mean of (concentration ÷ WHO 2021 limit) across PM2.5, PM10, NO₂, ×100. "
-    "100 = exactly at the WHO guideline."
+    tr("Risk score = mean of (concentration ÷ WHO 2021 limit) across PM2.5, PM10, NO₂, ×100. "
+       "100 = exactly at the WHO guideline.")
 )
 
 st.divider()
@@ -567,8 +571,8 @@ st.divider()
 # NAVIGATION
 # ==================================================
 
-st.markdown('<p class="eyebrow">Where to next</p>', unsafe_allow_html=True)
-st.markdown("### Explore the platform")
+st.markdown(f'<p class="eyebrow">{tr("Where to next")}</p>', unsafe_allow_html=True)
+st.markdown("### " + tr("Explore the platform"))
 
 NAV = [
     {"icon":"🌅","title":"Daily Briefing","desc":"Today's status, tomorrow's alerts, one-page PDF","page":"pages/0_Daily_Briefing.py"},
@@ -588,11 +592,11 @@ for i in range(0, len(NAV), 4):
             st.markdown(f"""
             <div class="nav-tile">
                 <div class="nav-icon">{m['icon']}</div>
-                <div class="nav-title">{m['title']}</div>
-                <div class="nav-desc">{m['desc']}</div>
+                <div class="nav-title">{tr(m['title'])}</div>
+                <div class="nav-desc">{tr(m['desc'])}</div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("Open →", key=f"nav_{i+j}", use_container_width=True):
+            if st.button(tr("Open →"), key=f"nav_{i+j}", use_container_width=True):
                 st.switch_page(m["page"])
 
 st.divider()
@@ -604,20 +608,20 @@ st.divider()
 f1, f2, f3 = st.columns(3)
 with f1:
     st.markdown(
-        "**Air quality**  \n"
+        f"**{tr('Air quality')}**  \n"
         "Basque Government — RVCA network  \n"
         "[opendata.euskadi.eus](https://opendata.euskadi.eus/api-air-quality/?api=air-quality)\n"
         "7 stations · © Gobierno Vasco · CC BY 4.0"
     )
 with f2:
     st.markdown(
-        "**Meteorology**  \n"
+        f"**{tr('Meteorology')}**  \n"
         "Open-Meteo ERA5 archive  \n"
         "[open-meteo.com](https://open-meteo.com) · CC BY 4.0"
     )
 with f3:
     st.markdown(
-        "**Standards**  \n"
+        f"**{tr('Standards')}**  \n"
         "WHO 2021 guidelines (analysis)  \n"
         "EU Directive 2008/50/EC (alerts)"
     )

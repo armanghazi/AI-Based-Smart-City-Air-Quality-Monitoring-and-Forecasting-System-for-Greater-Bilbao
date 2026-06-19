@@ -37,32 +37,32 @@ df = load_data()
 # Page Title
 # -----------------------
 
-st.title("📈 Temporal Trends Dashboard")
-st.caption("Greater Bilbao · 2015–2026 · WHO 2021 guidelines")
+st.title(tr("📈 Temporal Trends Dashboard"))
+st.caption(tr("Greater Bilbao · 2015–2026 · WHO 2021 guidelines"))
 
 # -----------------------
 # Sidebar
 # -----------------------
 
 with st.sidebar:
-    st.markdown("### Filters")
+    st.markdown("### " + tr("Filters"))
 
-    pollutant = st.selectbox("Pollutant", ["PM2.5", "PM10", "NO2", "SO2"])
+    pollutant = st.selectbox(tr("Pollutant"), ["PM2.5", "PM10", "NO2", "SO2"])
 
     # ---- Station / Zone selector ----
     zone_options  = ["ALL ZONES"] + list(ZONE_META.keys())
     station_options = ["ALL"] + sorted(df["station"].unique().tolist())
 
-    filter_mode = st.radio("Filter by", ["Station", "Zone"], horizontal=True)
+    filter_mode = st.radio(tr("Filter by"), ["Station", "Zone"], horizontal=True)
 
     if filter_mode == "Station":
             _fav = get_fav_station(station_options)
             _idx = station_options.index(_fav) if _fav in station_options else 0
-            selected_station = st.selectbox("Station", station_options, index=_idx)
+            selected_station = st.selectbox(tr("Station"), station_options, index=_idx)
             selected_zone    = None
     else:
         selected_zone    = st.selectbox(
-            "Zone",
+            tr("Zone"),
             list(ZONE_META.keys()),
             format_func=lambda z: f"{ZONE_META[z]['icon']} {z}"
         )
@@ -70,23 +70,23 @@ with st.sidebar:
 
     # ---- Time granularity ----
     st.divider()
-    st.markdown("### Time Range")
+    st.markdown("### " + tr("Time Range"))
 
-    time_mode = st.radio("Granularity", ["Year", "Month", "Day"], horizontal=True)
+    time_mode = st.radio(tr("Granularity"), ["Year", "Month", "Day"], horizontal=True)
 
     if time_mode == "Year":
         year_options = ["All"] + sorted(df["Year"].dropna().unique().tolist())
-        selected_year = st.selectbox("Year", year_options, index=0)
+        selected_year = st.selectbox(tr("Year"), year_options, index=0)
         selected_month = None
         selected_day   = None
 
     elif time_mode == "Month":
         year_list = sorted(df["Year"].dropna().unique().tolist())
-        selected_year = st.selectbox("Year", year_list, index=len(year_list) - 1)
+        selected_year = st.selectbox(tr("Year"), year_list, index=len(year_list) - 1)
         month_options = ["All"] + [MONTH_NAMES[m] for m in sorted(
             df[df["Year"] == selected_year]["Month"].dropna().unique().tolist()
         )]
-        selected_month_label = st.selectbox("Month", month_options, index=0)
+        selected_month_label = st.selectbox(tr("Month"), month_options, index=0)
         selected_month = (
             {v: k for k, v in MONTH_NAMES.items()}[selected_month_label]
             if selected_month_label != "All" else None
@@ -95,12 +95,12 @@ with st.sidebar:
 
     else:  # Day
         year_list = sorted(df["Year"].dropna().unique().tolist())
-        selected_year = st.selectbox("Year", year_list, index=len(year_list) - 1)
+        selected_year = st.selectbox(tr("Year"), year_list, index=len(year_list) - 1)
         month_avail = sorted(
             df[df["Year"] == selected_year]["Month"].dropna().unique().tolist()
         )
         selected_month_label = st.selectbox(
-            "Month", [MONTH_NAMES[m] for m in month_avail]
+            tr("Month"), [MONTH_NAMES[m] for m in month_avail]
         )
         selected_month = {v: k for k, v in MONTH_NAMES.items()}[selected_month_label]
         day_avail = sorted(
@@ -108,21 +108,21 @@ with st.sidebar:
             .dropna().unique().tolist()
         )
         selected_day = st.selectbox(
-            "Day", day_avail,
+            tr("Day"), day_avail,
             format_func=lambda d: pd.Timestamp(d).strftime("%d %b %Y")
         )
 
-    show_who = st.toggle("Show WHO guideline", value=True)
+    show_who = st.toggle(tr("Show WHO guideline"), value=True)
 
     st.divider()
     if pollutant in WHO_ANNUAL:
-        st.markdown(f"**WHO annual limit ({pollutant}):** {WHO_ANNUAL[pollutant]} µg/m³")
+        st.markdown(f"**{tr('WHO annual limit')} ({pollutant}):** {WHO_ANNUAL[pollutant]} µg/m³")
     else:
-        st.markdown("SO₂: evaluated on 24h exceedance, no annual WHO limit")
+        st.markdown(tr("SO₂: evaluated on 24h exceedance, no annual WHO limit"))
 
     # Zone legend
     st.divider()
-    st.markdown("### 🗺️ Zones")
+    st.markdown("### 🗺️ " + tr("Zones"))
     for z, meta in ZONE_META.items():
         stations_in_zone = df[df["Zone"] == z]["station"].unique().tolist()
         short = [s.split("_")[0] for s in stations_in_zone]
@@ -173,7 +173,7 @@ who_limit  = WHO_ANNUAL.get(pollutant)
 main_color = POLLUTANT_COLOR[pollutant]
 
 if df_filtered.empty:
-    st.warning("No data available for the selected filters.")
+    st.warning(tr("No data available for the selected filters."))
     st.stop()
 
 # -----------------------
@@ -186,10 +186,10 @@ min_val   = df_filtered[pollutant].min()
 who_ratio = f"{avg_val / who_limit:.1f}× WHO" if who_limit else "—"
 
 c1, c2, c3, c4 = st.columns(4)
-c1.metric(f"Average {pollutant}", f"{avg_val:.1f} {unit}")
-c2.metric("Maximum (daily)", f"{max_val:.1f} {unit}")
-c3.metric("Minimum (daily)", f"{min_val:.1f} {unit}")
-c4.metric("Avg vs WHO limit", who_ratio)
+c1.metric(f"{tr('Average')} {pollutant}", f"{avg_val:.1f} {unit}")
+c2.metric(tr("Maximum (daily)"), f"{max_val:.1f} {unit}")
+c3.metric(tr("Minimum (daily)"), f"{min_val:.1f} {unit}")
+c4.metric(tr("Avg vs WHO limit"), who_ratio)
 
 st.caption(f"Scope: **{scope_label}** · Period: **{period_label}**")
 st.divider()
@@ -199,7 +199,7 @@ st.divider()
 # -----------------------
 
 if filter_mode == "Zone" or (filter_mode == "Station" and selected_station == "ALL"):
-    st.subheader("🗺️ Zone Breakdown")
+    st.subheader(tr("🗺️ Zone Breakdown"))
 
     zones_in_scope = df_filtered["Zone"].unique().tolist()
     zone_cols = st.columns(len([z for z in ZONE_META if z in zones_in_scope]) or 1)
@@ -300,7 +300,7 @@ if time_mode == "Day":
 
 else:
     # ---- Annual Trend ----
-    st.subheader("📅 Annual Trend")
+    st.subheader(tr("📅 Annual Trend"))
 
     if time_mode == "Year":
         annual_grp = df_filtered.groupby("Year")
@@ -380,7 +380,7 @@ else:
 
     # ---- Monthly Seasonality (only in Year mode) ----
     if time_mode == "Year":
-        st.subheader("🌦️ Monthly Seasonality")
+        st.subheader(tr("🌦️ Monthly Seasonality"))
 
         if filter_mode == "Zone":
             monthly_df = (
@@ -445,7 +445,7 @@ else:
 # -----------------------
 
 if filter_mode == "Station" and selected_station == "ALL" and time_mode == "Year":
-    st.subheader("🏙️ Station Comparison")
+    st.subheader(tr("🏙️ Station Comparison"))
 
     comparison = (
         df
@@ -485,7 +485,7 @@ if filter_mode == "Station" and selected_station == "ALL" and time_mode == "Year
 # -----------------------
 
 if time_mode == "Year":
-    st.subheader("🦠 COVID Impact Analysis")
+    st.subheader(tr("🦠 COVID Impact Analysis"))
 
     covid_df = df_filtered.copy()
     covid_df["Period"] = np.select(
@@ -592,7 +592,7 @@ if time_mode == "Year":
             st.plotly_chart(fig_covid,  width="stretch")
 
         with col_table:
-            st.markdown("**Statistics by period**")
+            st.markdown(f"**{tr('Statistics by period')}**")
             display_stats = covid_stats.copy()
             for col in ["Mean", "Median", "Std"]:
                 display_stats[col] = display_stats[col].round(2)

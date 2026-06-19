@@ -348,24 +348,24 @@ def render_charts(charts: list) -> None:
 # --------------------------------------------------
 # UI
 # --------------------------------------------------
-st.title("💬 Project Assistant")
+st.title(tr("💬 Project Assistant"))
 st.caption(
-    "Ask about the data or the methodology. Data questions (trends by day/month/year, "
-    "station comparisons, WHO exceedance) are answered by querying the live dataset directly — "
-    "the assistant does not guess numbers."
+    tr("Ask about the data or the methodology. Data questions (trends by day/month/year, "
+       "station comparisons, WHO exceedance) are answered by querying the live dataset directly — "
+       "the assistant does not guess numbers.")
 )
 
 digest_text, freshness = build_data_digest()
-st.caption(f"Grounded on data through **{freshness}** · model `{MODEL}` via Groq")
+st.caption(f"{tr('Grounded on data through')} **{freshness}** · {tr('model')} `{MODEL}` {tr('via Groq')}")
 
-with st.expander("📋 Project facts (what the assistant is grounded on)"):
+with st.expander(tr("📋 Project facts (what the assistant is grounded on)")):
     st.code(digest_text, language="text")
 
 # Quick-start buttons
-st.markdown("##### Quick start")
+st.markdown("##### " + tr("Quick start"))
 cols = st.columns(2)
 for i, q in enumerate(EXAMPLES):
-    if cols[i % 2].button(q, key=f"ex_{i}", width="stretch"):
+    if cols[i % 2].button(tr(q), key=f"ex_{i}", width="stretch"):
         st.session_state.queued_prompt = q
         st.rerun()
 
@@ -380,7 +380,7 @@ for m in st.session_state.assistant_msgs:
 
 
 # New input: typed prompt OR a queued quick-start question
-typed = st.chat_input("Ask about the data or the project…")
+typed = st.chat_input(tr("Ask about the data or the project…"))
 prompt = typed or st.session_state.pop("queued_prompt", None)
 
 if prompt:
@@ -388,7 +388,7 @@ if prompt:
     with st.chat_message("user"):
         st.markdown(prompt)
     with st.chat_message("assistant"):
-        with st.spinner("Thinking…"):
+        with st.spinner(tr("Thinking…")):
             ok, reply, charts = get_assistant_reply(st.session_state.assistant_msgs, digest_text)
         st.markdown(reply)
 
@@ -398,6 +398,6 @@ if prompt:
 
 # Reset
 if st.session_state.assistant_msgs:
-    if st.button("Clear conversation"):
+    if st.button(tr("Clear conversation")):
         st.session_state.assistant_msgs = []
         st.rerun()
