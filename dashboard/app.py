@@ -327,15 +327,15 @@ tomorrow_str = (latest_date + timedelta(days=1)).strftime("%d %b %Y")
 
 st.markdown(f"""
 <div class="hero">
-    <p class="hero-eyebrow">GeoAI Smart City Platform · Greater Bilbao · Bizkaia</p>
-    <h1 class="hero-title">Air Quality Intelligence for Greater Bilbao</h1>
+    <p class="hero-eyebrow">{tr("GeoAI Smart City Platform · Greater Bilbao · Bizkaia")}</p>
+    <h1 class="hero-title">{tr("Air Quality Intelligence for Greater Bilbao")}</h1>
     <p class="hero-sub">
-        Monitoring and next-day forecasting across the region's air — seven stations, four pollutants, updated automatically every morning.
+        {tr("Monitoring and next-day forecasting across the region's air — seven stations, four pollutants, updated automatically every morning.")}
     </p>
     <div class="hero-meta">
-        <span><b>7</b> stations · <b>5</b> zones</span>
-        <span><b>{n_years}</b> years · {n_records:,} daily records</span>
-        <span><b>Next-day</b> XGBoost forecast</span>
+        <span><b>7</b> {tr("stations")} · <b>5</b> {tr("zones")}</span>
+        <span><b>{n_years}</b> {tr("years")} · {n_records:,} {tr("daily records")}</span>
+        <span><b>{tr("Next-day")}</b> {tr("XGBoost forecast")}</span>
         <span><b>WHO 2021</b> + EU Directive 2008/50/EC</span>
     </div>
 </div>
@@ -345,46 +345,45 @@ st.markdown(f"""
 if n_exc == 0:
     st.markdown(
         f'<div class="alert alert-good">✅ '
-        f'All stations within EU Directive limits — '
-        f'no legal exceedances forecast for {tomorrow_str}.</div>',
+        f'{tr("All stations within EU Directive limits — no legal exceedances forecast for")} {tomorrow_str}.</div>',
         unsafe_allow_html=True)
 elif n_exc <= 4:
     s_exc = list({e["station"].split("_")[0] for e in exceed})
     st.markdown(
         f'<div class="alert alert-warn">⚠️ '
-        f'{n_exc} EU Directive exceedance{"s" if n_exc>1 else ""} '
-        f'forecast for {tomorrow_str} · Stations: {", ".join(s_exc)} · '
-        f'<a href="/Daily_Briefing">Open the daily briefing →</a></div>',
+        f'{n_exc} {tr("EU Directive exceedance")}{"s" if n_exc>1 else ""} '
+        f'{tr("forecast for")} {tomorrow_str} · {tr("Stations:")} {", ".join(s_exc)} · '
+        f'<a href="/Daily_Briefing">{tr("Open the daily briefing →")}</a></div>',
         unsafe_allow_html=True)
 else:
     st.markdown(
         f'<div class="alert alert-bad">🚨 '
-        f'{n_exc} EU Directive exceedances forecast for {tomorrow_str} · '
-        f'multiple zones affected · '
-        f'<a href="/Daily_Briefing">Open the daily briefing →</a></div>',
+        f'{n_exc} {tr("EU Directive exceedances forecast for")} {tomorrow_str} · '
+        f'{tr("multiple zones affected")} · '
+        f'<a href="/Daily_Briefing">{tr("Open the daily briefing →")}</a></div>',
         unsafe_allow_html=True)
 
 st.write("")
 st.write("")
 
 # ── Project Assistant (secondary, outline call-to-action) ──
-st.markdown("""
+st.markdown(f"""
 <style>
-.assistant-cta-wrap { display:flex; justify-content:center; margin:.25rem 0 1.25rem; }
-.assistant-cta {
+.assistant-cta-wrap {{ display:flex; justify-content:center; margin:.25rem 0 1.25rem; }}
+.assistant-cta {{
     display:inline-flex; align-items:center; gap:.5rem;
     padding:.55rem 1.25rem; border-radius:12px;
     background:transparent; color:#2563eb;
     border:1.5px solid rgba(37,99,235,.5);
     font-weight:600; font-size:.95rem; text-decoration:none;
     transition:background .15s ease, border-color .15s ease;
-}
-.assistant-cta:hover {
+}}
+.assistant-cta:hover {{
     background:rgba(37,99,235,.08); border-color:#2563eb; color:#2563eb;
-}
+}}
 </style>
 <div class="assistant-cta-wrap">
-  <a class="assistant-cta" href="/Project_Assistant" target="_self">💬 Ask about the data &amp; methods</a>
+  <a class="assistant-cta" href="/Project_Assistant" target="_self">💬 {tr("Ask about the data &amp; methods")}</a>
 </div>
 """, unsafe_allow_html=True)
 
