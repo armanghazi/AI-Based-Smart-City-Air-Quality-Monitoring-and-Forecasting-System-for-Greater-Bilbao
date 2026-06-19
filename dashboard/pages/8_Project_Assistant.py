@@ -372,8 +372,7 @@ if "assistant_msgs" not in st.session_state:
 for m in st.session_state.assistant_msgs:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
-        if m["role"] == "assistant" and m.get("charts"):
-            render_charts(m["charts"])
+
 
 # New input: typed prompt OR a queued quick-start question
 typed = st.chat_input("Ask about the data or the project…")
@@ -387,7 +386,7 @@ if prompt:
         with st.spinner("Thinking…"):
             ok, reply, charts = get_assistant_reply(st.session_state.assistant_msgs, digest_text)
         st.markdown(reply)
-        render_charts(charts)
+
     st.session_state.assistant_msgs.append(
         {"role": "assistant", "content": reply, "charts": charts}
     )
