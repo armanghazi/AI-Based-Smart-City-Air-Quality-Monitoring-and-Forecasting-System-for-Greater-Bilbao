@@ -27,7 +27,7 @@ from config import (  # noqa: E402
     WHO_ANNUAL,
     WHO_SO2_DAILY,
     CORE_POLLUTANTS,
-    get_zone, center_tables
+    get_zone,
 )
 
 # EU limits exist only in newer config versions — import defensively
@@ -52,7 +52,6 @@ MAX_HISTORY = 8                     # prior turns sent to the model (keeps us un
 POLLUTANTS = ["PM2.5", "PM10", "NO2", "SO2"]
 
 st.set_page_config(page_title="Project Assistant", page_icon="💬", layout="wide")
-center_tables()
 
 # --------------------------------------------------
 # STATIC PROJECT KNOWLEDGE  (distilled from README / Architecture docs)
@@ -115,12 +114,10 @@ DASHBOARD PAGES: 1 Monitoring, 2 Temporal Trends, 3 Urban Risk Index, 4 Weather 
 
 # Example questions shown as quick-start buttons
 EXAMPLES = [
-    "Which station has the best air quality index right now?",
-    "Which station has the worst PM10, and how does it compare to theEAQI limit?",
-    "Which station has the worst NO2, and how does it compare to the WHO limit?",
+    "What is the yearly NO2 trend at MAZARREDO?",
+    "Which station has the worst PM2.5 exceedance rate vs the WHO limit?",
     "Why is SO2 handled separately, and why is its R2 lower than the others?",
     "How were the forecasting models protected against data leakage?",
-    "What does the spatial analysis say about the Petronor refinery and SO2?",
 ]
 
 
@@ -220,13 +217,18 @@ def build_system_prompt(digest: str) -> str:
         f"You are the Project Assistant for \"{PROJECT_TITLE}\". "
         "You help visitors understand both the air-quality DATA and the project's METHODOLOGY.\n\n"
         "GROUND RULES:\n"
-        "- Answer ONLY from the PROJECT KNOWLEDGE and LIVE DATA DIGEST below.\n"
-        "- If something is not covered, say you don't have that information. Never invent numbers, "
-        "dates, or station values.\n"
-        "- The digest holds aggregates and latest values, not arbitrary history. For a specific "
-        "past date at a specific station, explain that you only have aggregate/latest figures.\n"
-        "- Be concise and precise; use ug/m3 for concentrations. Answer as a knowledgeable guide "
-        "to this portfolio/class project.\n\n"
+        "- For ANY question about specific numbers, time trends (by day/month/year/season), "
+        "station or zone comparisons, or WHO exceedance, you MUST call the query_air_quality "
+        "tool and answer from its result. Never compute or guess these from memory.\n"
+        "- Use exact station codes as they appear in the LIVE DATA DIGEST (e.g. MAZARREDO, SANTURCE).\n"
+        "- For methodology / 'how does it work' questions, answer from the PROJECT KNOWLEDGE below.\n"
+        "- If a question is outside both the tool's scope and the knowledge below, say you don't "
+        "have that information. Never invent numbers, dates, or station values.\n"
+        "- Be concise and precise; concentrations are in ug/m3. WHO limits: annual for "
+        "PM2.5/PM10/NO2, 24-hour for SO2. Answer as a knowledgeable guide to this project.\n"
+        "- Reply in the same language the user writes in. Keep technical terms and proper nouns "
+        "unchanged (WHO, exceedance, data leakage, R2, XGBoost, SHAP, and station codes like "
+        "MAZARREDO); translate only the surrounding explanation.\n\n"
         f"=== PROJECT KNOWLEDGE ===\n{PROJECT_KNOWLEDGE}\n\n"
         f"=== LIVE DATA DIGEST ===\n{digest}"
     )
@@ -235,32 +237,107 @@ def build_system_prompt(digest: str) -> str:
 # --------------------------------------------------
 # GROQ CALL  (returns (ok, text); never raises to the UI)
 # --------------------------------------------------
-def get_assistant_reply(history: list[dict], digest: str) -> tuple[bool, str]:
+def get_assistant_reply(history: list[dict], digest: str) -> tuple[bool, str, list]:
+    """Returns (ok, text, charts) where charts is a list of run_query result dicts."""
     api_key = st.secrets.get("GROQ_API_KEY", None)
     if not api_key:
         return False, (
             "The assistant is offline because no `GROQ_API_KEY` is configured. "
             "Add it under Streamlit Cloud → Settings → Secrets to enable chat. "
             "Meanwhile, the project facts are available in the **Project facts** panel above."
-        )
+        ), []
     try:
+        import json
         from groq import Groq
+        from assistant_query import run_query, TOOL_SPEC
 
         client = Groq(api_key=api_key)
         messages = [{"role": "system", "content": build_system_prompt(digest)}]
-        messages += history[-MAX_HISTORY:]
+        # Only role/content go to the API (strip UI-only keys like "charts")
+        messages += [{"role": m["role"], "content": m["content"]} for m in history[-MAX_HISTORY:]]
+
+        tool_results: list = []  # collected for inline charts
+        for _ in range(3):  # allow a couple of tool round-trips
+            resp = client.chat.completions.create(
+                model=MODEL,
+                messages=messages,
+                temperature=0.3,
+                max_tokens=900,
+                tools=[TOOL_SPEC],
+                tool_choice="auto",
+            )
+            msg = resp.choices[0].message
+            if not getattr(msg, "tool_calls", None):
+                return True, (msg.content or "").strip(), tool_results
+
+            # Record the assistant's tool-call turn
+            messages.append({
+                "role": "assistant",
+                "content": msg.content or "",
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                    }
+                    for tc in msg.tool_calls
+                ],
+            })
+            # Execute each requested query and feed the real result back
+            for tc in msg.tool_calls:
+                try:
+                    args = json.loads(tc.function.arguments or "{}")
+                    result = run_query(**args) if isinstance(args, dict) else {"error": "bad args"}
+                except Exception as e:
+                    result = {"error": f"query failed: {e}"}
+                tool_results.append(result)
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": json.dumps(result)[:4000],  # cap tokens fed back
+                })
+
+        # Safety net: if still requesting tools, force a plain text answer
         resp = client.chat.completions.create(
-            model=MODEL,
-            messages=messages,
-            temperature=0.3,
-            max_tokens=800,
+            model=MODEL, messages=messages, temperature=0.3, max_tokens=900,
         )
-        return True, resp.choices[0].message.content.strip()
+        return True, (resp.choices[0].message.content or "").strip(), tool_results
     except Exception as exc:  # rate limit (429), network, bad key, etc.
         return False, (
             "The assistant could not answer right now (possibly a free-tier rate limit — "
             f"try again in a moment). Details: `{exc}`"
-        )
+        ), []
+
+
+def _result_to_chart(result: dict):
+    """Turn a multi-row query result into (DataFrame, kind) for inline charting,
+    or (None, None) if it isn't chartable (single row / no numeric columns)."""
+    rows = result.get("rows") if isinstance(result, dict) else None
+    gb = result.get("group_by") if isinstance(result, dict) else None
+    if not rows or gb in (None, "none") or len(rows) < 2:
+        return None, None
+    cdf = pd.DataFrame(rows)
+    if gb not in cdf.columns:
+        return None, None
+    cdf = cdf.set_index(gb)
+    num = cdf.apply(pd.to_numeric, errors="coerce").dropna(axis=1, how="all")
+    if num.empty:
+        return None, None
+    kind = "line" if gb in ("day", "month", "year") else "bar"  # trend vs comparison
+    return num, kind
+
+
+def render_charts(charts: list) -> None:
+    """Render any chartable query results as small inline charts."""
+    for res in charts or []:
+        cdf, kind = _result_to_chart(res)
+        if cdf is None:
+            continue
+        if kind == "line":
+            st.line_chart(cdf, height=240)
+        else:
+            st.bar_chart(cdf, height=240)
+
 
 
 # --------------------------------------------------
@@ -268,8 +345,9 @@ def get_assistant_reply(history: list[dict], digest: str) -> tuple[bool, str]:
 # --------------------------------------------------
 st.title("💬 Project Assistant")
 st.caption(
-    "Ask about the data or the methodology. Answers are grounded in the live dataset and the "
-    "project documentation — the assistant will not guess beyond them."
+    "Ask about the data or the methodology. Data questions (trends by day/month/year, "
+    "station comparisons, WHO exceedance) are answered by querying the live dataset directly — "
+    "the assistant does not guess numbers."
 )
 
 digest_text, freshness = build_data_digest()
@@ -294,6 +372,8 @@ if "assistant_msgs" not in st.session_state:
 for m in st.session_state.assistant_msgs:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
+        if m["role"] == "assistant" and m.get("charts"):
+            render_charts(m["charts"])
 
 # New input: typed prompt OR a queued quick-start question
 typed = st.chat_input("Ask about the data or the project…")
@@ -305,9 +385,12 @@ if prompt:
         st.markdown(prompt)
     with st.chat_message("assistant"):
         with st.spinner("Thinking…"):
-            ok, reply = get_assistant_reply(st.session_state.assistant_msgs, digest_text)
+            ok, reply, charts = get_assistant_reply(st.session_state.assistant_msgs, digest_text)
         st.markdown(reply)
-    st.session_state.assistant_msgs.append({"role": "assistant", "content": reply})
+        render_charts(charts)
+    st.session_state.assistant_msgs.append(
+        {"role": "assistant", "content": reply, "charts": charts}
+    )
 
 # Reset
 if st.session_state.assistant_msgs:
