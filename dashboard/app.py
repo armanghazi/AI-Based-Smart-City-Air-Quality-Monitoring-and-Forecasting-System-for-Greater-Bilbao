@@ -24,6 +24,18 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+# Auto-redirect admin BEFORE rendering anything
+try:
+    if st.user.is_logged_in:
+        from auth import current_role
+        role = current_role()
+        if role == "admin" and "code" in st.query_params:
+            st.switch_page("pages/9_Smart_City_Operations.py")
+except Exception:
+    pass
+
+# Only reaches here if no redirect happened
 center_tables()
 language_selector()
 apply_lang_styles()
