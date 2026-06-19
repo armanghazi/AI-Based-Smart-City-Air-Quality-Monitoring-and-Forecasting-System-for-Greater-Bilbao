@@ -113,7 +113,7 @@ def run_query(
 
     unit_note = ("exceedance_rate = % of days above the WHO guideline "
                  "(annual for PM2.5/PM10/NO2; 24-hour for SO2)") if agg == "exceedance_rate" \
-        else "values in ug/m3"
+        else "values in µg/m3"
 
     gcol = GROUP_COLS[group_by]
     rows = []
