@@ -24,7 +24,7 @@ import streamlit as st
 LANGUAGES: dict[str, dict] = {
     "en": {"label": "English",  "dir": "ltr", "rtl": False},
     "es": {"label": "Español",  "dir": "ltr", "rtl": False},
-    "fa": {"label": "فارسی",    "dir": "rtl", "rtl": True},
+    # "fa": {"label": "فارسی",    "dir": "rtl", "rtl": True},
 }
 
 # Terms kept verbatim after translation (acronyms, units, station codes, model names)
@@ -128,7 +128,7 @@ def language_selector(location=st.sidebar) -> str:
     options = list(LANGUAGES.keys())
     labels  = [LANGUAGES[k]["label"] for k in options]
     idx = location.radio(
-        "🌐 Language / Idioma / زبان",
+        "🌐 Language / Idioma ",
         options=range(len(options)),
         format_func=lambda i: labels[i],
         key="lang_idx",
