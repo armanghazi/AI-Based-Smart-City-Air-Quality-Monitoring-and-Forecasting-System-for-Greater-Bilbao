@@ -71,8 +71,8 @@ ZONES: Mazarredo/Erandio = Urban (traffic, highest NO2); Basauri/Barakaldo = Ind
 Santurtzi = Port (marine + traffic, SO2); Algorta = Coastal (best dispersion);
 Muskiz = Refinery (Petronor petrochemical profile).
 
-GUIDELINES: PM2.5/PM10/NO2 compared to WHO 2021 ANNUAL limits (5 / 15 / 10 ug/m3).
-SO2 is handled SEPARATELY against the WHO 24-HOUR guideline (40 ug/m3) because its behavior is
+GUIDELINES: PM2.5/PM10/NO2 compared to WHO 2021 ANNUAL limits (5 / 15 / 10 µg/m3).
+SO2 is handled SEPARATELY against the WHO 24-HOUR guideline (40 µg/m3) because its behavior is
 episodic (industrial/port), not annual. Dashboard also benchmarks against EU regulatory limits.
 
 AIR QUALITY INDEX (AQI): the dashboard shows a DUAL index. Primary = European Air Quality Index
@@ -143,7 +143,7 @@ def build_data_digest() -> tuple[str, str]:
     lines.append("Missing values (kept raw, not interpolated): " + ", ".join(nan_bits) + ".")
 
     # Per-station latest value | period mean
-    lines.append("\nPer-station (latest | period mean), ug/m3:")
+    lines.append("\nPer-station (latest | period mean), µg/m3:")
     for stn, g in df.sort_values("Date").groupby("station"):
         last = g.iloc[-1]
         town = last.get("Town", stn)
@@ -224,7 +224,7 @@ def build_system_prompt(digest: str) -> str:
         "- For methodology / 'how does it work' questions, answer from the PROJECT KNOWLEDGE below.\n"
         "- If a question is outside both the tool's scope and the knowledge below, say you don't "
         "have that information. Never invent numbers, dates, or station values.\n"
-        "- Be concise and precise; concentrations are in ug/m3. WHO limits: annual for "
+        "- Be concise and precise; concentrations are in µg/m3. WHO limits: annual for "
         "PM2.5/PM10/NO2, 24-hour for SO2. Answer as a knowledgeable guide to this project.\n"
         "- Reply in the same language the user writes in. Keep technical terms and proper nouns "
         "unchanged (WHO, exceedance, data leakage, R2, XGBoost, SHAP, and station codes like "
