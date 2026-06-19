@@ -325,5 +325,5 @@ This project was developed during the **AI & Data Tech** training pathway, made 
 
 ## Data Sources & License
 
-- **Air Quality:** Basque Government Open Data (**Open Data Euskadi**).
+- **Air Quality:** Basque Government Open Data — [Open Data Euskadi Air Quality API](https://opendata.euskadi.eus/api-air-quality/?api=air-quality).
 - **Meteorology:** [Open-Meteo](https://open-meteo.com/) ERA5 Archive (licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).
