@@ -33,10 +33,6 @@ from config import (  # noqa: E402
 
 from i18n_auto import language_selector, apply_lang_styles, tr
 
-language_selector()     # sidebar — باید اول صدا زده شود
-apply_lang_styles()     # RTL + فونت اگر فارسی بود
-st.caption(tr("Each station sits in a zone defined by its dominant emission source."))
-
 # EU limits exist only in newer config versions — import defensively
 try:
     from config import EU_ANNUAL, ALERT_LIMITS  # noqa: E402
@@ -59,6 +55,8 @@ MAX_HISTORY = 8                     # prior turns sent to the model (keeps us un
 POLLUTANTS = ["PM2.5", "PM10", "NO2", "SO2"]
 
 st.set_page_config(page_title="Project Assistant", page_icon="💬", layout="wide")
+language_selector()
+apply_lang_styles()
 
 # --------------------------------------------------
 # STATIC PROJECT KNOWLEDGE  (distilled from README / Architecture docs)

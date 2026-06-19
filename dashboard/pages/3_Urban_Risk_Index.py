@@ -1,8 +1,12 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from config import (
     load_data,
     WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
     POLLUTANT_COLOR, MONTH_NAMES, RISK_COLORS, RISK_ORDER,
-    ZONE_MAP, ZONE_META, get_zone,EU_ANNUAL, 
+    ZONE_MAP, ZONE_META, get_zone,EU_ANNUAL,
     classify_core_risk, risk_color, short_term_flag,
     who_ratio_label, who_delta,get_fav_station, center_tables
 )
@@ -19,10 +23,6 @@ import numpy as np
 
 from i18n_auto import language_selector, apply_lang_styles, tr
 
-language_selector()     # sidebar — باید اول صدا زده شود
-apply_lang_styles()     # RTL + فونت اگر فارسی بود
-st.caption(tr("Each station sits in a zone defined by its dominant emission source."))
-
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -33,6 +33,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+language_selector()
+apply_lang_styles()
 center_tables()
 
 st.markdown("""

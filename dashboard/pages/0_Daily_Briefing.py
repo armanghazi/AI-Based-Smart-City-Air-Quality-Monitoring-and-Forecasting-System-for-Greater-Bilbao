@@ -12,9 +12,12 @@ import numpy as np
 import joblib
 from pathlib import Path
 from datetime import timedelta
+import sys
 
 import plotly.graph_objects as go
 import plotly.express as px
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import (
     load_data, WHO_ANNUAL, WHO_SO2_DAILY,
@@ -26,9 +29,6 @@ from pdf_report import generate_daily_report
 
 from i18n_auto import language_selector, apply_lang_styles, tr
 
-language_selector()     # sidebar — باید اول صدا زده شود
-apply_lang_styles()     # RTL + فونت اگر فارسی بود
-st.caption(tr("Each station sits in a zone defined by its dominant emission source."))
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
@@ -38,6 +38,8 @@ st.set_page_config(
     page_icon="🌅",
     layout="wide",
 )
+language_selector()
+apply_lang_styles()
 center_tables()
 
 # --------------------------------------------------

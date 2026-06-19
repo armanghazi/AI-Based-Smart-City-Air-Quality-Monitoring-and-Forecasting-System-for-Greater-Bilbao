@@ -1,3 +1,4 @@
+import sys
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -7,17 +8,14 @@ from pathlib import Path
 import plotly.graph_objects as go
 import plotly.express as px
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from config import (
     load_data, POLLUTANT_COLOR, WHO_ANNUAL,
     ZONE_META, get_zone,get_fav_station, center_tables
 )
 
 from i18n_auto import language_selector, apply_lang_styles, tr
-
-language_selector()     # sidebar — باید اول صدا زده شود
-apply_lang_styles()     # RTL + فونت اگر فارسی بود
-st.caption(tr("Each station sits in a zone defined by its dominant emission source."))
-
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -28,6 +26,8 @@ st.set_page_config(
     page_icon="🔮",
     layout="wide",
 )
+language_selector()
+apply_lang_styles()
 center_tables()
 
 # --------------------------------------------------

@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from config import (
     load_data,
     WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
@@ -12,6 +16,10 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+
+st.set_page_config(page_title="Temporal Trends", layout="wide")
+language_selector()
+apply_lang_styles()
 
 from i18n_auto import language_selector, apply_lang_styles, tr
 
