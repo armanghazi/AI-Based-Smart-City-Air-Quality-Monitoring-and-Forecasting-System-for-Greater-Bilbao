@@ -12,6 +12,8 @@ from config import (
 )
 from i18n_auto import language_selector, apply_lang_styles, tr
 
+from weather_panel import weather_trend
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -377,6 +379,9 @@ else:
         )
     fig_trend.update_layout(height=380, hovermode="x unified")
     st.plotly_chart(fig_trend,  width="stretch")
+
+    freq_col = "Year" if granularity == "Year" else "Month" 
+    weather_trend(df_filtered, pollutant, freq=freq_col)
 
     # ---- Monthly Seasonality (only in Year mode) ----
     if time_mode == "Year":

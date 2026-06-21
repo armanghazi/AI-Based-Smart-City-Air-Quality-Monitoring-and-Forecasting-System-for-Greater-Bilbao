@@ -14,6 +14,8 @@ from config import (
 )
 from i18n_auto import language_selector, apply_lang_styles, tr
 
+from weather_panel import weather_snapshot
+
 # -----------------------
 # Page Config
 # -----------------------
@@ -31,6 +33,8 @@ st.markdown(tr("Greater Bilbao Air Quality Monitoring System"))
 # Load Data
 # -----------------------
 df = load_data()
+
+weather_snapshot(df) 
 
 # -----------------------
 # Thresholds
