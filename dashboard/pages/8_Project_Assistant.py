@@ -30,9 +30,6 @@ from config import (  # noqa: E402
     get_zone,
 )
 
-
-from i18n_auto import language_selector, apply_lang_styles, tr
-
 # EU limits exist only in newer config versions — import defensively
 try:
     from config import EU_ANNUAL, ALERT_LIMITS  # noqa: E402
@@ -55,8 +52,6 @@ MAX_HISTORY = 8                     # prior turns sent to the model (keeps us un
 POLLUTANTS = ["PM2.5", "PM10", "NO2", "SO2"]
 
 st.set_page_config(page_title="Project Assistant", page_icon="💬", layout="wide")
-language_selector()
-apply_lang_styles()
 
 # --------------------------------------------------
 # STATIC PROJECT KNOWLEDGE  (distilled from README / Architecture docs)
@@ -76,8 +71,8 @@ ZONES: Mazarredo/Erandio = Urban (traffic, highest NO2); Basauri/Barakaldo = Ind
 Santurtzi = Port (marine + traffic, SO2); Algorta = Coastal (best dispersion);
 Muskiz = Refinery (Petronor petrochemical profile).
 
-GUIDELINES: PM2.5/PM10/NO2 compared to WHO 2021 ANNUAL limits (5 / 15 / 10 µg/m3).
-SO2 is handled SEPARATELY against the WHO 24-HOUR guideline (40 µg/m3) because its behavior is
+GUIDELINES: PM2.5/PM10/NO2 compared to WHO 2021 ANNUAL limits (5 / 15 / 10 ug/m3).
+SO2 is handled SEPARATELY against the WHO 24-HOUR guideline (40 ug/m3) because its behavior is
 episodic (industrial/port), not annual. Dashboard also benchmarks against EU regulatory limits.
 
 AIR QUALITY INDEX (AQI): the dashboard shows a DUAL index. Primary = European Air Quality Index
@@ -148,7 +143,7 @@ def build_data_digest() -> tuple[str, str]:
     lines.append("Missing values (kept raw, not interpolated): " + ", ".join(nan_bits) + ".")
 
     # Per-station latest value | period mean
-    lines.append("\nPer-station (latest | period mean), µg/m3:")
+    lines.append("\nPer-station (latest | period mean), ug/m3:")
     for stn, g in df.sort_values("Date").groupby("station"):
         last = g.iloc[-1]
         town = last.get("Town", stn)
@@ -225,11 +220,14 @@ def build_system_prompt(digest: str) -> str:
         "- For ANY question about specific numbers, time trends (by day/month/year/season), "
         "station or zone comparisons, or WHO exceedance, you MUST call the query_air_quality "
         "tool and answer from its result. Never compute or guess these from memory.\n"
+        "- For questions about a station's air-quality STATUS / AQI / ICA / índice, or a quality "
+        "category (Good, Moderate, Poor...), call air_quality_status. Report BOTH the EAQI/ICA "
+        "category (and its Spanish label) AND the WHO numbers/ratios it returns.\n"
         "- Use exact station codes as they appear in the LIVE DATA DIGEST (e.g. MAZARREDO, SANTURCE).\n"
         "- For methodology / 'how does it work' questions, answer from the PROJECT KNOWLEDGE below.\n"
         "- If a question is outside both the tool's scope and the knowledge below, say you don't "
         "have that information. Never invent numbers, dates, or station values.\n"
-        "- Be concise and precise; concentrations are in µg/m3. WHO limits: annual for "
+        "- Be concise and precise; concentrations are in ug/m3. WHO limits: annual for "
         "PM2.5/PM10/NO2, 24-hour for SO2. Answer as a knowledgeable guide to this project.\n"
         "- Reply in the same language the user writes in. Keep technical terms and proper nouns "
         "unchanged (WHO, exceedance, data leakage, R2, XGBoost, SHAP, and station codes like "
@@ -254,7 +252,9 @@ def get_assistant_reply(history: list[dict], digest: str) -> tuple[bool, str, li
     try:
         import json
         from groq import Groq
-        from assistant_query import run_query, TOOL_SPEC
+        from assistant_query import run_query, aqi_status, TOOL_SPEC, AQI_TOOL_SPEC
+
+        TOOL_DISPATCH = {"query_air_quality": run_query, "air_quality_status": aqi_status}
 
         client = Groq(api_key=api_key)
         messages = [{"role": "system", "content": build_system_prompt(digest)}]
@@ -268,7 +268,7 @@ def get_assistant_reply(history: list[dict], digest: str) -> tuple[bool, str, li
                 messages=messages,
                 temperature=0.3,
                 max_tokens=900,
-                tools=[TOOL_SPEC],
+                tools=[TOOL_SPEC, AQI_TOOL_SPEC],
                 tool_choice="auto",
             )
             msg = resp.choices[0].message
@@ -288,14 +288,17 @@ def get_assistant_reply(history: list[dict], digest: str) -> tuple[bool, str, li
                     for tc in msg.tool_calls
                 ],
             })
-            # Execute each requested query and feed the real result back
+            # Execute each requested tool and feed the real result back
             for tc in msg.tool_calls:
+                fn = TOOL_DISPATCH.get(tc.function.name, run_query)
                 try:
                     args = json.loads(tc.function.arguments or "{}")
-                    result = run_query(**args) if isinstance(args, dict) else {"error": "bad args"}
+                    result = fn(**args) if isinstance(args, dict) else {"error": "bad args"}
                 except Exception as e:
                     result = {"error": f"query failed: {e}"}
-                tool_results.append(result)
+                # only query_air_quality results are chartable
+                if tc.function.name == "query_air_quality":
+                    tool_results.append(result)
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tc.id,
@@ -348,24 +351,24 @@ def render_charts(charts: list) -> None:
 # --------------------------------------------------
 # UI
 # --------------------------------------------------
-st.title(tr("💬 Project Assistant"))
+st.title("💬 Project Assistant")
 st.caption(
-    tr("Ask about the data or the methodology. Data questions (trends by day/month/year, "
-       "station comparisons, WHO exceedance) are answered by querying the live dataset directly — "
-       "the assistant does not guess numbers.")
+    "Ask about the data or the methodology. Data questions (trends by day/month/year, "
+    "station comparisons, WHO exceedance) are answered by querying the live dataset directly — "
+    "the assistant does not guess numbers."
 )
 
 digest_text, freshness = build_data_digest()
-st.caption(f"{tr('Grounded on data through')} **{freshness}** · {tr('model')} `{MODEL}` {tr('via Groq')}")
+st.caption(f"Grounded on data through **{freshness}** · model `{MODEL}` via Groq")
 
-with st.expander(tr("📋 Project facts (what the assistant is grounded on)")):
+with st.expander("📋 Project facts (what the assistant is grounded on)"):
     st.code(digest_text, language="text")
 
 # Quick-start buttons
-st.markdown("##### " + tr("Quick start"))
+st.markdown("##### Quick start")
 cols = st.columns(2)
 for i, q in enumerate(EXAMPLES):
-    if cols[i % 2].button(tr(q), key=f"ex_{i}", width="stretch"):
+    if cols[i % 2].button(q, key=f"ex_{i}", width="stretch"):
         st.session_state.queued_prompt = q
         st.rerun()
 
@@ -377,10 +380,11 @@ if "assistant_msgs" not in st.session_state:
 for m in st.session_state.assistant_msgs:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
-
+        if m["role"] == "assistant" and m.get("charts"):
+            render_charts(m["charts"])
 
 # New input: typed prompt OR a queued quick-start question
-typed = st.chat_input(tr("Ask about the data or the project…"))
+typed = st.chat_input("Ask about the data or the project…")
 prompt = typed or st.session_state.pop("queued_prompt", None)
 
 if prompt:
@@ -388,16 +392,16 @@ if prompt:
     with st.chat_message("user"):
         st.markdown(prompt)
     with st.chat_message("assistant"):
-        with st.spinner(tr("Thinking…")):
+        with st.spinner("Thinking…"):
             ok, reply, charts = get_assistant_reply(st.session_state.assistant_msgs, digest_text)
         st.markdown(reply)
-
+        render_charts(charts)
     st.session_state.assistant_msgs.append(
         {"role": "assistant", "content": reply, "charts": charts}
     )
 
 # Reset
 if st.session_state.assistant_msgs:
-    if st.button(tr("Clear conversation")):
+    if st.button("Clear conversation"):
         st.session_state.assistant_msgs = []
         st.rerun()

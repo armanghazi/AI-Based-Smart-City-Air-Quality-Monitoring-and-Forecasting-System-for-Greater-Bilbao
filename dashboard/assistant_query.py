@@ -21,6 +21,13 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent))
 from config import load_data, WHO_ANNUAL, WHO_SO2_DAILY  # noqa: E402
 
+# AQI module (EAQI/ICA + EPA) — single source of truth, shared with the dashboard
+try:
+    from aqi import overall_aqi, compute_aqi_category  # noqa: E402
+except ImportError:
+    overall_aqi = None
+    compute_aqi_category = None
+
 POLLUTANTS = ["PM2.5", "PM10", "NO2", "SO2"]
 
 # group_by value -> column produced by config.load_data()
@@ -113,7 +120,7 @@ def run_query(
 
     unit_note = ("exceedance_rate = % of days above the WHO guideline "
                  "(annual for PM2.5/PM10/NO2; 24-hour for SO2)") if agg == "exceedance_rate" \
-        else "values in µg/m3"
+        else "values in ug/m3"
 
     gcol = GROUP_COLS[group_by]
     rows = []
@@ -181,6 +188,116 @@ TOOL_SPEC = {
                     "type": "string",
                     "enum": sorted(AGGS),
                     "description": "Aggregation. 'exceedance_rate' = % of days above the WHO guideline.",
+                },
+            },
+        },
+    },
+}
+
+
+# ==================================================
+# AQI STATUS — qualitative air-quality status (EAQI/ICA + WHO + EPA)
+# ==================================================
+def aqi_status(stations=None, on="latest", **_ignored) -> dict:
+    """Qualitative air-quality status per station, combining:
+      - EAQI/ICA category (Good / Fairly good / Moderate / Poor / ...) with Spanish label
+      - the driver pollutant and its value
+      - WHO comparison (value vs guideline, and ratio) per pollutant
+      - EPA AQI number + label (secondary reference)
+
+    `on`: "latest" (most recent reading) or "mean" (period average).
+    Reuses the dashboard's aqi.py — numbers and labels match the dashboard exactly.
+    """
+    if overall_aqi is None:
+        return {"error": "AQI module unavailable."}
+
+    df = load_data()
+    valid_stations = set(df["station"].unique())
+    if stations:
+        sel = [s for s in stations if s in valid_stations]
+        if not sel:
+            return {"error": "Unknown station code(s).",
+                    "valid_stations": sorted(valid_stations)}
+        df = df[df["station"].isin(sel)]
+
+    use_mean = (on == "mean")
+    rows = []
+    for stn, g in df.sort_values("Date").groupby("station"):
+        last = g.iloc[-1]
+        # build per-pollutant values (latest or mean)
+        vals = {}
+        for p in POLLUTANTS:
+            if p not in g.columns:
+                continue
+            v = g[p].mean() if use_mean else last[p]
+            vals[p] = None if pd.isna(v) else round(float(v), 1)
+
+        overall = overall_aqi(vals)
+        if overall is None:
+            continue
+
+        # per-pollutant WHO comparison + EAQI category
+        pollutant_detail = []
+        for p, v in vals.items():
+            if v is None:
+                continue
+            cat = compute_aqi_category(p, v)
+            limit = _limit_for(p)
+            pollutant_detail.append({
+                "pollutant": p,
+                "value": v,
+                "eaqi_label": cat["label"] if cat else None,
+                "eaqi_label_es": cat["label_es"] if cat else None,
+                "who_limit": limit,
+                "who_ratio": round(v / limit, 2) if limit else None,
+                "over_who": (v > limit) if limit else None,
+            })
+
+        rows.append({
+            "station": stn,
+            "basis": "period mean" if use_mean else f"latest reading ({last['Date'].date()})",
+            "eaqi_level": overall["level"],
+            "eaqi_status": overall["label"],          # English category
+            "eaqi_status_es": overall["label_es"],     # Spanish category (ICA)
+            "driver_pollutant": overall["driver"],
+            "advice": overall["advice"],
+            "epa_aqi": overall.get("epa_aqi"),
+            "epa_label": overall.get("epa_label"),
+            "pollutants": pollutant_detail,
+        })
+
+    return {
+        "index": "EAQI/ICA (daily-mean approximation); overall = worst pollutant",
+        "note": "EAQI status is categorical (Good→Extremely poor). WHO ratio compares the "
+                "value to the WHO guideline (annual for PM2.5/PM10/NO2, 24h for SO2). "
+                "EPA AQI is a secondary US reference.",
+        "stations": rows,
+    }
+
+
+AQI_TOOL_SPEC = {
+    "type": "function",
+    "function": {
+        "name": "air_quality_status",
+        "description": (
+            "Get the qualitative AIR QUALITY STATUS / AQI / ICA of one or more stations. "
+            "Use this whenever the user asks about the 'status', 'AQI', 'ICA', 'índice', "
+            "'how good/bad is the air', or a quality category (Good/Moderate/Poor...). "
+            "Returns the EAQI/ICA category (English + Spanish), the driver pollutant, "
+            "WHO comparison with numbers and ratios, and the EPA AQI reference."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "stations": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Station codes (e.g. BASAURI). Omit for all stations.",
+                },
+                "on": {
+                    "type": "string",
+                    "enum": ["latest", "mean"],
+                    "description": "'latest' = most recent reading (default), 'mean' = period average.",
                 },
             },
         },
