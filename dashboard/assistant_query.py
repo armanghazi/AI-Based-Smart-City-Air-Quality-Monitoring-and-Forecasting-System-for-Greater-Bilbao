@@ -303,3 +303,151 @@ AQI_TOOL_SPEC = {
         },
     },
 }
+
+# ==================================================
+# WEATHER SUMMARY — current conditions + interpretation
+# Logic extracted from weather_panel.py for use in the AI assistant
+# (weather_panel.py renders Streamlit UI; this returns raw data)
+# ==================================================
+WEATHER_COLS = ["Temperature", "Humidity", "Precipitation", "WindSpeed", "WindDirection"]
+
+# Physical interpretation notes (from SHAP analysis)
+WEATHER_NOTES = {
+    "Temperature":   "Affects photochemistry; extremes can trap or lift pollutants.",
+    "Humidity":      "High humidity aids secondary particle formation.",
+    "Precipitation": "Rain washes out particles (wet deposition) — lowers PM levels.",
+    "WindSpeed":     "Stronger wind disperses pollutants — lowers concentrations.",
+    "WindDirection": "Determines where emissions travel.",
+}
+
+
+def _wind_cardinal(deg: float | None) -> str:
+    """Convert degrees to cardinal direction (N/NE/E/…)."""
+    if deg is None or pd.isna(deg):
+        return "—"
+    dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    return dirs[int((float(deg) % 360) / 45 + 0.5) % 8]
+
+
+def _dispersion_verdict(wind: float | None, precip: float | None) -> str:
+    """Plain-language verdict on dispersion conditions (from weather_panel.py logic)."""
+    favorable = []
+    factors = []
+    if wind is not None:
+        if wind >= 20:
+            favorable.append(True)
+            factors.append(f"strong wind ({wind:.1f} km/h) aids dispersion")
+        elif wind <= 5:
+            favorable.append(False)
+            factors.append(f"very low wind ({wind:.1f} km/h) allows accumulation")
+        else:
+            factors.append(f"moderate wind ({wind:.1f} km/h)")
+    if precip is not None and precip > 0:
+        favorable.append(True)
+        factors.append(f"precipitation ({precip:.1f} mm) washes out particles")
+    if not factors:
+        factors.append("calm, dry conditions")
+
+    if favorable and all(favorable):
+        verdict = "FAVORABLE for air quality — pollutants tend to disperse"
+    elif favorable and not any(favorable):
+        verdict = "UNFAVORABLE for air quality — pollutants may accumulate"
+    else:
+        verdict = "MIXED — moderate effect on dispersion"
+
+    return f"{verdict}. Factors: {'; '.join(factors)}."
+
+
+def weather_summary(stations=None, on="latest", **_ignored) -> dict:
+    """Current (or mean) weather per station with:
+      - temperature, humidity, precipitation
+      - wind speed (km/h) AND wind direction (degrees + cardinal)
+      - plain-language dispersion verdict based on wind/rain
+        (physical basis: SHAP showed wind/precip push pollutants DOWN)
+
+    `on`: 'latest' (most recent reading) or 'mean' (period average).
+    """
+    df = load_data()
+    valid_stations = set(df["station"].unique())
+    if stations:
+        sel = [s for s in stations if s in valid_stations]
+        if not sel:
+            return {"error": "Unknown station code(s).",
+                    "valid_stations": sorted(valid_stations)}
+        df = df[df["station"].isin(sel)]
+
+    use_mean = (on == "mean")
+    rows = []
+    for stn, g in df.sort_values("Date").groupby("station"):
+        last = g.iloc[-1]
+
+        def val(col):
+            if col not in g.columns:
+                return None
+            v = g[col].mean() if use_mean else last[col]
+            return None if pd.isna(v) else round(float(v), 1)
+
+        temp    = val("Temperature")
+        humid   = val("Humidity")
+        precip  = val("Precipitation")
+        wind    = val("WindSpeed")
+        wdir    = val("WindDirection")
+        cardinal = _wind_cardinal(wdir)
+
+        rows.append({
+            "station":          stn,
+            "basis":            "period mean" if use_mean
+                                else f"latest reading ({last['Date'].date()})",
+            "temperature_c":    temp,
+            "humidity_pct":     humid,
+            "precipitation_mm": precip,
+            "wind_speed_kmh":   wind,
+            "wind_direction_deg": wdir,
+            "wind_direction":   cardinal,          # e.g. "SW"
+            "dispersion_verdict": _dispersion_verdict(wind, precip),
+        })
+
+    return {
+        "weather_notes": WEATHER_NOTES,
+        "physical_basis": (
+            "SHAP analysis confirmed: higher wind speed and precipitation lower pollutant "
+            "levels (atmospheric dispersion + wet deposition). Calm, dry conditions allow "
+            "accumulation. These are the strongest meteorological drivers in the XGBoost model."
+        ),
+        "stations": rows,
+    }
+
+
+WEATHER_TOOL_SPEC = {
+    "type": "function",
+    "function": {
+        "name": "weather_summary",
+        "description": (
+            "Get current (or average) weather conditions per station: temperature, humidity, "
+            "precipitation, wind speed (km/h), wind direction (degrees + cardinal N/NE/E/…), "
+            "and a plain-language interpretation of how the weather affects air pollution "
+            "(dispersion vs accumulation). "
+            "Use whenever the user asks about: weather, temperature, wind speed, wind direction, "
+            "'why is pollution high/low today', or requests a combined status of air quality "
+            "AND weather."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "stations": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Station codes (e.g. BASAURI). Omit for all stations.",
+                },
+                "on": {
+                    "type": "string",
+                    "enum": ["latest", "mean"],
+                    "description": (
+                        "'latest' = most recent reading (default). "
+                        "'mean' = historical period average."
+                    ),
+                },
+            },
+        },
+    },
+}

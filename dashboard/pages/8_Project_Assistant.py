@@ -1,5 +1,5 @@
 """
-7_Project_Assistant.py
+8_Project_Assistant.py
 In-dashboard conversational assistant for the GeoAI Air Quality project.
 
 Answers questions about BOTH the live data and the project methodology, grounded in:
@@ -221,8 +221,13 @@ def build_system_prompt(digest: str) -> str:
         "station or zone comparisons, or WHO exceedance, you MUST call the query_air_quality "
         "tool and answer from its result. Never compute or guess these from memory.\n"
         "- For questions about a station's air-quality STATUS / AQI / ICA / índice, or a quality "
-        "category (Good, Moderate, Poor...), call air_quality_status. Report BOTH the EAQI/ICA "
-        "category (and its Spanish label) AND the WHO numbers/ratios it returns.\n"
+        "category (Good, Moderate, Poor...), call BOTH air_quality_status AND weather_summary. "
+        "Report: (1) EAQI/ICA category (English + Spanish label) + WHO numbers/ratios; "
+        "(2) weather: temperature, humidity, precipitation, wind speed (km/h) AND wind direction "
+        "(degrees + cardinal); (3) the dispersion_verdict explaining how today's weather "
+        "affects the air quality.\n"
+        "- For questions specifically about weather, wind speed, wind direction, temperature, "
+        "or 'why is pollution high/low', call weather_summary and explain the physical link.\n"
         "- Use exact station codes as they appear in the LIVE DATA DIGEST (e.g. MAZARREDO, SANTURCE).\n"
         "- For methodology / 'how does it work' questions, answer from the PROJECT KNOWLEDGE below.\n"
         "- If a question is outside both the tool's scope and the knowledge below, say you don't "
@@ -252,9 +257,9 @@ def get_assistant_reply(history: list[dict], digest: str) -> tuple[bool, str, li
     try:
         import json
         from groq import Groq
-        from assistant_query import run_query, aqi_status, TOOL_SPEC, AQI_TOOL_SPEC
+        from assistant_query import run_query, aqi_status, weather_summary, TOOL_SPEC, AQI_TOOL_SPEC, WEATHER_TOOL_SPEC
 
-        TOOL_DISPATCH = {"query_air_quality": run_query, "air_quality_status": aqi_status}
+        TOOL_DISPATCH = {"query_air_quality": run_query, "air_quality_status": aqi_status, "weather_summary": weather_summary}
 
         client = Groq(api_key=api_key)
         messages = [{"role": "system", "content": build_system_prompt(digest)}]
@@ -268,7 +273,7 @@ def get_assistant_reply(history: list[dict], digest: str) -> tuple[bool, str, li
                 messages=messages,
                 temperature=0.3,
                 max_tokens=900,
-                tools=[TOOL_SPEC, AQI_TOOL_SPEC],
+                tools=[TOOL_SPEC, AQI_TOOL_SPEC, WEATHER_TOOL_SPEC],
                 tool_choice="auto",
             )
             msg = resp.choices[0].message
