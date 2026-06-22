@@ -300,6 +300,49 @@ if time_mode == "Day":
         fig_day.update_layout(height=380)
         st.plotly_chart(fig_day,  width="stretch")
 
+    # ── Weather snapshot for this specific day ──────────────────────────
+    st.subheader("🌦️ Weather conditions — this day")
+    if not df_filtered.empty:
+        day_date = df_filtered["Date"].max()
+        c1, c2, c3, c4, c5 = st.columns(5)
+        def _dv(col):
+            v = df_filtered[col].mean() if col in df_filtered.columns else None
+            return None if (v is None or pd.isna(v)) else round(float(v), 1)
+        temp   = _dv("Temperature")
+        humid  = _dv("Humidity")
+        precip = _dv("Precipitation")
+        wind   = _dv("WindSpeed")
+        wdir   = _dv("WindDirection")
+        CARDINAL = ["N","NE","E","SE","S","SW","W","NW"]
+        cardinal = CARDINAL[int((float(wdir)%360)/45+0.5)%8] if wdir else "—"
+        c1.metric("🌡️ Temperature",    f"{temp} °C"   if temp   is not None else "—")
+        c2.metric("💧 Humidity",       f"{humid} %"   if humid  is not None else "—")
+        c3.metric("🌧️ Precipitation",  f"{precip} mm" if precip is not None else "—")
+        c4.metric("💨 Wind speed",     f"{wind} km/h" if wind   is not None else "—")
+        c5.metric("🧭 Wind direction",
+                  f"{cardinal} ({int(wdir)}°)" if wdir is not None else "—")
+        favorable = []
+        if wind is not None:
+            if wind >= 20:   favorable.append(True)
+            elif wind <= 5:  favorable.append(False)
+        if precip is not None and precip > 0:
+            favorable.append(True)
+        if favorable and all(favorable):
+            verdict, color = "Favorable — pollutants tend to disperse", "#2ecc71"
+        elif favorable and not any(favorable):
+            verdict, color = "Unfavorable — pollutants may accumulate", "#e74c3c"
+        else:
+            verdict, color = "Mixed conditions", "#f39c12"
+        st.markdown(
+            f"<div style='padding:.5rem 1rem;border-left:4px solid {color};"
+            f"background:rgba(0,0,0,.02);border-radius:4px;margin:.3rem 0'>"
+            f"<b>Dispersion outlook:</b> {verdict}</div>",
+            unsafe_allow_html=True,
+        )
+        st.caption(f"Reading: {day_date.strftime('%d %b %Y')} — averaged across the selected stations.")
+    else:
+        st.caption("No data available for this day.")
+
 else:
     # ---- Annual Trend ----
     st.subheader(tr("📅 Annual Trend"))
@@ -380,64 +423,18 @@ else:
     fig_trend.update_layout(height=380, hovermode="x unified")
     st.plotly_chart(fig_trend,  width="stretch")
 
-    # Weather section — adapts to selected time range
-    if time_mode == "Day":
-        # Single day selected: show weather snapshot for that day (no trend possible)
-        st.subheader("🌦️ Weather conditions — this day")
-        if not df_filtered.empty:
-            day_date = df_filtered["Date"].max()
-            c1, c2, c3, c4, c5 = st.columns(5)
-            def _dv(col):
-                v = df_filtered[col].mean() if col in df_filtered.columns else None
-                return None if (v is None or pd.isna(v)) else round(float(v), 1)
-            temp   = _dv("Temperature")
-            humid  = _dv("Humidity")
-            precip = _dv("Precipitation")
-            wind   = _dv("WindSpeed")
-            wdir   = _dv("WindDirection")
-            CARDINAL = ["N","NE","E","SE","S","SW","W","NW"]
-            cardinal = CARDINAL[int((float(wdir)%360)/45+0.5)%8] if wdir else "—"
-            c1.metric("🌡️ Temperature",   f"{temp} °C"    if temp   is not None else "—")
-            c2.metric("💧 Humidity",      f"{humid} %"    if humid  is not None else "—")
-            c3.metric("🌧️ Precipitation", f"{precip} mm"  if precip is not None else "—")
-            c4.metric("💨 Wind speed",    f"{wind} km/h"  if wind   is not None else "—")
-            c5.metric("🧭 Wind direction",
-                      f"{cardinal} ({int(wdir)}°)" if wdir is not None else "—")
-            # dispersion verdict
-            favorable = []
-            if wind is not None:
-                if wind >= 20:   favorable.append(True)
-                elif wind <= 5:  favorable.append(False)
-            if precip is not None and precip > 0:
-                favorable.append(True)
-            if favorable and all(favorable):
-                verdict, color = "Favorable — pollutants tend to disperse", "#2ecc71"
-            elif favorable and not any(favorable):
-                verdict, color = "Unfavorable — pollutants may accumulate", "#e74c3c"
-            else:
-                verdict, color = "Mixed conditions", "#f39c12"
-            st.markdown(
-                f"<div style='padding:.5rem 1rem;border-left:4px solid {color};"
-                f"background:rgba(0,0,0,.02);border-radius:4px;margin:.3rem 0'>"
-                f"<b>Dispersion outlook:</b> {verdict}</div>",
-                unsafe_allow_html=True,
-            )
-            st.caption(f"Reading: {day_date.strftime('%d %b %Y')} — averaged across the selected stations.")
-        else:
-            st.caption("No data available for this day.")
+    # Weather section — trend (only for Year/Month mode with enough data points)
+    if time_mode == "Year" and selected_year == "All":
+        freq_col = "Year"
+    elif time_mode == "Year":
+        freq_col = "Month"
     else:
-        if time_mode == "Year" and selected_year == "All":
-            freq_col = "Year"
-        elif time_mode == "Year":
-            freq_col = "Month"   # single year → show monthly breakdown
-        else:
-            # Month mode: if a specific month selected use Day, else Month
-            freq_col = "Day" if "selected_month" in dir() and selected_month != "All" else "Month"
-        n_unique = df_filtered[freq_col].nunique() if freq_col in df_filtered.columns else 0
-        if n_unique >= 2:
-            weather_trend(df_filtered, pollutant, freq=freq_col)
-        else:
-            st.caption("⚠️ Not enough data points for a weather trend in this time range.")
+        freq_col = "Day" if "selected_month" in dir() and selected_month != "All" else "Month"
+    n_unique = df_filtered[freq_col].nunique() if freq_col in df_filtered.columns else 0
+    if n_unique >= 2:
+        weather_trend(df_filtered, pollutant, freq=freq_col)
+    else:
+        st.caption("⚠️ Not enough data points for a weather trend in this time range.")
 
     # ---- Monthly Seasonality (only in Year mode) ----
     if time_mode == "Year":
