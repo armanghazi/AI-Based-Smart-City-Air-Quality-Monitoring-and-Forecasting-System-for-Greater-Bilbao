@@ -2,7 +2,7 @@
 dashboard/pages/0_Daily_Briefing.py
 
 Daily briefing page — the first thing a municipal manager opens every morning.
-Shows: today's status, tomorrow's forecast alerts, 7-day sparklines,
+Shows: latest available reading (D-1), next-day forecast, 7-day sparklines,
 and a mailto share button for WHO exceedances.
 """
 
@@ -259,7 +259,7 @@ elif n_exceed <= 3:
 else:
     banner_class = "status-alert"
     banner_icon  = "🚨"
-    banner_text  = f"{n_exceed} EU Directive limits exceedances forecast for tomorrow — review priority zones"
+    banner_text  = f"{n_exceed} EU Directive limits exceedances forecast for {tomorrow.strftime('%d %b %Y')} — review priority zones"
 
 st.markdown(
     f'<div class="{banner_class}">{banner_icon} {banner_text}</div>',
@@ -328,7 +328,7 @@ st.divider()
 # SECTION 3 — TOMORROW'S STATION HEATMAP
 # --------------------------------------------------
 
-st.markdown(f'<p class="section-title">{tr("🔮 Tomorrow\'s forecast by station & pollutant")}</p>',
+st.markdown(f'<p class="section-title">{tr("🔮 Next-day forecast")} — {tomorrow.strftime("%d %b %Y")} — {tr("by station & pollutant")}</p>',
             unsafe_allow_html=True)
 st.caption(
     tr("Colour = ratio vs EU Directive limit (legally binding in Spain) · "
@@ -588,4 +588,3 @@ st.caption(
     f"{tr('Last pipeline run')}: {latest_date.strftime('%d %b %Y')} · "
     f"{tr('Next update: ~06:00 UTC daily')}"
 )
-

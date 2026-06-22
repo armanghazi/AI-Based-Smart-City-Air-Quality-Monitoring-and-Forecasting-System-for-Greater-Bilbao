@@ -380,7 +380,7 @@ else:
     fig_trend.update_layout(height=380, hovermode="x unified")
     st.plotly_chart(fig_trend,  width="stretch")
 
-    freq_col = "Year" if granularity == "Year" else "Month" 
+    freq_col = "Year" if time_mode == "Year" else "Month"
     weather_trend(df_filtered, pollutant, freq=freq_col)
 
     # ---- Monthly Seasonality (only in Year mode) ----
@@ -614,4 +614,3 @@ if time_mode == "Year":
                     )
                 }
             )
-

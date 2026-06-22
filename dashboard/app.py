@@ -13,6 +13,10 @@ from config import (
 )
 
 from i18n_auto import language_selector, apply_lang_styles, tr
+import sys
+from pathlib import Path as _Path
+sys.path.insert(0, str(_Path(__file__).parent))
+from weather_panel import weather_snapshot
 
 # ==================================================
 # PAGE CONFIG
@@ -392,7 +396,7 @@ st.markdown(f"""
 # ==================================================
 
 st.markdown(f'<p class="eyebrow">{tr("Latest reading")}</p>', unsafe_allow_html=True)
-st.markdown(f"### Today across the network — {latest_date.strftime('%d %b %Y')}")
+st.markdown(f"### Latest readings — {latest_date.strftime('%d %b %Y')} (D-1)")
 
 col_fav, col_snap = st.columns([2, 5], gap="large")
 
@@ -435,6 +439,10 @@ with col_snap:
                  + (f"  ·  EU {eu_lim} µg/m³" if eu_lim else ""),
         )
 
+st.divider()
+
+# ── Weather snapshot ──────────────────────────────────────────────────
+weather_snapshot(df[df["Date"] == latest_date])
 st.divider()
 
 

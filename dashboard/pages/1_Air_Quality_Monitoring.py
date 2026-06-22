@@ -34,7 +34,7 @@ st.markdown(tr("Greater Bilbao Air Quality Monitoring System"))
 # -----------------------
 df = load_data()
 
-weather_snapshot(df) 
+weather_snapshot(df, show_per_station=True)
 
 # -----------------------
 # Thresholds
@@ -456,5 +456,3 @@ with st.expander(tr("📊 Zone Comparison Table")):
         .reset_index()
     )
     st.dataframe(zone_summary, width="stretch")
-
-
