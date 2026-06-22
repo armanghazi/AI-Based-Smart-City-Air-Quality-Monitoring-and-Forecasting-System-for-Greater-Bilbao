@@ -380,8 +380,26 @@ else:
     fig_trend.update_layout(height=380, hovermode="x unified")
     st.plotly_chart(fig_trend,  width="stretch")
 
-    freq_col = "Year" if time_mode == "Year" else "Month"
-    weather_trend(df_filtered, pollutant, freq=freq_col)
+    # Choose grouping granularity for weather trend based on the selected range:
+    # - All years → group by Year (coarse trend)
+    # - Single year selected → group by Month (monthly pattern within that year)
+    # - Month mode (single month) → group by Day (daily pattern)
+    # - Day mode → skip (single day has no trend)
+    if time_mode == "Day":
+        pass  # no trend meaningful for a single day
+    else:
+        if time_mode == "Year" and selected_year == "All":
+            freq_col = "Year"
+        elif time_mode == "Year":
+            freq_col = "Month"   # single year → show monthly breakdown
+        else:
+            # Month mode: if a specific month selected use Day, else Month
+            freq_col = "Day" if "selected_month" in dir() and selected_month != "All" else "Month"
+        n_unique = df_filtered[freq_col].nunique() if freq_col in df_filtered.columns else 0
+        if n_unique >= 2:
+            weather_trend(df_filtered, pollutant, freq=freq_col)
+        else:
+            st.caption("⚠️ Not enough data points for a weather trend in this time range.")
 
     # ---- Monthly Seasonality (only in Year mode) ----
     if time_mode == "Year":

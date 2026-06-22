@@ -161,12 +161,16 @@ def weather_trend(df: pd.DataFrame, pollutant: str, freq: str = "Year") -> None:
     )
     icon, unit, note = WEATHER_META[driver]
 
-    if freq not in df.columns:
-        st.caption(f"Column '{freq}' not found — switch to Year or Month view.")
+    # freq can be "Year", "Month", or "Day" — map to actual df column
+    freq_map = {"Year": "Year", "Month": "Month", "Day": "Day"}
+    col = freq_map.get(freq, freq)
+
+    if col not in df.columns:
+        st.caption(f"Column '{col}' not found — switch to Year or Month view.")
         return
 
     grouped = (
-        df.groupby(freq)[[pollutant, driver]]
+        df.groupby(col)[[pollutant, driver]]
         .mean()
         .dropna()
         .reset_index()
@@ -177,11 +181,11 @@ def weather_trend(df: pd.DataFrame, pollutant: str, freq: str = "Year") -> None:
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=grouped[freq], y=grouped[pollutant], name=f"{pollutant} (µg/m³)",
+        x=grouped[col], y=grouped[pollutant], name=f"{pollutant} (µg/m³)",
         line=dict(color="#9b59b6", width=2.5), yaxis="y1",
     ))
     fig.add_trace(go.Scatter(
-        x=grouped[freq], y=grouped[driver], name=f"{driver} ({unit})",
+        x=grouped[col], y=grouped[driver], name=f"{driver} ({unit})",
         line=dict(color="#3498db", width=2, dash="dot"), yaxis="y2",
     ))
     fig.update_layout(
