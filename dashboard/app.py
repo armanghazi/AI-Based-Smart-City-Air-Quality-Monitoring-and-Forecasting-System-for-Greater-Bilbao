@@ -301,7 +301,7 @@ def _prepare_last_row(sdf: pd.DataFrame, feats: list) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=3600)
-def _get_tomorrow_exceedances() -> list:
+def _get_next_day_exceedances() -> list:
     results = []
     for station in station_list:
         sdf = df[df["station"] == station].sort_values("Date")
@@ -321,9 +321,9 @@ def _get_tomorrow_exceedances() -> list:
     return results
 
 
-exceed = _get_tomorrow_exceedances()
+exceed = _get_next_day_exceedances()
 n_exc  = len(exceed)
-tomorrow_str = (latest_date + timedelta(days=1)).strftime("%d %b %Y")
+forecast_date_str = (latest_date + timedelta(days=1)).strftime("%d %b %Y")
 
 # ==================================================
 # HERO
@@ -349,20 +349,20 @@ st.markdown(f"""
 if n_exc == 0:
     st.markdown(
         f'<div class="alert alert-good">✅ '
-        f'{tr("All stations within EU Directive limits — no legal exceedances forecast for")} {tomorrow_str}.</div>',
+        f'{tr("All stations within EU Directive limits — no legal exceedances forecast for")} {forecast_date_str}.</div>',
         unsafe_allow_html=True)
 elif n_exc <= 4:
     s_exc = list({e["station"].split("_")[0] for e in exceed})
     st.markdown(
         f'<div class="alert alert-warn">⚠️ '
         f'{n_exc} {tr("EU Directive exceedance")}{"s" if n_exc>1 else ""} '
-        f'{tr("forecast for")} {tomorrow_str} · {tr("Stations:")} {", ".join(s_exc)} · '
+        f'{tr("forecast for")} {forecast_date_str} · {tr("Stations:")} {", ".join(s_exc)} · '
         f'<a href="/Daily_Briefing">{tr("Open the daily briefing →")}</a></div>',
         unsafe_allow_html=True)
 else:
     st.markdown(
         f'<div class="alert alert-bad">🚨 '
-        f'{n_exc} {tr("EU Directive exceedances forecast for")} {tomorrow_str} · '
+        f'{n_exc} {tr("EU Directive exceedances forecast for")} {forecast_date_str} · '
         f'{tr("multiple zones affected")} · '
         f'<a href="/Daily_Briefing">{tr("Open the daily briefing →")}</a></div>',
         unsafe_allow_html=True)
@@ -596,7 +596,7 @@ st.markdown(f'<p class="eyebrow">{tr("Where to next")}</p>', unsafe_allow_html=T
 st.markdown("### " + tr("Explore the platform"))
 
 NAV = [
-    {"icon":"🌅","title":"Daily Briefing","desc":"Today's status, tomorrow's alerts, one-page PDF","page":"pages/0_Daily_Briefing.py"},
+    {"icon":"🌅","title":"Daily Briefing","desc":"Latest readings (D-1), next-day forecast, one-page PDF","page":"pages/0_Daily_Briefing.py"},
     {"icon":"🗺️","title":"Air Quality Monitoring","desc":"Interactive map and station comparison","page":"pages/1_Air_Quality_Monitoring.py"},
     {"icon":"📈","title":"Temporal Trends","desc":"Long-term patterns, seasonality, COVID impact","page":"pages/2_Temporal_Trends.py"},
     {"icon":"🌍","title":"Urban Risk Index","desc":"WHO and EU risk scoring, station rankings","page":"pages/3_Urban_Risk_Index.py"},
