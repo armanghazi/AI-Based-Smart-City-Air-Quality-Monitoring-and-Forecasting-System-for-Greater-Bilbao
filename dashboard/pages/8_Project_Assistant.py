@@ -257,9 +257,16 @@ def get_assistant_reply(history: list[dict], digest: str) -> tuple[bool, str, li
     try:
         import json
         from groq import Groq
-        from assistant_query import run_query, aqi_status, weather_summary, TOOL_SPEC, AQI_TOOL_SPEC, WEATHER_TOOL_SPEC
-
-        TOOL_DISPATCH = {"query_air_quality": run_query, "air_quality_status": aqi_status, "weather_summary": weather_summary}
+        from assistant_query import (  # noqa: E402
+            run_query, aqi_status, weather_summary, combined_status,
+            TOOL_SPEC, AQI_TOOL_SPEC, WEATHER_TOOL_SPEC, COMBINED_TOOL_SPEC,
+        )
+        TOOL_DISPATCH = {
+            "query_air_quality":  run_query,
+            "air_quality_status": aqi_status,
+            "weather_summary":    weather_summary,
+            "combined_status":    combined_status,
+        }
 
         client = Groq(api_key=api_key)
         messages = [{"role": "system", "content": build_system_prompt(digest)}]
@@ -272,8 +279,8 @@ def get_assistant_reply(history: list[dict], digest: str) -> tuple[bool, str, li
                 model=MODEL,
                 messages=messages,
                 temperature=0.3,
-                max_tokens=900,
-                tools=[TOOL_SPEC, AQI_TOOL_SPEC, WEATHER_TOOL_SPEC],
+                max_tokens=600,   # reduced to stay under Groq free-tier TPM
+                tools=[TOOL_SPEC, AQI_TOOL_SPEC, WEATHER_TOOL_SPEC, COMBINED_TOOL_SPEC],
                 tool_choice="auto",
             )
             msg = resp.choices[0].message
@@ -369,17 +376,41 @@ st.caption(f"Grounded on data through **{freshness}** · model `{MODEL}` via Gro
 with st.expander("📋 Project facts (what the assistant is grounded on)"):
     st.code(digest_text, language="text")
 
+# ── Chat input — placed FIRST so it is immediately visible ──────────────
+st.markdown("""
+<style>
+/* Make the chat input box more prominent */
+[data-testid="stChatInput"] textarea {
+    border: 2px solid #2563eb !important;
+    border-radius: 12px !important;
+    font-size: 1rem !important;
+    background: #f0f4ff !important;
+}
+[data-testid="stChatInput"] textarea:focus {
+    border-color: #1d4ed8 !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,.15) !important;
+    background: #fff !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Chat state
+if "assistant_msgs" not in st.session_state:
+    st.session_state.assistant_msgs = []
+
+# New input — at the top so the user sees it immediately
+typed = st.chat_input("💬 Ask about the air quality, weather, or the methodology…")
+prompt = typed or st.session_state.pop("queued_prompt", None)
+
 # Quick-start buttons
-st.markdown("##### Quick start")
+st.markdown("##### ⚡ Quick start")
 cols = st.columns(2)
 for i, q in enumerate(EXAMPLES):
     if cols[i % 2].button(q, key=f"ex_{i}", width="stretch"):
         st.session_state.queued_prompt = q
         st.rerun()
 
-# Chat state
-if "assistant_msgs" not in st.session_state:
-    st.session_state.assistant_msgs = []
+st.divider()
 
 # Render history
 for m in st.session_state.assistant_msgs:
@@ -387,10 +418,6 @@ for m in st.session_state.assistant_msgs:
         st.markdown(m["content"])
         if m["role"] == "assistant" and m.get("charts"):
             render_charts(m["charts"])
-
-# New input: typed prompt OR a queued quick-start question
-typed = st.chat_input("Ask about the data or the project…")
-prompt = typed or st.session_state.pop("queued_prompt", None)
 
 if prompt:
     st.session_state.assistant_msgs.append({"role": "user", "content": prompt})

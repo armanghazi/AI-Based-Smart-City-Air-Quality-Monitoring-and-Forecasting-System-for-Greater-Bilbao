@@ -451,3 +451,54 @@ WEATHER_TOOL_SPEC = {
         },
     },
 }
+
+# ==================================================
+# COMBINED STATUS — AQI/ICA + WHO + weather in ONE call
+# Replaces calling aqi_status + weather_summary separately,
+# cutting round-trips and token usage roughly in half.
+# ==================================================
+def combined_status(stations=None, **_ignored) -> dict:
+    """AQI/ICA category + WHO numbers + weather (temperature, humidity,
+    precipitation, wind speed/direction, dispersion verdict) in a single call.
+    Use for any 'what is the status / how is the air / what is the weather'
+    question — avoids two separate tool calls."""
+    aqi_result  = aqi_status(stations=stations)
+    wx_result   = weather_summary(stations=stations)
+
+    # Index weather rows by station for O(1) merge
+    wx_by_stn = {r["station"]: r for r in wx_result.get("stations", [])}
+    for row in aqi_result.get("stations", []):
+        stn = row["station"]
+        row["weather"] = wx_by_stn.get(stn, {})
+
+    aqi_result["physical_basis"] = wx_result.get("physical_basis", "")
+    return aqi_result
+
+
+COMBINED_TOOL_SPEC = {
+    "type": "function",
+    "function": {
+        "name": "combined_status",
+        "description": (
+            "Get a COMPLETE station status in ONE call: "
+            "(1) EAQI/ICA air-quality category (English + Spanish), driver pollutant, "
+            "WHO comparison with numbers and ratios, EPA AQI reference; "
+            "(2) current weather — temperature, humidity, precipitation, "
+            "wind speed (km/h), wind direction (degrees + cardinal N/NE/E/…); "
+            "(3) plain-language interpretation of how the weather affects pollution. "
+            "Use this INSTEAD OF calling air_quality_status and weather_summary separately. "
+            "Trigger on: 'status', 'AQI', 'ICA', 'índice', 'how is the air', "
+            "'weather', 'wind', 'temperature', 'why is pollution high/low'."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "stations": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Station codes (e.g. BASAURI). Omit for all stations.",
+                },
+            },
+        },
+    },
+}
