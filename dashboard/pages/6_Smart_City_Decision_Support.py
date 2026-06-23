@@ -235,11 +235,10 @@ zone_means = (
 # 7. TABS
 # ==================================================
 
-tab_status, tab_forecast, tab_action, tab_spatial = st.tabs([
+tab_status, tab_forecast, tab_action = st.tabs([
     tr("🚦 Current Status"),
     tr("🔮 Forecast & Map"),
     tr("🎯 Decisions & Actions"),
-    tr("🗺️ Spatial Intelligence"),
 ])
 
 # --------------------------------------------------
@@ -491,11 +490,10 @@ with tab_forecast:
         # 7b-4. IDW interpolated surface
         st.markdown("## 🌡️ " + tr("Interpolated Forecast Surface (IDW)"))
         st.caption(
-            tr("⚠️ **Interpolated surface (IDW) from 7 station forecasts — "
-               "colour = worst-case forecast ratio (× WHO limit), same scale as markers. "
-               "Clipped to Gran Bilbao comarca boundary. "
-               "Visual approximation only: terrain, local sources, and road density "
-               "are not modelled.**")
+            tr("⚠️ **IDW surface:** colour = worst-case forecast ratio (× WHO). "
+               "**Marker size = Terrain Relief Index (TRI 2km):** larger = more complex terrain = "
+               "stronger atmospheric dispersion. Hover a station for full spatial profile. "
+               "IDW is a visual approximation only — clipped to Gran Bilbao comarca boundary.**")
         )
 
         _lats   = map_df["Latitude"].values
@@ -552,28 +550,80 @@ with tab_forecast:
         except Exception:
             pass   # boundary optional — map still works without it
 
-        # Layer 3: station markers on top
+        # Layer 3: station markers — size encodes terrain dispersion (TRI)
+        # Load spatial features for terrain overlay
+        _sp_v3 = Path(__file__).parent.parent.parent / "data" / "processed" / "station_spatial_features_v3.csv"
+        _sp_v2 = Path(__file__).parent.parent.parent / "data" / "processed" / "station_spatial_features_v2.csv"
+        _sp_v1 = Path(__file__).parent.parent.parent / "data" / "processed" / "station_spatial_features.csv"
+        _sp_f  = _sp_v3 if _sp_v3.exists() else (_sp_v2 if _sp_v2.exists() else _sp_v1)
+
+        _terrain_available = False
+        if _sp_f.exists():
+            try:
+                _df_sp = pd.read_csv(_sp_f).rename(columns={"station": "Station"})
+                _merge_cols = [c for c in ["Station", "elev_tri_2000m",
+                               "road_density_1000m", "elev_point_m"]
+                               if c in _df_sp.columns]
+                map_df = map_df.merge(
+                    _df_sp[_merge_cols].drop_duplicates("Station"),
+                    on="Station", how="left"
+                )
+                _terrain_available = (
+                    "elev_tri_2000m" in map_df.columns
+                    and map_df["elev_tri_2000m"].notna().any()
+                )
+            except Exception:
+                _terrain_available = False
+
+        if _terrain_available:
+            # Larger marker = higher TRI = better dispersion terrain
+            _tri_min  = map_df["elev_tri_2000m"].min()
+            _tri_max  = map_df["elev_tri_2000m"].max()
+            _tri_norm = (map_df["elev_tri_2000m"] - _tri_min) / max(_tri_max - _tri_min, 1)
+            _marker_size = (8 + _tri_norm * 16).fillna(12)
+            _custom = np.column_stack([
+                map_df["MaxRatio"].values,
+                map_df["elev_tri_2000m"].fillna(0).values,
+                map_df["road_density_1000m"].fillna(0).values,
+                map_df["elev_point_m"].fillna(0).values,
+            ])
+            _hover_tmpl = (
+                "<b>%{text}</b><br>"
+                "Forecast: %{customdata[0]:.2f}× WHO<br>"
+                "─────────<br>"
+                "Terrain Relief (2km): %{customdata[1]:.0f} m<br>"
+                "Road density (1km): %{customdata[2]:,.0f} m/km²<br>"
+                "Elevation: %{customdata[3]:.0f} m"
+                "<extra></extra>"
+            )
+        else:
+            _marker_size = 14
+            _custom = map_df[["MaxRatio"]].values
+            _hover_tmpl = (
+                "<b>%{text}</b><br>"
+                "Max forecast: %{customdata[0]:.2f}× WHO<extra></extra>"
+            )
+
         fig_idw.add_trace(go.Scattermapbox(
             lat=map_df["Latitude"],
             lon=map_df["Longitude"],
             mode="markers+text",
             marker=dict(
-                size=14,
+                size=_marker_size,
                 color=map_df["MaxRatio"],
                 colorscale=_IDW_CS,
                 cmin=0,
                 cmax=2,
                 showscale=False,
+                opacity=1.0,
             ),
             text=map_df["Station"],
             textposition="top center",
-            customdata=map_df[["MaxRatio"]].values,
-            hovertemplate=(
-                "<b>%{text}</b><br>"
-                "Max forecast: %{customdata[0]:.2f}× WHO<extra></extra>"
-            ),
+            customdata=_custom,
+            hovertemplate=_hover_tmpl,
             name="Stations",
         ))
+
 
         fig_idw.update_layout(
             mapbox_style="open-street-map",
@@ -868,6 +918,214 @@ city-wide is **{worst_pollutant}** at
     st.divider()
 
 
+    # ==================================================
+    # SECTION 5 — SPATIAL CONTEXT (Buffer Analysis)
+    # ==================================================
+    # Place this block BEFORE the Export section in 6_smart_city_decision_support.py
+    # Requires: station_spatial_features.csv in data/processed/
+    # Generated by: notebooks/09_spatial_buffer_analysis.ipynb
+
+    SPATIAL_FILE = Path(__file__).parent.parent.parent / "data" / "processed" / "station_spatial_features.csv"
+
+    st.markdown("## 🗺️ Spatial Context — Land Use & Road Profile")
+    st.caption(
+        "Buffer analysis (OSM data) for each monitoring station at 500 m / 1 000 m / 2 000 m. "
+        "Explains structural pollution drivers independent of daily meteorology. "
+        "n = 7 stations — correlations are indicative, not inferential."
+    )
+
+    if not SPATIAL_FILE.exists():
+        st.info(
+            "Spatial features file not found. "
+            "Run `notebooks/09_spatial_buffer_analysis.ipynb` locally to generate it, "
+            "then commit `data/processed/station_spatial_features.csv` to the repository."
+        )
+    else:
+        # ── Load spatial data ──────────────────────────────────────────────────────
+        @st.cache_data
+        def load_spatial() -> pd.DataFrame:
+            return pd.read_csv(SPATIAL_FILE)
+
+        df_sp = load_spatial()
+
+        # Merge with station risk scores computed above (station_means is already available)
+        df_sp_merged = df_sp.merge(
+            station_means[["station", "RiskScore", "RiskLevel"]],
+            on="station", how="left"
+        )
+
+        # ── Buffer radius selector ─────────────────────────────────────────────────
+        buf_choice = st.radio(
+            "Buffer radius",
+            ["500 m", "1 000 m", "2 000 m"],
+            index=1,
+            horizontal=True,
+        )
+        buf_key = buf_choice.replace(" ", "").replace("m", "") + "m"  # → "500m" / "1000m" / "2000m"
+
+        green_col       = f"green_pct_{buf_key}"
+        industrial_col  = f"industrial_pct_{buf_key}"
+        residential_col = f"residential_pct_{buf_key}"
+        commercial_col  = f"commercial_pct_{buf_key}"
+        road_col        = f"road_density_{buf_key}"
+
+        # ── KPI row ────────────────────────────────────────────────────────────────
+        sp1, sp2, sp3 = st.columns(3)
+
+        most_industrial = df_sp_merged.loc[df_sp_merged[industrial_col].idxmax()]
+        most_green      = df_sp_merged.loc[df_sp_merged[green_col].idxmax()]
+        highest_roads   = df_sp_merged.loc[df_sp_merged[road_col].idxmax()]
+
+        sp1.metric(
+            "Highest industrial %",
+            most_industrial["station"],
+            f"{most_industrial[industrial_col]:.1f}% within {buf_choice}",
+            delta_color="inverse",
+        )
+        sp2.metric(
+            "Most green cover",
+            most_green["station"],
+            f"{most_green[green_col]:.1f}% within {buf_choice}",
+        )
+        sp3.metric(
+            "Highest road density",
+            highest_roads["station"],
+            f"{highest_roads[road_col]:,.0f} m / km²",
+            delta_color="inverse",
+        )
+
+        st.markdown("---")
+
+        # ── Stacked bar — land use composition ────────────────────────────────────
+        col_chart, col_road = st.columns(2)
+
+        with col_chart:
+            # Build long-format for Plotly
+            cats = {
+                "Green":       (green_col,       "#2ecc71"),
+                "Industrial":  (industrial_col,  "#e74c3c"),
+                "Residential": (residential_col, "#3498db"),
+                "Commercial":  (commercial_col,  "#f39c12"),
+            }
+            bar_frames = []
+            for label, (col, color) in cats.items():
+                tmp = df_sp_merged[["station", col]].copy()
+                tmp.columns = ["station", "pct"]
+                tmp["category"] = label
+                tmp["color"] = color
+                bar_frames.append(tmp)
+            df_bar = pd.concat(bar_frames, ignore_index=True)
+
+            fig_lu = px.bar(
+                df_bar,
+                x="station", y="pct", color="category",
+                color_discrete_map={k: v[1] for k, v in cats.items()},
+                labels={"pct": "Buffer area (%)", "station": ""},
+                title=f"Land Use Composition — {buf_choice} Buffer",
+                barmode="group",
+            )
+            fig_lu.update_layout(
+                height=380,
+                legend=dict(orientation="h", y=-0.22),
+                margin=dict(t=50, b=10),
+            )
+            st.plotly_chart(fig_lu, width="stretch")
+
+        with col_road:
+            # Road density bar — sorted descending
+            df_rd = df_sp_merged.sort_values(road_col, ascending=False)
+            fig_rd = px.bar(
+                df_rd,
+                x="station", y=road_col,
+                color=road_col,
+                color_continuous_scale=["#bdc3c7", "#e74c3c"],
+                labels={road_col: "m per km²", "station": ""},
+                title=f"Road Density — {buf_choice} Buffer",
+            )
+            fig_rd.update_layout(
+                height=380,
+                coloraxis_showscale=False,
+                margin=dict(t=50, b=10),
+            )
+            st.plotly_chart(fig_rd, width="stretch")
+
+        # ── Scatter: industrial % vs mean PM2.5 ───────────────────────────────────
+        st.markdown("### Spatial Driver vs Observed Pollution")
+        st.caption(
+            "Scatter plots show the relationship between buffer land use "
+            "and long-term mean pollutant levels. "
+            "Trend lines are illustrative only (n = 7)."
+        )
+
+        # Merge mean pollutants
+        station_poll_means = (
+            df.groupby("station")[POLLUTANTS].mean().reset_index()
+        )
+        df_scatter = df_sp_merged.merge(station_poll_means, on="station", how="left")
+
+        sc1, sc2 = st.columns(2)
+
+        with sc1:
+            fig_sc1 = px.scatter(
+                df_scatter,
+                x=industrial_col, y="NO2",
+                text="station",
+                trendline="ols",
+                labels={industrial_col: f"Industrial % ({buf_choice})", "NO2": "Mean NO₂ (µg/m³)"},
+                title="Industrial % vs Mean NO₂",
+                color="zone",
+                color_discrete_map={
+                    "Urban": "#8e44ad", "Industrial": "#e67e22",
+                    "Port": "#2980b9", "Coastal": "#1abc9c", "Refinery": "#c0392b",
+                },
+            )
+            fig_sc1.update_traces(textposition="top center", selector=dict(mode="markers+text"))
+            fig_sc1.update_layout(height=350, margin=dict(t=50, b=10), showlegend=False)
+            st.plotly_chart(fig_sc1, width="stretch")
+
+        with sc2:
+            fig_sc2 = px.scatter(
+                df_scatter,
+                x=road_col, y="NO2",
+                text="station",
+                trendline="ols",
+                labels={road_col: f"Road density ({buf_choice})", "NO2": "Mean NO₂ (µg/m³)"},
+                title="Road Density vs Mean NO₂  (r = 0.83)",
+                color="zone",
+                color_discrete_map={
+                    "Urban": "#8e44ad", "Industrial": "#e67e22",
+                    "Port": "#2980b9", "Coastal": "#1abc9c", "Refinery": "#c0392b",
+                },
+            )
+            fig_sc2.update_traces(textposition="top center", selector=dict(mode="markers+text"))
+            fig_sc2.update_layout(height=350, margin=dict(t=50, b=10), showlegend=False)
+            st.plotly_chart(fig_sc2, width="stretch")
+
+        # ── Per-station spatial profile expander ──────────────────────────────────
+        with st.expander("📋 Full spatial features table (all buffer radii)"):
+            display_sp = df_sp.copy()
+            # Round all float columns for readability
+            float_cols = display_sp.select_dtypes("float64").columns
+            display_sp[float_cols] = display_sp[float_cols].round(2)
+            st.dataframe(display_sp, width="stretch", hide_index=True)
+            csv_sp = display_sp.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                "⬇️ Spatial features (CSV)",
+                data=csv_sp,
+                file_name="station_spatial_features.csv",
+                mime="text/csv",
+            )
+
+        # ── Methodology note ──────────────────────────────────────────────────────
+        st.info(
+            "**Methodology:** OSM land use polygons (via OSMnx) clipped to circular buffers "
+            "in ETRS89/UTM 30N (EPSG:25830). Road density = total road length ÷ buffer area. "
+            "Correlations computed across n = 7 stations and are illustrative. "
+            "Full analysis: `notebooks/09_spatial_buffer_analysis.ipynb`."
+        )
+
+    st.divider()
+
 
     # 7c-5. Export
     st.markdown("## 📥 " + tr("Export for Reporting"))
@@ -933,247 +1191,4 @@ city-wide is **{worst_pollutant}** at
     st.caption(
         tr("Data: Basque Government air-quality network + Open-Meteo (CC BY 4.0) · "
            "Forecasts: XGBoost next-day models (see Forecasting page for validation).")
-    )
-
-
-# ==================================================
-# TAB D — SPATIAL INTELLIGENCE
-# ==================================================
-
-with tab_spatial:
-
-    st.markdown("## 🗺️ " + tr("Spatial Intelligence"))
-    st.caption(
-        tr(
-            "Structural spatial context for each monitoring station — "
-            "land use, distances to emission sources, and terrain. "
-            "Based on OSM buffer analysis (notebooks 10a/10b) and "
-            "Copernicus GLO-30 DEM (notebook 10c). "
-            "n = 7 stations — correlations are indicative, not inferential."
-        )
-    )
-
-    # ── Load spatial features v3 (buffer + distance + elevation) ─────────────
-    _SP_V3  = Path(__file__).parent.parent.parent / "data" / "processed" / "station_spatial_features_v3.csv"
-    _SP_V2  = Path(__file__).parent.parent.parent / "data" / "processed" / "station_spatial_features_v2.csv"
-    _SP_V1  = Path(__file__).parent.parent.parent / "data" / "processed" / "station_spatial_features.csv"
-    _SP_FILE = _SP_V3 if _SP_V3.exists() else (_SP_V2 if _SP_V2.exists() else _SP_V1)
-
-    if not _SP_FILE.exists():
-        st.info(
-            tr("Spatial features file not found. "
-               "Run notebooks 10a, 10b, 10c locally and commit "
-               "station_spatial_features_v3.csv to data/processed/.")
-        )
-        st.stop()
-
-    @st.cache_data
-    def _load_spatial_v3() -> pd.DataFrame:
-        return pd.read_csv(_SP_FILE)
-
-    df_sp = _load_spatial_v3()
-
-    # Merge with air quality means for scatter plots
-    _poll_means = (
-        df.groupby("station")[POLLUTANTS].mean()
-        .reset_index()
-        .rename(columns={"PM2.5": "mean_PM25", "PM10": "mean_PM10",
-                         "NO2": "mean_NO2", "SO2": "mean_SO2"})
-    )
-    df_sp = df_sp.merge(
-        _poll_means.rename(columns={"PM2.5": "mean_PM25", "PM10": "mean_PM10",
-                                     "NO2": "mean_NO2", "SO2": "mean_SO2"}),
-        on="station", how="left"
-    )
-    # Handle case where merge columns may already exist
-    for old, new in [("PM2.5","mean_PM25"),("PM10","mean_PM10"),
-                     ("NO2","mean_NO2"),("SO2","mean_SO2")]:
-        if old in df_sp.columns and new not in df_sp.columns:
-            df_sp[new] = df_sp[old]
-    _poll_means2 = df.groupby("station")[POLLUTANTS].mean().reset_index()
-    df_sp = df_sp.merge(_poll_means2, on="station", how="left", suffixes=("","_aq"))
-
-    _ZONE_CLR = {
-        "Urban":      "#8e44ad", "Industrial": "#e67e22",
-        "Port":       "#2980b9", "Coastal":    "#1abc9c",
-        "Refinery":   "#c0392b",
-    }
-
-    # ── IDEA 1 — Spatial DNA cards per station ────────────────────────────────
-    st.markdown("### " + tr("Station Spatial Profile"))
-    st.caption(tr("Select a station to expand its full spatial context."))
-
-    for _, sp_row in df_sp.iterrows():
-        zone_clr = _ZONE_CLR.get(sp_row.get("zone",""), "#555")
-        with st.expander(
-            f"{sp_row['station']}  —  {sp_row.get('zone','')}  |  "
-            f"NO₂ {sp_row.get('NO2', sp_row.get('mean_NO2', 0)):.1f} µg/m³  ·  "
-            f"PM2.5 {sp_row.get('PM2.5', sp_row.get('mean_PM25', 0)):.1f} µg/m³",
-            expanded=False,
-        ):
-            dna1, dna2, dna3 = st.columns(3)
-
-            with dna1:
-                st.markdown(f"**{tr('Land Use')}** *(1 000 m buffer)*")
-                for lbl, col, icon in [
-                    ("Green",       "green_pct_1000m",       "🌿"),
-                    ("Industrial",  "industrial_pct_1000m",  "🏭"),
-                    ("Residential", "residential_pct_1000m", "🏘️"),
-                    ("Road density","road_density_1000m",     "🛣️"),
-                ]:
-                    val = sp_row.get(col)
-                    if val is not None and not (isinstance(val, float) and np.isnan(val)):
-                        unit = " m/km²" if "density" in col else "%"
-                        st.markdown(f"{icon} **{lbl}:** {val:.1f}{unit}")
-
-            with dna2:
-                st.markdown(f"**{tr('Distances to Sources')}**")
-                for lbl, col, icon in [
-                    ("Port of Bilbao",  "dist_port_bilbao_m",   "⚓"),
-                    ("Petronor",        "dist_petronor_m",      "🛢️"),
-                    ("AP-8 Motorway",   "dist_ap8_barakaldo_m", "🚗"),
-                    ("City Centre",     "dist_bilbao_centre_m", "🏙️"),
-                    ("Coast",           "dist_coast_getxo_m",   "🌊"),
-                ]:
-                    val = sp_row.get(col)
-                    if val is not None and not (isinstance(val, float) and np.isnan(val)):
-                        st.markdown(f"{icon} **{lbl}:** {val/1000:.1f} km")
-
-            with dna3:
-                st.markdown(f"**{tr('Terrain')}** *(Copernicus GLO-30)*")
-                for lbl, col, icon in [
-                    ("Elevation",  "elev_point_m",  "⛰️"),
-                    ("Slope",      "slope_deg",      "📐"),
-                    ("TRI 2km",    "elev_tri_2000m", "🏔️"),
-                    ("Mean elev",  "elev_mean_1000m","📊"),
-                ]:
-                    val = sp_row.get(col)
-                    if val is not None and not (isinstance(val, float) and np.isnan(val)):
-                        unit = "°" if col == "slope_deg" else " m"
-                        st.markdown(f"{icon} **{lbl}:** {val:.1f}{unit}")
-
-    st.divider()
-
-    # ── IDEA 2 — Interactive scatter: spatial driver vs pollutant ─────────────
-    st.markdown("### " + tr("Spatial Driver Explorer"))
-    st.caption(
-        tr(
-            "Choose a spatial feature and a pollutant to explore the structural "
-            "relationship. OLS trendline shown. n = 7 — indicative only."
-        )
-    )
-
-    # Feature options — only include columns that exist in df_sp
-    _FEATURE_OPTIONS = {
-        "Road density (1 000 m)":      "road_density_1000m",
-        "Industrial % (1 000 m)":      "industrial_pct_1000m",
-        "Green % (1 000 m)":           "green_pct_1000m",
-        "Distance to City Centre (km)": "dist_bilbao_centre_m",
-        "Distance to Port (km)":        "dist_port_bilbao_m",
-        "Distance to AP-8 (km)":        "dist_ap8_barakaldo_m",
-        "Elevation (m)":               "elev_point_m",
-        "Terrain Relief Index 2km (m)": "elev_tri_2000m",
-        "Slope (°)":                   "slope_deg",
-    }
-    _available_features = {
-        lbl: col for lbl, col in _FEATURE_OPTIONS.items()
-        if col in df_sp.columns
-    }
-
-    _POLLUTANT_OPTIONS = {
-        "NO₂ (µg/m³)":   "NO2",
-        "PM2.5 (µg/m³)": "PM2.5",
-        "PM10 (µg/m³)":  "PM10",
-        "SO₂ (µg/m³)":   "SO2",
-    }
-
-    sc_col1, sc_col2 = st.columns(2)
-    with sc_col1:
-        x_label = st.selectbox(
-            tr("Spatial feature (X axis)"),
-            list(_available_features.keys()),
-            index=0,
-        )
-    with sc_col2:
-        y_label = st.selectbox(
-            tr("Pollutant (Y axis)"),
-            list(_POLLUTANT_OPTIONS.keys()),
-            index=0,
-        )
-
-    x_col   = _available_features[x_label]
-    y_col   = _POLLUTANT_OPTIONS[y_label]
-
-    # Build scatter dataframe
-    df_scatter = df_sp[["station", "zone", x_col, y_col]].dropna().copy()
-
-    # Convert distance columns from m to km for readability
-    if "dist_" in x_col:
-        df_scatter[x_col] = df_scatter[x_col] / 1000
-        x_display = x_label  # already says "km"
-    else:
-        x_display = x_label
-
-    if len(df_scatter) < 3:
-        st.warning(tr("Not enough data for this combination."))
-    else:
-        # Compute Pearson r
-        _r = df_scatter[[x_col, y_col]].corr().iloc[0, 1]
-
-        fig_sc = px.scatter(
-            df_scatter,
-            x=x_col,
-            y=y_col,
-            text="station",
-            trendline="ols",
-            color="zone",
-            color_discrete_map=_ZONE_CLR,
-            labels={x_col: x_display, y_col: y_label},
-            title=f"{x_display} vs {y_label}  |  Pearson r = {_r:.2f}  (n = {len(df_scatter)})",
-        )
-        fig_sc.update_traces(
-            textposition="top center",
-            selector=dict(mode="markers+text"),
-        )
-        fig_sc.update_layout(
-            height=420,
-            margin=dict(t=55, b=20),
-            legend=dict(orientation="h", y=-0.15),
-        )
-        st.plotly_chart(fig_sc, width="stretch")
-
-        # Interpretation hint
-        if abs(_r) >= 0.7:
-            hint = tr("Strong signal") + f" (|r| ≥ 0.7)"
-        elif abs(_r) >= 0.4:
-            hint = tr("Moderate signal") + f" (|r| ≥ 0.4)"
-        else:
-            hint = tr("Weak or no signal") + f" (|r| < 0.4)"
-        color_hint = "success" if abs(_r) >= 0.7 else ("warning" if abs(_r) >= 0.4 else "info")
-        getattr(st, color_hint)(hint)
-
-    st.divider()
-
-    # ── Full data table ───────────────────────────────────────────────────────
-    with st.expander(tr("📋 Full spatial features table (v3)")):
-        _show_cols = [c for c in df_sp.columns
-                      if not c.endswith("_aq") and c not in ["ndvi_note"]]
-        _display_sp = df_sp[_show_cols].copy()
-        _float_cols = _display_sp.select_dtypes("float64").columns
-        _display_sp[_float_cols] = _display_sp[_float_cols].round(2)
-        st.dataframe(_display_sp, width="stretch", hide_index=True)
-        st.download_button(
-            tr("⬇️ Download spatial features (CSV)"),
-            data=_display_sp.to_csv(index=False).encode("utf-8"),
-            file_name="station_spatial_features_v3.csv",
-            mime="text/csv",
-        )
-
-    st.info(
-        tr(
-            "**Sources:** OSM land use via OSMnx · Haversine distances · "
-            "Copernicus GLO-30 DEM (30 m). "
-            "Notebooks: 10a (buffer) · 10b (distance) · 10c (elevation). "
-            "n = 7 stations — correlations are exploratory only."
-        )
     )
