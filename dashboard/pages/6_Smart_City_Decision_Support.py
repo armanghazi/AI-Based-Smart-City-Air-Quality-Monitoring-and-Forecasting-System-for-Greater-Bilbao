@@ -1202,7 +1202,185 @@ with tab_spatial:
         color_hint = "success" if abs(_r) >= 0.7 else ("warning" if abs(_r) >= 0.4 else "info")
         getattr(st, color_hint)(hint)
 
+
     st.divider()
+
+    # ── IDEA 4 — Structural Vulnerability Index (SVI) ────────────────────────
+    st.markdown("### " + tr("Structural Vulnerability Index (SVI)"))
+    st.caption(
+        tr(
+            "A composite spatial index combining the three strongest structural "
+            "predictors of air pollution: road density (1km buffer), distance to "
+            "city centre, and Terrain Relief Index (2km). "
+            "Higher score = structurally more exposed to poor air quality, "
+            "independent of daily weather. "
+            "n = 7 — indicative only. "
+            "SVI does not capture port or industrial point-source emissions."
+        )
+    )
+
+    # Compute SVI from available spatial features
+    _svi_cols = {
+        "road_density_1000m":   +1,   # higher road density = worse
+        "dist_bilbao_centre_m": -1,   # closer to centre = worse (invert)
+        "elev_tri_2000m":       -1,   # higher TRI = better dispersion (invert)
+    }
+    _svi_available = all(c in df_sp.columns for c in _svi_cols)
+
+    if not _svi_available:
+        st.info(tr("SVI requires v3 spatial features (road density + distances + terrain). "
+                   "Run notebooks 10a, 10b, 10c and commit station_spatial_features_v3.csv."))
+    else:
+        _df_svi = df_sp[["station", "zone"] + list(_svi_cols.keys())].copy().dropna()
+
+        # Z-score normalise each feature, apply directionality sign
+        for col, sign in _svi_cols.items():
+            _mean = _df_svi[col].mean()
+            _std  = _df_svi[col].std()
+            _df_svi[f"_z_{col}"] = sign * (_df_svi[col] - _mean) / max(_std, 1e-9)
+
+        _z_cols = [f"_z_{c}" for c in _svi_cols]
+        _df_svi["_svi_raw"] = _df_svi[_z_cols].mean(axis=1)
+
+        # Rescale to 0–100
+        _svi_min = _df_svi["_svi_raw"].min()
+        _svi_max = _df_svi["_svi_raw"].max()
+        _df_svi["SVI"] = (
+            (_df_svi["_svi_raw"] - _svi_min) / max(_svi_max - _svi_min, 1e-9) * 100
+        ).round(1)
+        _df_svi = _df_svi.sort_values("SVI", ascending=False).reset_index(drop=True)
+
+        # Merge with observed pollutant means for validation scatter
+        _obs_means = df.groupby("station")[POLLUTANTS].mean().reset_index()
+        _df_svi = _df_svi.merge(_obs_means, on="station", how="left")
+
+        # ── Row 1: KPI bar chart (ranking) ────────────────────────────────────
+        svi_col1, svi_col2 = st.columns([3, 2])
+
+        with svi_col1:
+            def _svi_color(v):
+                if v >= 70: return "#e74c3c"
+                if v >= 40: return "#f39c12"
+                return "#2ecc71"
+
+            fig_svi_bar = go.Figure(go.Bar(
+                x=_df_svi["SVI"],
+                y=_df_svi["station"],
+                orientation="h",
+                marker_color=[_svi_color(v) for v in _df_svi["SVI"]],
+                text=_df_svi["SVI"].apply(lambda v: f"{v:.0f}"),
+                textposition="outside",
+                customdata=_df_svi[["zone", "road_density_1000m",
+                                     "dist_bilbao_centre_m",
+                                     "elev_tri_2000m"]].values,
+                hovertemplate=(
+                    "<b>%{y}</b> (%{customdata[0]})<br>"
+                    "SVI: %{x:.1f} / 100<br>"
+                    "Road density: %{customdata[1]:,.0f} m/km²<br>"
+                    "Dist. centre: %{customdata[2]:.0f} m<br>"
+                    "TRI 2km: %{customdata[3]:.0f} m"
+                    "<extra></extra>"
+                ),
+            ))
+            fig_svi_bar.add_vline(
+                x=50, line_dash="dash", line_color="#7f8c8d",
+                annotation_text=tr("threshold"), annotation_position="top",
+            )
+            fig_svi_bar.update_layout(
+                height=320,
+                margin=dict(l=10, r=60, t=30, b=10),
+                xaxis=dict(title="SVI (0 = best, 100 = most exposed)", range=[0, 115]),
+                yaxis=dict(autorange="reversed"),
+                title=tr("Station Ranking — Structural Vulnerability"),
+            )
+            st.plotly_chart(fig_svi_bar, width="stretch")
+
+        with svi_col2:
+            st.markdown(f"**{tr('Index components')}**")
+            st.markdown(
+                tr(
+                    "- **Road density** (1km): traffic emission exposure\n"
+                    "- **Distance to city centre**: urban traffic intensity\n"
+                    "- **Terrain Relief Index** (2km): atmospheric dispersion capacity\n"
+                    "\n"
+                    "Each feature Z-score normalised, mean-aggregated, "
+                    "rescaled 0–100."
+                )
+            )
+            st.markdown("---")
+            st.markdown(f"**{tr('Highest exposure')}**")
+            _top = _df_svi.iloc[0]
+            st.error(f"🔴 {_top['station']} — SVI {_top['SVI']:.0f}/100")
+            st.markdown(f"**{tr('Lowest exposure')}**")
+            _bot = _df_svi.iloc[-1]
+            st.success(f"🟢 {_bot['station']} — SVI {_bot['SVI']:.0f}/100")
+
+        # ── Row 2: Validation scatter — SVI vs observed NO₂ ──────────────────
+        st.markdown(f"#### {tr('Validation: SVI vs observed mean NO₂')}")
+        st.caption(
+            tr(
+                "If SVI is a meaningful structural predictor, stations with higher SVI "
+                "should record higher long-term mean NO₂. "
+                "Pearson r shown."
+            )
+        )
+
+        _r_svi_no2  = _df_svi["SVI"].corr(_df_svi["NO2"])
+        _r_svi_pm25 = _df_svi["SVI"].corr(_df_svi["PM2.5"])
+
+        sc_v1, sc_v2 = st.columns(2)
+
+        with sc_v1:
+            fig_val1 = px.scatter(
+                _df_svi,
+                x="SVI", y="NO2",
+                text="station",
+                trendline="ols",
+                color="zone",
+                color_discrete_map=_ZONE_CLR,
+                labels={"SVI": "Structural Vulnerability Index (0–100)",
+                        "NO2": "Mean NO₂ (µg/m³)"},
+                title=f"SVI vs Mean NO₂  |  r = {_r_svi_no2:.2f}",
+            )
+            fig_val1.update_traces(
+                textposition="top center",
+                selector=dict(mode="markers+text"),
+            )
+            fig_val1.update_layout(
+                height=360, margin=dict(t=50, b=10), showlegend=False,
+            )
+            st.plotly_chart(fig_val1, width="stretch")
+
+        with sc_v2:
+            fig_val2 = px.scatter(
+                _df_svi,
+                x="SVI", y="PM2.5",
+                text="station",
+                trendline="ols",
+                color="zone",
+                color_discrete_map=_ZONE_CLR,
+                labels={"SVI": "Structural Vulnerability Index (0–100)",
+                        "PM2.5": "Mean PM2.5 (µg/m³)"},
+                title=f"SVI vs Mean PM2.5  |  r = {_r_svi_pm25:.2f}",
+            )
+            fig_val2.update_traces(
+                textposition="top center",
+                selector=dict(mode="markers+text"),
+            )
+            fig_val2.update_layout(
+                height=360, margin=dict(t=50, b=10), showlegend=False,
+            )
+            st.plotly_chart(fig_val2, width="stretch")
+
+        st.info(
+            tr(
+                "⚠️ **Interpretation note:** SVI captures structural traffic "
+                "and terrain drivers only. SANTURCE (port) and MUSKIZ (refinery) "
+                "have low SVI scores because their pollution comes from point sources "
+                "(vessel emissions, industrial stack) not captured by road density "
+                "or terrain. SVI should not be used as a standalone forecast tool."
+            )
+        )
 
     # ── Full data table ───────────────────────────────────────────────────────
     with st.expander(tr("📋 Full spatial features table (v3)")):
