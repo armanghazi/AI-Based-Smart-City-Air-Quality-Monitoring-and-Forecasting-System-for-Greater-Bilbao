@@ -396,29 +396,6 @@ with tab_forecast:
                 f"{tr('stations:')} {', '.join(exceed['Station'].unique())}"
             )
 
-        # 7b-2. Forecast heatmap (station × pollutant)
-        pivot = alerts_df.pivot(index="Station", columns="Pollutant", values="Ratio")
-        pivot = pivot[POLLUTANTS]
-        fig_hm = px.imshow(
-            pivot,
-            color_continuous_scale=["#2ecc71", "#f9ca24", "#e74c3c"],
-            zmin=0, zmax=2,
-            text_auto=".2f",
-            aspect="auto",
-            title=(
-                f"{tr('Forecast for')} {forecast_date.strftime('%d %b %Y')} — "
-                + tr("ratio of WHO limit (> 1 = exceedance)")
-            ),
-        )
-        fig_hm.update_layout(height=340, margin=dict(t=80, b=10))
-        st.plotly_chart(fig_hm, width="stretch")
-
-        with st.expander(tr("📋 Full forecast table")):
-            st.dataframe(
-                alerts_df.sort_values("Ratio", ascending=False),
-                width="stretch", hide_index=True,
-            )
-
     st.divider()
 
     # 7b-3. GeoAI risk map — station markers
@@ -485,6 +462,32 @@ with tab_forecast:
             coloraxis_colorbar=dict(title="× WHO"),
         )
         st.plotly_chart(fig_map, width="stretch")
+
+
+        st.divider()
+
+        # 7b-2. Forecast heatmap
+        pivot = alerts_df.pivot(index="Station", columns="Pollutant", values="Ratio")
+        pivot = pivot[POLLUTANTS]
+        fig_hm = px.imshow(
+            pivot,
+            color_continuous_scale=["#2ecc71", "#f9ca24", "#e74c3c"],
+            zmin=0, zmax=2,
+            text_auto=".2f",
+            aspect="auto",
+            title=(
+                f"{tr('Forecast for')} {forecast_date.strftime('%d %b %Y')} — "
+                + tr("ratio of WHO limit (> 1 = exceedance)")
+            ),
+        )
+        fig_hm.update_layout(height=340, margin=dict(t=80, b=10))
+        st.plotly_chart(fig_hm, width="stretch")
+
+        with st.expander(tr("📋 Full forecast table")):
+            st.dataframe(
+                alerts_df.sort_values("Ratio", ascending=False),
+                width="stretch", hide_index=True,
+            )
 
         st.divider()
 
@@ -640,11 +643,215 @@ with tab_forecast:
         )
         st.plotly_chart(fig_idw, width="stretch")
 
+        st.divider()
+
+        # ── Wind Transport Context ────────────────────────────────────────────
+        st.markdown("## 💨 " + tr("Wind & Dispersion Context"))
+        st.caption(
+            tr(
+                "Regional wind conditions (ERA5 single grid cell, ~31 km resolution) "
+                "that influence today's forecast. "
+                "Wind speed controls atmospheric dispersion; wind direction determines "
+                "which emission sources are upwind of each station."
+            )
+        )
+
+        # Latest wind conditions
+        _latest_wind = df[df["Date"] == latest_date][["WindSpeed","WindDirection","wind_u","wind_v"]].mean()
+        _ws   = float(_latest_wind["WindSpeed"])
+        _wd   = float(_latest_wind["WindDirection"])
+
+        def _cardinal(d):
+            dirs = ["N","NE","E","SE","S","SW","W","NW"]
+            return dirs[int((d+22.5)/45)%8]
+
+        def _dispersion_verdict(ws):
+            if ws < 10:  return tr("⚠️ Calm — poor dispersion, elevated pollution likely"), "warning"
+            if ws < 15:  return tr("🟡 Light wind — moderate dispersion"), "warning"
+            if ws < 20:  return tr("🟢 Moderate wind — good dispersion"), "success"
+            return tr("✅ Strong wind — excellent dispersion"), "success"
+
+        _verdict, _vcol = _dispersion_verdict(_ws)
+
+        _wc1, _wc2, _wc3, _wc4 = st.columns(4)
+        _wc1.metric(tr("Wind speed (D-1)"), f"{_ws:.1f} m/s")
+        _wc2.metric(tr("Wind direction"), f"{_wd:.0f}° ({_cardinal(_wd)})")
+        _wc3.metric(tr("Regime"), "NW/W (sea)" if _cardinal(_wd) in ["NW","W","N"] else "S/SW (land)")
+        getattr(st, _vcol)(_verdict)
+
+        st.markdown("---")
+
+        # Wind speed × dispersion reference chart
+        _wc_left, _wc_right = st.columns(2)
+
+        with _wc_left:
+            st.markdown(f"**{tr('Dispersion effect of wind speed')}**")
+            st.caption(tr("Historical mean NO₂ across the network by wind speed category."))
+
+            _ws_bins   = [0, 10, 15, 20, 25, 100]
+            _ws_labels = ["< 10", "10–15", "15–20", "20–25", "> 25"]
+            _no2_means = [29.85, 21.05, 18.56, 16.03, 12.81]
+
+            _df_disp = pd.DataFrame({
+                "wind_cat": _ws_labels,
+                "mean_NO2": _no2_means,
+            })
+            _colors_disp = ["#e74c3c","#e67e22","#f39c12","#2ecc71","#27ae60"]
+
+            # Highlight current wind speed bin
+            _cur_bin = 0
+            for i, (lo, hi) in enumerate(zip(_ws_bins[:-1], _ws_bins[1:])):
+                if lo <= _ws < hi:
+                    _cur_bin = i
+                    break
+
+            _df_disp["color"] = _colors_disp
+            _df_disp.loc[_cur_bin, "color"] = "#2c3e50"  # highlight current
+
+            fig_disp = go.Figure(go.Bar(
+                x=_df_disp["wind_cat"],
+                y=_df_disp["mean_NO2"],
+                marker_color=_df_disp["color"],
+                text=[f"{v:.1f}" for v in _df_disp["mean_NO2"]],
+                textposition="outside",
+            ))
+            fig_disp.add_annotation(
+                x=_ws_labels[_cur_bin],
+                y=_no2_means[_cur_bin] + 1.5,
+                text=tr("← today"),
+                showarrow=False,
+                font=dict(size=11, color="#2c3e50"),
+            )
+            fig_disp.update_layout(
+                height=280,
+                margin=dict(t=20, b=10, l=10, r=10),
+                xaxis_title=tr("Wind speed (m/s)"),
+                yaxis_title="Mean NO₂ (µg/m³)",
+                showlegend=False,
+            )
+            st.plotly_chart(fig_disp, width="stretch")
+            st.caption(tr("Strong wind (> 25 m/s) reduces mean NO₂ by 57% vs calm (< 10 m/s)."))
+
+        with _wc_right:
+            st.markdown(f"**{tr('Key directional signatures')}**")
+            st.caption(tr(
+                "Historical mean concentrations by wind direction at key stations. "
+                "ERA5 regional wind — indicative only."
+            ))
+
+            # MUSKIZ SO2 by direction (from notebook 10d findings)
+            _dir8_order = ["N","NE","E","SE","S","SW","W","NW"]
+            _muskiz_so2 = [5.81,7.32,5.93,5.19,3.80,3.86,3.42,4.50]
+            _maz_no2    = [19.3,23.4,32.4,35.3,32.1,29.7,26.4,20.8]
+            _cur_dir    = _cardinal(_wd)
+            _cur_idx    = _dir8_order.index(_cur_dir) if _cur_dir in _dir8_order else 0
+
+            fig_rose = go.Figure()
+            fig_rose.add_trace(go.Scatterpolar(
+                r=_muskiz_so2,
+                theta=_dir8_order,
+                fill="toself",
+                name="MUSKIZ SO₂",
+                line_color="#c0392b",
+                fillcolor="rgba(192,57,43,0.2)",
+            ))
+            fig_rose.add_trace(go.Scatterpolar(
+                r=[v/3.5 for v in _maz_no2],   # scale to same axis
+                theta=_dir8_order,
+                fill="toself",
+                name="MAZARREDO NO₂ (÷3.5)",
+                line_color="#8e44ad",
+                fillcolor="rgba(142,68,173,0.15)",
+            ))
+            # Mark current direction
+            fig_rose.add_trace(go.Scatterpolar(
+                r=[max(_muskiz_so2)*1.2],
+                theta=[_cur_dir],
+                mode="markers",
+                marker=dict(size=14, color="#2c3e50", symbol="arrow-up"),
+                name=tr("Current wind"),
+                showlegend=True,
+            ))
+            fig_rose.update_layout(
+                polar=dict(
+                    radialaxis=dict(visible=True, range=[0, 9]),
+                    angularaxis=dict(direction="clockwise"),
+                ),
+                height=280,
+                margin=dict(t=20, b=10, l=10, r=10),
+                legend=dict(orientation="h", y=-0.15, font=dict(size=10)),
+                showlegend=True,
+            )
+            st.plotly_chart(fig_rose, width="stretch")
+            st.caption(
+                tr(
+                    "NE wind → MUSKIZ SO₂ peaks (Petronor transport). "
+                    "SE wind → MAZARREDO NO₂ peaks (Nervión valley channelling). "
+                    "Arrow = current wind direction."
+                )
+            )
+
+        # Regime interpretation
+        _cur_card = _cardinal(_wd)
+        if _cur_card in ["NW","W","N"]:
+            st.success(
+                tr(
+                    f"**NW/W regime today ({_cur_card})** — sea air from Bay of Biscay. "
+                    "Historically: network-wide NO₂ = 16.3 µg/m³ (vs 21.4 µg/m³ under S/SW). "
+                    "MUSKIZ: cleaner (Petronor emissions blown inland). "
+                    "MAZARREDO: lower canyon trapping."
+                )
+            )
+        elif _cur_card in ["S","SW","SE"]:
+            st.warning(
+                tr(
+                    f"**S/SW regime today ({_cur_card})** — recirculation from inland. "
+                    "Historically: network-wide NO₂ = 21.4 µg/m³ (+31% vs NW/W). "
+                    "MAZARREDO: Nervión valley channelling amplifies urban NO₂. "
+                    "BARAKALDO: industrial corridor stagnation risk."
+                )
+            )
+        elif _cur_card == "NE":
+            st.warning(
+                tr(
+                    f"**NE wind today** — onshore from sea at shallow angle. "
+                    "MUSKIZ SO₂ historically 1.93× higher under NE vs S wind — "
+                    "Petronor emissions trapped against terrain ridge (TRI = 343 m)."
+                )
+            )
+        else:
+            st.info(tr(f"Wind direction: {_cur_card}. No dominant source-transport signature for this sector."))
+
+        st.info(
+            tr(
+                "⚠️ **ERA5 data note:** Wind is a single regional grid cell (~31 km) "
+                "shared by all stations. Direction signatures represent "
+                "synoptic-scale patterns, not station micrometeorology. "
+                "Source: Open-Meteo ERA5 archive (CC BY 4.0) · Notebook 10d."
+            )
+        )
+
+
 # --------------------------------------------------
 # TAB C — DECISIONS & ACTIONS
 # --------------------------------------------------
 
 with tab_action:
+
+    # 7c-0. Decision-maker action summary (prominent)
+    _worst_station_name = station_means.iloc[0]["station"] if not station_means.empty else "—"
+    _worst_score = int(station_means.iloc[0]["RiskScore"]) if not station_means.empty else 0
+    _worst_zone  = station_means.iloc[0]["Zone"] if not station_means.empty else "—"
+    if _worst_score >= 100:
+        st.error(
+            f"🔴 **{tr('Priority action')}:** {_worst_station_name} ({_worst_zone}) — "
+            f"Risk score {_worst_score}/300. "
+            + tr("See zone recommendation below for suggested intervention.")
+        )
+    else:
+        st.success(tr("✅ All stations within acceptable risk range for this period."))
+
+    st.divider()
 
     # 7c-1. Scenario simulator
     st.markdown("## 🧪 " + tr("Scenario Simulator"))
@@ -779,7 +986,8 @@ with tab_action:
             for p in POLLUTANTS if p in baseline
         ],
     })
-    st.dataframe(comp, width="stretch", hide_index=True)
+    with st.expander(tr("📋 Scenario result detail"), expanded=False):
+        st.dataframe(comp, width="stretch", hide_index=True)
 
     st.divider()
 
@@ -914,6 +1122,16 @@ city-wide is **{worst_pollutant}** at
                 action_text = ZONE_ACTION_TIERS.get(zone, {}).get(tier, "—")
                 st.markdown(f"**{tr('Status:')}** {tier_badge}")
                 st.markdown(f"**{tr('Recommended action:')}** {tr(action_text)}")
+                # Spatial context from GIS analysis (notebooks 10a/10b/10c)
+                _sp_ctx = {
+                    "Urban":      tr("🗺️ **Spatial driver:** Road density 19,060 m/km² + city centre 501 m → structural NO₂ source (r = −0.77 dist-centre × NO₂)."),
+                    "Industrial": tr("🗺️ **Spatial driver:** AP-8 motorway 354 m from BARAKALDO + industrial land use 10–21% within 1 km → elevated PM2.5 (r = −0.54)."),
+                    "Port":       tr("🗺️ **Spatial driver:** 784 m from Port of Bilbao. Under SW wind: vessel SO₂ concentrated near SANTURCE sensor."),
+                    "Coastal":    tr("🗺️ **Spatial driver:** Lowest road density (9,933 m/km²) + 2.6 km from coast → NW sea breeze provides consistent flushing."),
+                    "Refinery":   tr("🗺️ **Spatial driver:** 2.4 km from Petronor, 34.6% industrial land use — yet lowest PM2.5: coastal + TRI 343 m overrides emission proximity."),
+                }.get(zone, "")
+                if _sp_ctx:
+                    st.markdown(_sp_ctx)
 
     st.divider()
 
@@ -1101,6 +1319,20 @@ with tab_spatial:
                     if val is not None and not (isinstance(val, float) and np.isnan(val)):
                         unit = "°" if col == "slope_deg" else " m"
                         st.markdown(f"{icon} **{lbl}:** {val:.1f}{unit}")
+
+            # ── Structural driver narrative (GeoAI story) ─────────────────
+            _drivers = {
+                "BARAKALDO":      tr("📍 Highest road density (21,267 m/km²) + 354 m from AP-8 → structural driver of elevated PM2.5 and NO₂."),
+                "MAZARREDO":      tr("📍 77% residential land use yet highest NO₂: road density 19,060 m/km² + urban canyon + 501 m from city centre."),
+                "BASAURI":        tr("📍 Industrial land use 32% within 500 m (drops to 21% at 1 km) — emission sources concentrated immediately around sensor."),
+                "ERANDIO":        tr("📍 1,264 m from AP-8 + 18,631 m/km² road density — traffic corridor exposure without urban canyon effect."),
+                "MUSKIZ":         tr("📍 34.6% industrial (Petronor) yet lowest PM2.5 (6.5 µg/m³): TRI 343 m + coastal NW breeze override emission proximity."),
+                "SANTURCE":       tr("📍 784 m from Port of Bilbao + elevation 93 m + TRI 445 m — port proximity drives SO₂; terrain aids dispersion."),
+                "ALGORTA_BBIZI2": tr("📍 Lowest road density (9,933 m/km²) + 2.6 km coast + NW sea breeze → structural cleanest station in the network."),
+            }
+            _drv = _drivers.get(sp_row.get('station',''), '')
+            if _drv:
+                st.info(_drv)
 
     st.divider()
 
