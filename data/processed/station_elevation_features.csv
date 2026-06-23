@@ -1,0 +1,8 @@
+station,town,zone,lat,lon,elev_point_m,elev_mean_500m,elev_std_500m,elev_tri_500m,elev_mean_1000m,elev_std_1000m,elev_tri_1000m,elev_mean_2000m,elev_std_2000m,elev_tri_2000m,slope_deg,vegetation_proxy_1000m,vegetation_proxy_2000m,ndvi_note
+ALGORTA_BBIZI2,Getxo,Coastal,43.362056,-3.022782,63.35839080810547,39.8,31.3,89.7,36.3,32.6,94.4,26.5,29.5,98.1,3.98,16.95,16.55,OSM green_pct proxy (Sentinel-2 NDVI: future work)
+BARAKALDO,Barakaldo,Industrial,43.298379,-2.987133,20.54435157775879,24.7,14.0,75.1,17.4,15.0,79.6,20.1,21.5,103.8,7.34,23.82,26.99,OSM green_pct proxy (Sentinel-2 NDVI: future work)
+BASAURI,Basauri,Industrial,43.241131,-2.883761,54.021419525146484,47.0,11.8,51.7,57.3,28.7,158.1,104.6,76.9,363.0,5.54,25.29,46.15,OSM green_pct proxy (Sentinel-2 NDVI: future work)
+ERANDIO,Erandio,Urban,43.302653,-2.97724,6.7,6.7,9.8,70.1,23.4,27.2,103.8,22.9,23.5,129.7,3.59,25.72,31.71,OSM green_pct proxy (Sentinel-2 NDVI: future work)
+MAZARREDO,Bilbao,Urban,43.267506,-2.935188,16.14110565185547,21.3,15.6,101.3,40.7,37.5,185.6,78.5,66.2,254.7,13.84,23.82,34.34,OSM green_pct proxy (Sentinel-2 NDVI: future work)
+MUSKIZ,Muskiz,Refinery,43.320713,-3.112716,29.29683494567871,24.9,17.0,78.0,31.4,32.0,169.0,82.8,70.2,342.7,7.02,26.66,41.88,OSM green_pct proxy (Sentinel-2 NDVI: future work)
+SANTURCE,Santurtzi,Port,43.333012,-3.04256,93.06144714355469,81.5,66.2,243.4,73.3,75.2,280.3,65.1,87.1,445.1,16.25,31.62,33.29,OSM green_pct proxy (Sentinel-2 NDVI: future work)

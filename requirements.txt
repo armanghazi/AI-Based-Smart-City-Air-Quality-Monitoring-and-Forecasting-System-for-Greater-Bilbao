@@ -9,6 +9,8 @@ numpy
 pandas
 plotly<=5.22.0
 pyarrow
+rasterio
+rasterstats 
 scikit-learn
 shap
 shapely
