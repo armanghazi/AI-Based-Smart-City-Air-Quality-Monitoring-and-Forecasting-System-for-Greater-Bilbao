@@ -1,0 +1,8 @@
+station,town,zone,lat,lon,dist_port_bilbao_m,log_dist_port_bilbao,dist_petronor_m,log_dist_petronor,dist_ap8_barakaldo_m,log_dist_ap8_barakaldo,dist_coast_getxo_m,log_dist_coast_getxo,dist_bilbao_centre_m,log_dist_bilbao_centre,dist_nervion_mouth_m,log_dist_nervion_mouth,net_dist_ap8_m,net_dist_centre_m
+ALGORTA_BBIZI2,Getxo,Coastal,43.362056,-3.022782,4373.0,8.3834,7028.0,8.8578,7838.0,8.9669,2561.0,7.8486,13106.0,9.4809,2001.0,7.6022,,
+BARAKALDO,Barakaldo,Industrial,43.298379,-2.987133,5934.0,8.6887,8044.0,8.9928,354.0,5.8724,9992.0,9.2096,5769.0,8.6605,9237.0,9.1311,,
+BASAURI,Basauri,Industrial,43.241131,-2.883761,16440.0,9.7075,18208.0,9.8097,10513.0,9.2605,19427.0,9.8745,4810.0,8.4786,19379.0,9.872,,
+ERANDIO,Erandio,Urban,43.302653,-2.97724,6400.0,8.7643,8722.0,9.0738,1264.0,7.1427,9788.0,9.189,5580.0,8.6271,9280.0,9.1357,,
+MAZARREDO,Bilbao,Urban,43.267506,-2.935188,11346.0,9.3367,13177.0,9.4863,5419.0,8.5979,14756.0,9.5995,501.0,6.2191,14450.0,9.5785,,
+MUSKIZ,Muskiz,Refinery,43.320713,-3.112716,5241.0,8.5645,2421.0,7.7924,10332.0,9.2431,10358.0,9.2457,15750.0,9.6647,7747.0,8.9552,,
+SANTURCE,Santurtzi,Port,43.333012,-3.04256,784.0,6.6654,3762.0,8.2329,5951.0,8.6914,6062.0,8.7099,11678.0,9.3655,4118.0,8.3233,,
