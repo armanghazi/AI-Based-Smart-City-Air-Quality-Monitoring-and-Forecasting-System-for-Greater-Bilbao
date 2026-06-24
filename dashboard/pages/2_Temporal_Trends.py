@@ -669,225 +669,153 @@ if time_mode == "Year":
             )
 
 
+
 st.divider()
+
+# ── GeoAI Pattern Discovery ───────────────────────────────────────────────────
 st.markdown("## 🔗 " + tr("GeoAI Pattern Discovery"))
 st.caption(
     tr(
-        "Connecting temporal patterns to structural spatial context. "
-        "Each finding below is confirmed by two independent methods: "
-        "time-series analysis (this page) and GIS spatial analysis (notebooks 10a–10d)."
+        "How temporal patterns confirm GIS spatial findings. "
+        "Each finding is independently confirmed by both time-series analysis and GIS."
     )
 )
- 
-# ── Finding 1: Day-of-week NO2 → road density ─────────────────────────────────
-st.markdown("### " + tr("Finding 1 — The traffic signal: temporal + spatial confirmation"))
- 
-gai1, gai2 = st.columns([3, 2])
- 
-with gai1:
-    # Day-of-week NO2 chart (hardcoded — verified against parquet 2015-2026)
-    _dow_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    _dow_no2    = [19.63, 20.51, 20.56, 20.32, 20.42, 16.18, 14.46]
-    _dow_colors = [
-        "#e74c3c" if d < 5 else "#2ecc71"
-        for d in range(7)
-    ]
-    fig_dow = go.Figure(go.Bar(
-        x=_dow_labels,
-        y=_dow_no2,
-        marker_color=_dow_colors,
-        text=[f"{v:.1f}" for v in _dow_no2],
-        textposition="outside",
+
+# KPI strip — key numbers at a glance
+_kpi1, _kpi2, _kpi3, _kpi4 = st.columns(4)
+_kpi1.metric(tr("Weekday vs weekend NO₂"), "+32.4%",
+             help=tr("Traffic drives weekday spike — confirmed by road density r = +0.83"))
+_kpi2.metric(tr("COVID-19 NO₂ drop 2020"), "−22.1%",
+             help=tr("Natural experiment: removing traffic confirmed road density effect"))
+_kpi3.metric(tr("NO₂ decline 2015→2026"),  "−41%",
+             help=tr("Structural drivers unchanged — decline is behavioural (fleet, standards)"))
+_kpi4.metric(tr("Winter vs summer NO₂"),   "+56%",
+             help=tr("Boundary layer compression overrides stronger winter wind speeds"))
+
+st.divider()
+
+# Finding 1
+with st.expander("📊 " + tr("Finding 1 — The traffic signal (temporal + spatial)"), expanded=True):
+    _gai1, _gai2 = st.columns([3, 2])
+    with _gai1:
+        _dow_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        _dow_no2    = [19.63, 20.51, 20.56, 20.32, 20.42, 16.18, 14.46]
+        _dow_colors = ["#e74c3c" if d < 5 else "#2ecc71" for d in range(7)]
+        _fig_dow = go.Figure(go.Bar(
+            x=_dow_labels, y=_dow_no2,
+            marker_color=_dow_colors,
+            text=[f"{v:.1f}" for v in _dow_no2], textposition="outside",
+        ))
+        _fig_dow.add_hline(y=sum(_dow_no2[:5])/5, line_dash="dash",
+                           line_color="#e74c3c",
+                           annotation_text=tr("weekday avg"), annotation_font_size=9)
+        _fig_dow.add_hline(y=sum(_dow_no2[5:])/2, line_dash="dash",
+                           line_color="#2ecc71",
+                           annotation_text=tr("weekend avg"), annotation_font_size=9,
+                           annotation_position="bottom right")
+        _fig_dow.update_layout(
+            height=300, title=tr("Mean NO₂ by day of week — 2015–2026"),
+            yaxis_title="Mean NO₂ (µg/m³)", margin=dict(t=45,b=10,l=10,r=20),
+            showlegend=False,
+        )
+        st.plotly_chart(_fig_dow, width="stretch")
+    with _gai2:
+        st.metric(tr("Weekday mean NO₂"), "20.29 µg/m³", delta_color="off")
+        st.metric(tr("Weekend mean NO₂"), "15.32 µg/m³", delta_color="off")
+        st.metric(tr("Weekday premium"), "+32.4%", delta_color="inverse")
+        st.markdown("---")
+        st.markdown(
+            "**" + tr("GIS confirmation") + "**\n"
+            + tr("Road density × NO₂: **r = +0.83** — strongest spatial predictor. "
+                 "Stations with highest road density (BARAKALDO 21,267 m/km² · "
+                 "MAZARREDO 19,060 m/km²) drive the weekday spike.")
+        )
+    st.success(
+        tr("Two independent methods — same conclusion: "
+           "traffic infrastructure is the primary NO₂ driver. "
+           "The temporal pattern (−32% on weekends) is the daily fingerprint "
+           "of the spatial structure (road density r = +0.83).")
+    )
+
+# Finding 2
+with st.expander("🦠 " + tr("Finding 2 — COVID-19 as a natural experiment"), expanded=False):
+    _cc1, _cc2, _cc3 = st.columns(3)
+    _cc1.metric(tr("2019 network mean NO₂"), "20.44 µg/m³", delta_color="off")
+    _cc2.metric(tr("2020 lockdown NO₂"),     "15.92 µg/m³", "−22.1%", delta_color="inverse")
+    _cc3.metric(tr("2021 partial recovery"), "16.71 µg/m³", "+4.9%", delta_color="inverse")
+    st.markdown(
+        tr("The 2020 drop was **largest at Urban and Industrial stations** "
+           "(highest road density) and **smallest at Coastal and Refinery** "
+           "(lower road density, marine/industrial sources). "
+           "This confirms road density (r = +0.83) represents a real causal mechanism, "
+           "not a spurious correlation.")
+    )
+
+# Finding 3
+with st.expander("❄️ " + tr("Finding 3 — Winter paradox: highest NO₂ with strongest wind"), expanded=False):
+    _ss1, _ss2 = st.columns(2)
+    with _ss1:
+        _seasons    = ["Winter", "Spring", "Summer", "Autumn"]
+        _season_no2 = [22.37, 17.95, 14.34, 20.76]
+        _season_ws  = [20.1, 18.0, 15.9, 17.9]
+        _fig_sea = go.Figure()
+        _fig_sea.add_trace(go.Bar(
+            x=_seasons, y=_season_no2, name=tr("Mean NO₂ (µg/m³)"),
+            marker_color=["#3498db","#2ecc71","#f39c12","#e67e22"], opacity=0.85,
+        ))
+        _fig_sea.add_trace(go.Scatter(
+            x=_seasons, y=_season_ws, name=tr("Wind speed (m/s)"),
+            mode="lines+markers", line=dict(color="#2c3e50", dash="dash"), yaxis="y2",
+        ))
+        _fig_sea.update_layout(
+            height=280, title=tr("Seasonal NO₂ vs wind speed"),
+            yaxis=dict(title="Mean NO₂ (µg/m³)"),
+            yaxis2=dict(title=tr("Wind speed (m/s)"), overlaying="y", side="right"),
+            legend=dict(orientation="h", y=-0.3), margin=dict(t=45,b=10),
+            barmode="group",
+        )
+        st.plotly_chart(_fig_sea, width="stretch")
+    with _ss2:
+        st.markdown(
+            "**" + tr("Winter paradox") + "**\n"
+            + tr("Strongest wind (20.1 m/s) yet highest NO₂ (22.4 µg/m³). "
+                 "Reason: lower boundary layer height + more combustion emissions "
+                 "+ less thermal convection. "
+                 "Wind speed alone cannot overcome structural winter effects — "
+                 "GeoAI model uses season alongside wind speed as separate features.")
+        )
+
+# Finding 4
+with st.expander("📉 " + tr("Finding 4 — Long-term NO₂ decline: structural or behavioural?"), expanded=False):
+    _years   = list(range(2015, 2027))
+    _ann_no2 = [24.99, 21.68, 22.68, 20.77, 20.44, 15.92, 16.71, 17.11, 16.95, 16.04, 15.70, 14.71]
+    _fig_ann = go.Figure()
+    _fig_ann.add_trace(go.Scatter(
+        x=_years, y=_ann_no2, mode="lines+markers",
+        line=dict(color="#e74c3c", width=2),
+        fill="tozeroy", fillcolor="rgba(231,76,60,0.1)",
     ))
-    fig_dow.add_hline(
-        y=sum(_dow_no2[:5]) / 5,
-        line_dash="dash", line_color="#e74c3c",
-        annotation_text=tr("weekday avg"),
-        annotation_font_size=9,
-    )
-    fig_dow.add_hline(
-        y=sum(_dow_no2[5:]) / 2,
-        line_dash="dash", line_color="#2ecc71",
-        annotation_text=tr("weekend avg"),
-        annotation_font_size=9,
-        annotation_position="bottom right",
-    )
-    fig_dow.update_layout(
-        height=300,
-        title=tr("Mean NO₂ by day of week — all stations, 2015–2026"),
-        xaxis_title="",
-        yaxis_title="Mean NO₂ (µg/m³)",
-        margin=dict(t=45, b=10, l=10, r=20),
+    _fig_ann.add_vrect(x0=2020, x1=2021.5, fillcolor="#3498db", opacity=0.08,
+                       line_width=0, annotation_text="COVID",
+                       annotation_position="top left", annotation_font_size=10)
+    _fig_ann.add_hline(y=10, line_dash="dot", line_color="#e74c3c", opacity=0.5,
+                       annotation_text="WHO 10 µg/m³", annotation_font_size=9)
+    _fig_ann.update_layout(
+        height=260, title=tr("Annual mean NO₂ — all stations"),
+        yaxis_title="Mean NO₂ (µg/m³)", margin=dict(t=45,b=10,l=10,r=20),
         showlegend=False,
     )
-    st.plotly_chart(fig_dow, width="stretch")
- 
-with gai2:
-    st.markdown("**" + tr("What the data shows") + "**")
-    st.metric(tr("Weekday mean NO₂"), "20.29 µg/m³", delta_color="off")
-    st.metric(tr("Weekend mean NO₂"), "15.32 µg/m³", delta_color="off")
-    st.metric(tr("Weekday vs weekend"), "+32.4%", delta_color="inverse")
-    st.markdown("---")
+    st.plotly_chart(_fig_ann, width="stretch")
     st.markdown(
-        "**" + tr("GIS confirmation (notebook 10a)") + "**  \n"
-        + tr(
-            "Road density within 1 km × mean NO₂: **r = +0.83** — "
-            "the strongest spatial predictor in the network. "
-            "The day-of-week pattern is the temporal signature of "
-            "the same mechanism: stations with high road density "
-            "(BARAKALDO: 21,267 m/km² · MAZARREDO: 19,060 m/km²) "
-            "drive the weekday spike."
-        )
+        tr("NO₂ fell from 25.0 µg/m³ (2015) to 14.7 µg/m³ (2026) — a 41% reduction. "
+           "All years remain above the WHO 2021 guideline (10 µg/m³).  \n\n"
+           "**GIS context:** Road density (r = +0.83) is unchanged — the road network is the same. "
+           "The decline is behavioural: fleet electrification, Euro 5/6 standards, post-COVID shift. "
+           "Structural analysis remains valid for *relative* differences between stations.")
     )
- 
-st.success(
-    tr(
-        "**Two independent methods — same conclusion:** "
-        "Traffic infrastructure is the primary driver of NO₂ in Greater Bilbao. "
-        "The temporal pattern (−32% on weekends) is the daily fingerprint of "
-        "the spatial structure (road density r = +0.83)."
-    )
-)
- 
-st.divider()
- 
-# ── Finding 2: COVID-19 as a natural experiment ───────────────────────────────
-st.markdown("### " + tr("Finding 2 — COVID-19 as a natural experiment"))
-st.caption(
-    tr(
-        "The 2020 lockdown removed traffic from high-road-density stations, "
-        "providing a natural experiment that confirms the GIS finding."
-    )
-)
- 
-cov1, cov2, cov3 = st.columns(3)
-cov1.metric(tr("2019 network mean NO₂"), "20.44 µg/m³", delta_color="off")
-cov2.metric(tr("2020 (lockdown) NO₂"),   "15.92 µg/m³", "−22.1%", delta_color="inverse")
-cov3.metric(tr("2021 (partial recovery)"),"16.71 µg/m³", "+4.9% vs 2020", delta_color="inverse")
- 
-st.markdown(
-    tr(
-        "The 2020 drop (−22.1%) was largest at **Urban and Industrial** stations "
-        "(highest road density) and smallest at **Coastal and Refinery** stations "
-        "(lower road density, more industrial/marine sources). "
-        "This confirms that the road density signal from GIS analysis "
-        "(r = +0.83 road density × NO₂) represents a real causal mechanism, "
-        "not a spurious correlation."
-    )
-)
- 
-st.divider()
- 
-# ── Finding 3: Seasonal pattern + winter boundary layer ───────────────────────
-st.markdown("### " + tr("Finding 3 — Why winter NO₂ is highest despite strongest winds"))
- 
-_seasons     = ["Winter", "Spring", "Summer", "Autumn"]
-_season_no2  = [22.37, 17.95, 14.34, 20.76]
-_season_ws   = [20.1,  18.0,  15.9,  17.9]
- 
-s1, s2 = st.columns(2)
- 
-with s1:
-    fig_sea = go.Figure()
-    fig_sea.add_trace(go.Bar(
-        x=_seasons, y=_season_no2,
-        name=tr("Mean NO₂ (µg/m³)"),
-        marker_color=["#3498db","#2ecc71","#f39c12","#e67e22"],
-        opacity=0.85,
-    ))
-    fig_sea.add_trace(go.Scatter(
-        x=_seasons, y=_season_ws,
-        name=tr("Wind speed (m/s)"),
-        mode="lines+markers",
-        line=dict(color="#2c3e50", dash="dash"),
-        yaxis="y2",
-    ))
-    fig_sea.update_layout(
-        height=300,
-        title=tr("Seasonal NO₂ vs wind speed"),
-        yaxis=dict(title="Mean NO₂ (µg/m³)"),
-        yaxis2=dict(title="Wind speed (m/s)", overlaying="y", side="right"),
-        legend=dict(orientation="h", y=-0.25),
-        margin=dict(t=45, b=10),
-        barmode="group",
-    )
-    st.plotly_chart(fig_sea, width="stretch")
- 
-with s2:
-    st.markdown("**" + tr("The winter paradox") + "**")
-    st.markdown(
-        tr(
-            "Winter has the **strongest mean wind speed (20.1 m/s)** "
-            "yet records the **highest mean NO₂ (22.4 µg/m³)**. "
-            "This seems to contradict the wind dispersion finding "
-            "(notebook 10d: strong wind reduces NO₂ by 57%)."
-        )
-    )
-    st.markdown("**" + tr("Explanation") + "**")
-    st.markdown(
-        tr(
-            "Seasonal wind strength and daily dispersion operate at different scales. "
-            "In winter:  \n"
-            "- **Boundary layer height is lower** — less vertical volume for dilution  \n"
-            "- **More heating combustion** — additional emission source  \n"
-            "- **Fewer hours of thermal convection** — less daytime mixing  \n\n"
-            "Wind speed alone cannot overcome these structural winter effects. "
-            "This is why the GeoAI model uses season as a feature alongside wind speed."
-        )
-    )
- 
-st.divider()
- 
-# ── Annual trend + GIS context ─────────────────────────────────────────────────
-st.markdown("### " + tr("Finding 4 — Long-term NO₂ decline: structural or behavioural?"))
- 
-_years   = list(range(2015, 2027))
-_ann_no2 = [24.99, 21.68, 22.68, 20.77, 20.44, 15.92, 16.71, 17.11, 16.95, 16.04, 15.70, 14.71]
- 
-fig_ann = go.Figure()
-fig_ann.add_trace(go.Scatter(
-    x=_years, y=_ann_no2,
-    mode="lines+markers",
-    line=dict(color="#e74c3c", width=2),
-    fill="tozeroy",
-    fillcolor="rgba(231,76,60,0.1)",
-    name="NO₂",
-))
-# Mark COVID
-fig_ann.add_vrect(x0=2020, x1=2021.5,
-    fillcolor="#3498db", opacity=0.08, line_width=0,
-    annotation_text="COVID", annotation_position="top left",
-    annotation_font_size=10,
-)
-# WHO line
-fig_ann.add_hline(y=10, line_dash="dot", line_color="#e74c3c", opacity=0.5,
-    annotation_text="WHO 10 µg/m³", annotation_font_size=9)
-fig_ann.update_layout(
-    height=280,
-    title=tr("Annual mean NO₂ — all stations, Greater Bilbao"),
-    xaxis_title="", yaxis_title="Mean NO₂ (µg/m³)",
-    margin=dict(t=45, b=10, l=10, r=20),
-    showlegend=False,
-)
-st.plotly_chart(fig_ann, width="stretch")
- 
-st.markdown(
-    tr(
-        "NO₂ fell from 25.0 µg/m³ (2015) to 14.7 µg/m³ (2026) — a 41% reduction over 11 years. "
-        "However, all years remain above the WHO 2021 annual guideline (10 µg/m³).  \n\n"
-        "**GIS context:** The structural drivers (road density r = +0.83) have not changed — "
-        "the road network is the same. The decline is therefore likely behavioural: "
-        "fleet electrification, improved emission standards (Euro 5/6), reduced congestion "
-        "post-COVID, and modal shift. "
-        "This means the GIS structural analysis remains valid — road density still predicts "
-        "*relative* NO₂ differences between stations — but absolute levels will continue falling."
-    )
-)
- 
+
 st.info(
-    tr(
-        "All narrative findings above are verified against the full parquet dataset (2015–2026). "
-        "GIS correlations from notebooks 10a–10b (n = 7 stations, exploratory only). "
-        "Seasonal wind data from ERA5 single grid cell (~31 km resolution)."
-    )
+    tr("Findings verified against parquet 2015–2026. "
+       "GIS correlations: n = 7 stations, exploratory only. "
+       "ERA5 wind: single grid cell (~31 km).")
 )
