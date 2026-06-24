@@ -12,6 +12,11 @@ from config import (
     ZONE_META, who_delta, EU_ANNUAL, ALERT_LIMITS,
 )
 
+import sys
+import pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
+from i18n_auto import language_selector, apply_lang_styles, tr
+
 # ==================================================
 # PAGE CONFIG
 # ==================================================
@@ -22,6 +27,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+language_selector()
+apply_lang_styles()
 
 # ==================================================
 # DESIGN SYSTEM
@@ -352,7 +359,7 @@ st.write("")
 # ==================================================
 
 st.markdown('<p class="eyebrow">Latest reading</p>', unsafe_allow_html=True)
-st.markdown(f"### Today across the network — {latest_date.strftime('%d %b %Y')}")
+st.markdown("### " + tr("Latest readings across the network") + f" — {latest_date.strftime('%d %b %Y')}")
 
 col_fav, col_snap = st.columns([2, 5], gap="large")
 
@@ -401,8 +408,8 @@ st.divider()
 # ENVIRONMENTAL ZONES
 # ==================================================
 
-st.markdown('<p class="eyebrow">The network, by character</p>', unsafe_allow_html=True)
-st.markdown("### Five environmental zones")
+st.markdown(f'<p class="eyebrow">{tr("The network, by character")}</p>', unsafe_allow_html=True)
+st.markdown("### " + tr("Five environmental zones"))
 st.caption(
     "Each station sits in a zone defined by its dominant emission source — "
     "traffic, industry, port, coast, or refinery. Latest-year averages shown."
@@ -473,8 +480,8 @@ st.divider()
 # CITY-WIDE INSIGHTS
 # ==================================================
 
-st.markdown('<p class="eyebrow">A decade in view</p>', unsafe_allow_html=True)
-st.markdown("### City-wide trends")
+st.markdown(f'<p class="eyebrow">{tr("A decade in view")}</p>', unsafe_allow_html=True)
+st.markdown("### " + tr("City-wide trends"))
 
 col_left, col_right = st.columns([3, 2], gap="large")
 latest_year = int(df["Year"].max())
@@ -553,14 +560,14 @@ st.divider()
 # NAVIGATION
 # ==================================================
 
-st.markdown('<p class="eyebrow">Where to next</p>', unsafe_allow_html=True)
-st.markdown("### Explore the platform")
+st.markdown(f'<p class="eyebrow">{tr("Where to next")}</p>', unsafe_allow_html=True)
+st.markdown("### " + tr("Explore the platform"))
 
 NAV = [
     {"icon":"🌅","title":"Daily Briefing","desc":"Today's status, tomorrow's alerts, one-page PDF","page":"pages/0_Daily_Briefing.py"},
     {"icon":"🗺️","title":"Air Quality Monitoring","desc":"Interactive GIS map · station comparison · SVI structural context","page":"pages/1_Air_Quality_Monitoring.py"},
     {"icon":"📈","title":"Temporal Trends","desc":"Long-term patterns, seasonality, COVID impact","page":"pages/2_Temporal_Trends.py"},
-    {"icon":"🌍","title":"GeoAI Spatial Analysis","desc":"WHO and EU risk scoring, station rankings","page":"pages/3_GeoAI_Spatial_Analysis.py"},
+    {"icon":"🌍","title":"GeoAI Spatial Analysis","desc":"Spatial drivers · terrain · wind transport · station DNA","page":"pages/3_GeoAI_Spatial_Analysis.py"},
     {"icon":"🌤️","title":"Weather Drivers","desc":"Wind transport analysis · dispersion effects · seasonal patterns","page":"pages/4_Weather_Drivers_&_Air_Pollution_Dynamics.py"},
     {"icon":"🔮","title":"Forecasting","desc":"Next-day XGBoost predictions with SHAP","page":"pages/5_Forecasting.py"},
     {"icon":"🏛️","title":"Decision Support","desc":"GeoAI spatial intelligence · wind transport · structural risk index","page":"pages/6_Smart_City_Decision_Support.py"},

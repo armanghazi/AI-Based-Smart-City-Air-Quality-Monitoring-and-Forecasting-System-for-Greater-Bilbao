@@ -16,6 +16,10 @@ Data sources:
   - ERA5 wind via Open-Meteo         (CC BY 4.0)
 """
 
+import sys
+import pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -24,6 +28,7 @@ import streamlit as st
 from pathlib import Path
 
 from config import load_data, WHO_ANNUAL, ZONE_META
+from i18n_auto import language_selector, apply_lang_styles, tr
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PAGE CONFIG
@@ -34,6 +39,8 @@ st.set_page_config(
     page_icon="🌍",
     layout="wide",
 )
+language_selector()
+apply_lang_styles()
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
@@ -128,7 +135,7 @@ spatial_ok = not df_sp.empty
 # HEADER
 # ──────────────────────────────────────────────────────────────────────────────
 
-st.markdown("## 🌍 GeoAI Spatial Analysis")
+st.markdown("## " + tr("🌍 GeoAI Spatial Analysis"))
 st.markdown(
     "Structural spatial context for the Greater Bilbao air quality monitoring network.  \n"
     "**Sources:** OSM buffer analysis (notebook 10a) · Haversine distances (10b) · "
@@ -155,10 +162,10 @@ st.divider()
 # ──────────────────────────────────────────────────────────────────────────────
 
 tab_dna, tab_drivers, tab_terrain, tab_wind = st.tabs([
-    "🗺️ Station DNA",
-    "📊 Spatial Drivers",
-    "⛰️ Terrain & Dispersion",
-    "💨 Wind Transport",
+    tr("🗺️ Station DNA"),
+    tr("📊 Spatial Drivers"),
+    tr("⛰️ Terrain & Dispersion"),
+    tr("💨 Wind Transport"),
 ])
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -166,18 +173,18 @@ tab_dna, tab_drivers, tab_terrain, tab_wind = st.tabs([
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_dna:
-    st.markdown("### Station Spatial Profile")
+    st.markdown("### " + tr("Station Spatial Profile"))
     st.caption(
         "Complete structural context for each station from OSM buffer analysis, "
         "landmark distances, and Copernicus DEM terrain analysis."
     )
 
     if not spatial_ok:
-        st.info("Spatial features file required. Run notebooks 10a–10c.")
+        st.info(tr("Spatial features file required. Run notebooks 10a–10c."))
     else:
         # Station selector
         selected = st.selectbox(
-            "Select station",
+            tr("Select station"),
             options=df_sp["station"].tolist(),
             format_func=lambda s: f"{s}  ({STATION_ZONES.get(s, '')})",
         )
@@ -289,17 +296,17 @@ with tab_dna:
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_drivers:
-    st.markdown("### Spatial Driver Analysis")
+    st.markdown("### " + tr("Spatial Driver Analysis"))
     st.caption(
         "Pearson r between spatial features and long-term mean pollutant concentrations. "
         "n = 7 stations — correlations are exploratory and indicative only."
     )
 
     if not spatial_ok:
-        st.info("Spatial features file required.")
+        st.info(tr("Spatial features file required."))
     else:
         # ── Correlation heatmap ────────────────────────────────────────────────
-        st.markdown("#### Correlation matrix — spatial features × pollutants")
+        st.markdown("#### " + tr("Correlation matrix — spatial features × pollutants"))
 
         _feature_groups = {
             "Buffer — Land Use": [
@@ -360,8 +367,8 @@ with tab_drivers:
         st.divider()
 
         # ── Interactive scatter ────────────────────────────────────────────────
-        st.markdown("#### Spatial driver explorer")
-        st.caption("Choose X (spatial feature) and Y (pollutant) to explore the relationship.")
+        st.markdown("#### " + tr("Spatial driver explorer"))
+        st.caption(tr("Choose X (spatial feature) and Y (pollutant) to explore the relationship."))
 
         _feat_labels = {
             "Road density (1km)":         "road_density_1000m",
@@ -377,8 +384,8 @@ with tab_drivers:
         _avail = {k: v for k, v in _feat_labels.items() if v in df_sp.columns}
 
         _sc1, _sc2 = st.columns(2)
-        x_lbl = _sc1.selectbox("Spatial feature (X)", list(_avail.keys()), index=0)
-        y_lbl = _sc2.selectbox("Pollutant (Y)", POLLUTANTS, index=2)
+        x_lbl = _sc1.selectbox(tr("Spatial feature (X)"), list(_avail.keys()), index=0)
+        y_lbl = _sc2.selectbox(tr("Pollutant (Y)"), POLLUTANTS, index=2)
 
         x_col = _avail[x_lbl]
         y_col = y_lbl
@@ -413,7 +420,7 @@ with tab_drivers:
         st.divider()
 
         # Top findings table
-        st.markdown("#### Summary — strongest spatial predictors")
+        st.markdown("#### " + tr("Summary — strongest spatial predictors"))
         _rows = []
         for feat, poll, r, label, explanation in TOP_FINDINGS:
             _rows.append({"Feature": label, "Pollutant": poll, "r": r, "Interpretation": explanation})
@@ -424,7 +431,7 @@ with tab_drivers:
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_terrain:
-    st.markdown("### Terrain & Atmospheric Dispersion")
+    st.markdown("### " + tr("Terrain & Atmospheric Dispersion"))
     st.caption(
         "Elevation and terrain complexity derived from Copernicus GLO-30 DEM (30 m resolution). "
         "Higher Terrain Relief Index (TRI) = more complex terrain = stronger turbulent mixing."
@@ -488,7 +495,7 @@ with tab_terrain:
         st.divider()
 
         # ── Terrain vs pollutant scatter ───────────────────────────────────────
-        st.markdown("#### TRI × mean PM10  — terrain complexity reduces particulate levels")
+        st.markdown("#### " + tr("TRI × mean PM10  — terrain complexity reduces particulate levels"))
         if "elev_tri_2000m" in df_sp.columns and "PM10" in df_sp.columns:
             df_tsc = df_sp[["station", "zone", "elev_tri_2000m", "PM10",
                             "elev_point_m"]].dropna()
@@ -510,7 +517,7 @@ with tab_terrain:
         st.divider()
 
         # ── Key terrain finding ────────────────────────────────────────────────
-        st.markdown("#### MUSKIZ dispersion paradox — confirmed by terrain analysis")
+        st.markdown("#### " + tr("MUSKIZ dispersion paradox — confirmed by terrain analysis"))
         _mc1, _mc2, _mc3 = st.columns(3)
         _mc1.metric("Industrial land use (1km)", "34.6%", "Highest in network",
                     delta_color="inverse")
@@ -534,7 +541,7 @@ with tab_terrain:
 # ══════════════════════════════════════════════════════════════════════════════
 
 with tab_wind:
-    st.markdown("### Wind Transport Analysis")
+    st.markdown("### " + tr("Wind Transport Analysis"))
     st.caption(
         "Regional wind conditions from ERA5 (single grid cell, ~31 km resolution). "
         "Direction = sector wind is coming FROM. All 7 stations share the same ERA5 time series."
@@ -547,7 +554,7 @@ with tab_wind:
     df["dir8"] = df["WindDirection"].apply(dir8)
 
     # ── Section A: Wind speed × dispersion ────────────────────────────────────
-    st.markdown("#### A — Wind speed reduces pollution monotonically")
+    st.markdown("#### " + tr("A — Wind speed reduces pollution monotonically"))
 
     _ws_labels = ["< 10", "10–15", "15–20", "20–25", "> 25"]
     _no2_means = [29.85, 21.05, 18.56, 16.03, 12.81]
@@ -595,13 +602,13 @@ with tab_wind:
     st.divider()
 
     # ── Section B: Direction × station heatmaps ───────────────────────────────
-    st.markdown("#### B — Wind direction × station cross-analysis")
+    st.markdown("#### " + tr("B — Wind direction × station cross-analysis"))
     st.caption(
         "Under the same regional wind, stations respond differently — "
         "revealing each station's position relative to emission sources."
     )
 
-    _poll_wind = st.selectbox("Pollutant", POLLUTANTS, index=2, key="wind_poll")
+    _poll_wind = st.selectbox(tr("Pollutant"), POLLUTANTS, index=2, key="wind_poll")
 
     _pivot = (
         df.groupby(["dir8", "station"])[_poll_wind]
@@ -634,7 +641,7 @@ with tab_wind:
     st.divider()
 
     # ── Section C: MUSKIZ + MAZARREDO deep-dive ────────────────────────────────
-    st.markdown("#### C — Station signatures: MUSKIZ SO₂ + MAZARREDO NO₂")
+    st.markdown("#### " + tr("C — Station signatures: MUSKIZ SO₂ + MAZARREDO NO₂"))
 
     _muskiz_so2 = [5.81, 7.32, 5.93, 5.19, 3.80, 3.86, 3.42, 4.50]
     _maz_no2    = [19.31, 23.36, 32.36, 35.32, 32.09, 29.68, 26.37, 20.79]
@@ -707,7 +714,7 @@ with tab_wind:
     st.divider()
 
     # ── Wind regime summary ────────────────────────────────────────────────────
-    st.markdown("#### D — Two dominant regimes")
+    st.markdown("#### " + tr("D — Two dominant regimes"))
     _r1, _r2 = st.columns(2)
     _r1.success(
         "**NW/W regime (37.2% of days) — Bay of Biscay sea air**  \n"
