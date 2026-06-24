@@ -560,7 +560,7 @@ NAV = [
     {"icon":"🌅","title":"Daily Briefing","desc":"Today's status, tomorrow's alerts, one-page PDF","page":"pages/0_Daily_Briefing.py"},
     {"icon":"🗺️","title":"Air Quality Monitoring","desc":"Interactive GIS map · station comparison · SVI structural context","page":"pages/1_Air_Quality_Monitoring.py"},
     {"icon":"📈","title":"Temporal Trends","desc":"Long-term patterns, seasonality, COVID impact","page":"pages/2_Temporal_Trends.py"},
-    {"icon":"🌍","title":"Urban Risk Index","desc":"WHO and EU risk scoring, station rankings","page":"pages/3_Urban_Risk_Index.py"},
+    {"icon":"🌍","title":"GeoAI Spatial Analysis","desc":"WHO and EU risk scoring, station rankings","page":"pages/3_GeoAI_Spatial_Analysis.py"},
     {"icon":"🌤️","title":"Weather Drivers","desc":"Wind transport analysis · dispersion effects · seasonal patterns","page":"pages/4_Weather_Drivers_&_Air_Pollution_Dynamics.py"},
     {"icon":"🔮","title":"Forecasting","desc":"Next-day XGBoost predictions with SHAP","page":"pages/5_Forecasting.py"},
     {"icon":"🏛️","title":"Decision Support","desc":"GeoAI spatial intelligence · wind transport · structural risk index","page":"pages/6_Smart_City_Decision_Support.py"},
