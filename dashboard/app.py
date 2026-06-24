@@ -9,14 +9,8 @@ from datetime import timedelta
 from config import (
     load_data,
     WHO_ANNUAL, WHO_SO2_DAILY, POLLUTANT_COLOR,
-    ZONE_META, who_delta, EU_ANNUAL, ALERT_LIMITS, center_tables
+    ZONE_META, who_delta, EU_ANNUAL, ALERT_LIMITS,
 )
-
-from i18n_auto import language_selector, apply_lang_styles, tr
-import sys
-from pathlib import Path as _Path
-sys.path.insert(0, str(_Path(__file__).parent))
-from weather_panel import weather_snapshot
 
 # ==================================================
 # PAGE CONFIG
@@ -28,23 +22,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
-
-# Auto-redirect admin BEFORE rendering anything
-# Auto-redirect admin to Operations Dashboard once per session after login
-try:
-    if st.user.is_logged_in:
-        from auth import current_role
-        role = current_role()
-        if role == "admin" and not st.session_state.get("_admin_welcomed"):
-            st.session_state["_admin_welcomed"] = True
-            st.switch_page("pages/9_Smart_City_Operations.py")
-except Exception:
-    pass
-
-# Only reaches here if no redirect happened
-center_tables()
-language_selector()
-apply_lang_styles()
 
 # ==================================================
 # DESIGN SYSTEM
@@ -71,7 +48,6 @@ st.markdown("""
     --warn:       #d97706;
     --bad:        #dc2626;
 }
-
 
 html, body, [class*="css"] {
     font-family: 'IBM Plex Sans', system-ui, sans-serif;
@@ -178,8 +154,10 @@ h1, h2, h3, h4 { letter-spacing: -0.02em; font-weight: 600; }
 }
 .zone-head { font-size: 1.15rem; font-weight: 600; margin-bottom: 3px; }
 .zone-desc { color: var(--mist); font-size: 0.8rem; margin-bottom: 6px; line-height: 1.4; }
-.zone-loc  { color: #94a3b8; font-size: 0.74rem; margin-bottom: 10px;
+.zone-loc  { color: #94a3b8; font-size: 0.74rem; margin-bottom: 6px;
              font-family: 'IBM Plex Mono', monospace; }
+.zone-spatial { color: #0ea5b5; font-size: 0.77rem; margin-bottom: 8px;
+                font-style: italic; line-height: 1.4; }
 .zone-row  { display:flex; justify-content:space-between;
              font-size: 0.84rem; padding: 2px 0; }
 .zone-row .k { color: var(--mist); }
@@ -202,7 +180,6 @@ h1, h2, h3, h4 { letter-spacing: -0.02em; font-weight: 600; }
 .nav-title { font-weight: 600; font-size: 0.98rem; margin: 8px 0 4px; }
 .nav-desc { color: var(--mist); font-size: 0.8rem; line-height: 1.45; }
 
-
 /* ---- Metric tuning ---- */
 div[data-testid="stMetric"] {
     background: var(--haze);
@@ -216,8 +193,6 @@ div[data-testid="stMetricValue"] {
 hr { border-color: var(--line); }
 </style>
 """, unsafe_allow_html=True)
-
-
 
 # ==================================================
 # LOAD DATA
@@ -301,7 +276,7 @@ def _prepare_last_row(sdf: pd.DataFrame, feats: list) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=3600)
-def _get_next_day_exceedances() -> list:
+def _get_tomorrow_exceedances() -> list:
     results = []
     for station in station_list:
         sdf = df[df["station"] == station].sort_values("Date")
@@ -321,9 +296,9 @@ def _get_next_day_exceedances() -> list:
     return results
 
 
-exceed = _get_next_day_exceedances()
+exceed = _get_tomorrow_exceedances()
 n_exc  = len(exceed)
-forecast_date_str = (latest_date + timedelta(days=1)).strftime("%d %b %Y")
+tomorrow_str = (latest_date + timedelta(days=1)).strftime("%d %b %Y")
 
 # ==================================================
 # HERO
@@ -331,15 +306,16 @@ forecast_date_str = (latest_date + timedelta(days=1)).strftime("%d %b %Y")
 
 st.markdown(f"""
 <div class="hero">
-    <p class="hero-eyebrow">{tr("GeoAI Smart City Platform · Greater Bilbao · Bizkaia")}</p>
-    <h1 class="hero-title">{tr("Air Quality Intelligence for Greater Bilbao")}</h1>
+    <p class="hero-eyebrow">GeoAI Smart City Platform · Greater Bilbao · Bizkaia</p>
+    <h1 class="hero-title">Air Quality Intelligence for Greater Bilbao</h1>
     <p class="hero-sub">
-        {tr("Monitoring and next-day forecasting across the region's air — seven stations, four pollutants, updated automatically every morning.")}
+        Monitoring and next-day forecasting across the region's air — seven stations, four pollutants, updated automatically every morning.
     </p>
     <div class="hero-meta">
-        <span><b>7</b> {tr("stations")} · <b>5</b> {tr("zones")}</span>
-        <span><b>{n_years}</b> {tr("years")} · {n_records:,} {tr("daily records")}</span>
-        <span><b>{tr("Next-day")}</b> {tr("XGBoost forecast")}</span>
+        <span><b>7</b> stations · <b>5</b> zones</span>
+        <span><b>{n_years}</b> years · {n_records:,} daily records</span>
+        <span><b>GeoAI spatial</b> · 4 notebooks · 35 features</span>
+        <span><b>Next-day</b> XGBoost forecast</span>
         <span><b>WHO 2021</b> + EU Directive 2008/50/EC</span>
     </div>
 </div>
@@ -349,54 +325,34 @@ st.markdown(f"""
 if n_exc == 0:
     st.markdown(
         f'<div class="alert alert-good">✅ '
-        f'{tr("All stations within EU Directive limits — no legal exceedances forecast for")} {forecast_date_str}.</div>',
+        f'All stations within EU Directive limits — '
+        f'no legal exceedances forecast for {tomorrow_str}.</div>',
         unsafe_allow_html=True)
 elif n_exc <= 4:
     s_exc = list({e["station"].split("_")[0] for e in exceed})
     st.markdown(
         f'<div class="alert alert-warn">⚠️ '
-        f'{n_exc} {tr("EU Directive exceedance")}{"s" if n_exc>1 else ""} '
-        f'{tr("forecast for")} {forecast_date_str} · {tr("Stations:")} {", ".join(s_exc)} · '
-        f'<a href="/Daily_Briefing">{tr("Open the daily briefing →")}</a></div>',
+        f'{n_exc} EU Directive exceedance{"s" if n_exc>1 else ""} '
+        f'forecast for {tomorrow_str} · Stations: {", ".join(s_exc)} · '
+        f'<a href="/Daily_Briefing">Open the daily briefing →</a></div>',
         unsafe_allow_html=True)
 else:
     st.markdown(
         f'<div class="alert alert-bad">🚨 '
-        f'{n_exc} {tr("EU Directive exceedances forecast for")} {forecast_date_str} · '
-        f'{tr("multiple zones affected")} · '
-        f'<a href="/Daily_Briefing">{tr("Open the daily briefing →")}</a></div>',
+        f'{n_exc} EU Directive exceedances forecast for {tomorrow_str} · '
+        f'multiple zones affected · '
+        f'<a href="/Daily_Briefing">Open the daily briefing →</a></div>',
         unsafe_allow_html=True)
 
 st.write("")
 st.write("")
-
-# ── Project Assistant (secondary, outline call-to-action) ──
-st.markdown(f"""
-<style>
-.assistant-cta-wrap {{ display:flex; justify-content:center; margin:.25rem 0 1.25rem; }}
-.assistant-cta {{
-    display:inline-flex; align-items:center; gap:.5rem;
-    padding:.55rem 1.25rem; border-radius:12px;
-    background:transparent; color:#2563eb;
-    border:1.5px solid rgba(37,99,235,.5);
-    font-weight:600; font-size:.95rem; text-decoration:none;
-    transition:background .15s ease, border-color .15s ease;
-}}
-.assistant-cta:hover {{
-    background:rgba(37,99,235,.08); border-color:#2563eb; color:#2563eb;
-}}
-</style>
-<div class="assistant-cta-wrap">
-  <a class="assistant-cta" href="/Project_Assistant" target="_self">💬 {tr("Ask about the data &amp; methods")}</a>
-</div>
-""", unsafe_allow_html=True)
 
 # ==================================================
 # QUICK STATUS
 # ==================================================
 
-st.markdown(f'<p class="eyebrow">{tr("Latest reading")}</p>', unsafe_allow_html=True)
-st.markdown(f"### Latest readings — {latest_date.strftime('%d %b %Y')} (D-1)")
+st.markdown('<p class="eyebrow">Latest reading</p>', unsafe_allow_html=True)
+st.markdown(f"### Today across the network — {latest_date.strftime('%d %b %Y')}")
 
 col_fav, col_snap = st.columns([2, 5], gap="large")
 
@@ -404,19 +360,19 @@ with col_fav:
     default_idx = (station_list.index(st.session_state.fav_station)
                    if st.session_state.fav_station in station_list else 0)
     selected_fav = st.selectbox(
-        tr("Your default station"),
+        "Your default station",
         options=station_list,
         index=default_idx,
-        help=tr("Remembered on this device for your next visit."),
+        help="Remembered on this device for your next visit.",
     )
-    if st.button(tr("Save as default"), type="primary", width="stretch"):
+    if st.button("Save as default", type="primary", use_container_width=True):
         st.session_state.fav_station = selected_fav
         if _cookies is not None:
             _cookies["fav_station"] = selected_fav
             _cookies.save()
             st.success(f"{selected_fav} saved.")
         else:
-            st.info(tr("Saved for this session."))
+            st.info("Saved for this session.")
 
 with col_snap:
     latest_means = (
@@ -441,20 +397,15 @@ with col_snap:
 
 st.divider()
 
-# ── Weather snapshot ──────────────────────────────────────────────────
-weather_snapshot(df[df["Date"] == latest_date])
-st.divider()
-
-
 # ==================================================
 # ENVIRONMENTAL ZONES
 # ==================================================
 
-st.markdown(f'<p class="eyebrow">{tr("The network, by character")}</p>', unsafe_allow_html=True)
-st.markdown("### " + tr("Five environmental zones"))
+st.markdown('<p class="eyebrow">The network, by character</p>', unsafe_allow_html=True)
+st.markdown("### Five environmental zones")
 st.caption(
-    tr("Each station sits in a zone defined by its dominant emission source — "
-       "traffic, industry, port, coast, or refinery. Latest-year averages shown.")
+    "Each station sits in a zone defined by its dominant emission source — "
+    "traffic, industry, port, coast, or refinery. Latest-year averages shown."
 )
 
 zone_summary = (
@@ -463,6 +414,15 @@ zone_summary = (
     .mean().round(1)
 )
 
+
+# Spatial driver context from GIS analysis (notebooks 10a/10b/10c)
+ZONE_SPATIAL = {
+    "Urban":      "Road density 19,060 m/km² · 501 m from city centre → structural NO₂ source",
+    "Industrial": "354 m from AP-8 motorway · industrial land use 10–21% within 1 km",
+    "Port":       "784 m from Port of Bilbao · TRI 445 m provides terrain dispersion buffer",
+    "Coastal":    "Lowest road density (9,933 m/km²) · 2.6 km coast → NW sea breeze flushing",
+    "Refinery":   "2.4 km from Petronor · TRI 343 m + coastal position → dispersion advantage",
+}
 
 def render_zone_card(zone_name, meta, zone_summary, df):
     z = zone_summary.loc[zone_name] if zone_name in zone_summary.index else None
@@ -482,6 +442,7 @@ def render_zone_card(zone_name, meta, zone_summary, df):
         <div class="zone-head">{meta['icon']} {zone_name}</div>
         <div class="zone-desc">{meta['description']}</div>
         <div class="zone-loc">{short}</div>
+        <div class="zone-spatial">{ZONE_SPATIAL.get(zone_name, "")}</div>
         <div class="zone-row"><span class="k">PM2.5</span><span class="v">{pm25:.1f}</span></div>
         <div class="zone-row"><span class="k">PM10</span><span class="v">{pm10:.1f}</span></div>
         <div class="zone-row"><span class="k">NO₂</span><span class="v">{no2:.1f}</span></div>
@@ -512,14 +473,14 @@ st.divider()
 # CITY-WIDE INSIGHTS
 # ==================================================
 
-st.markdown(f'<p class="eyebrow">{tr("A decade in view")}</p>', unsafe_allow_html=True)
-st.markdown("### " + tr("City-wide trends"))
+st.markdown('<p class="eyebrow">A decade in view</p>', unsafe_allow_html=True)
+st.markdown("### City-wide trends")
 
 col_left, col_right = st.columns([3, 2], gap="large")
 latest_year = int(df["Year"].max())
 
 with col_left:
-    st.markdown("#### " + tr("Annual mean concentration"))
+    st.markdown("#### Annual mean concentration")
     annual = df.groupby("Year")[["PM2.5", "PM10", "NO2"]].mean().reset_index()
     annual_long = annual.melt(id_vars="Year", var_name="Pollutant",
                               value_name="Concentration")
@@ -543,7 +504,7 @@ with col_left:
     st.plotly_chart(fig_trend, width="stretch")
 
 with col_right:
-    st.markdown("#### " + tr("Station risk ranking"))
+    st.markdown("#### Station risk ranking")
 
     station_latest = (
         df[df["Year"] == latest_year]
@@ -582,8 +543,8 @@ with col_right:
     st.plotly_chart(fig_status, width="stretch")
 
 st.caption(
-    tr("Risk score = mean of (concentration ÷ WHO 2021 limit) across PM2.5, PM10, NO₂, ×100. "
-       "100 = exactly at the WHO guideline.")
+    "Risk score = mean of (concentration ÷ WHO 2021 limit) across PM2.5, PM10, NO₂, ×100. "
+    "100 = exactly at the WHO guideline."
 )
 
 st.divider()
@@ -592,17 +553,17 @@ st.divider()
 # NAVIGATION
 # ==================================================
 
-st.markdown(f'<p class="eyebrow">{tr("Where to next")}</p>', unsafe_allow_html=True)
-st.markdown("### " + tr("Explore the platform"))
+st.markdown('<p class="eyebrow">Where to next</p>', unsafe_allow_html=True)
+st.markdown("### Explore the platform")
 
 NAV = [
-    {"icon":"🌅","title":"Daily Briefing","desc":"Latest readings (D-1), next-day forecast, one-page PDF","page":"pages/0_Daily_Briefing.py"},
-    {"icon":"🗺️","title":"Air Quality Monitoring","desc":"Interactive map and station comparison","page":"pages/1_Air_Quality_Monitoring.py"},
+    {"icon":"🌅","title":"Daily Briefing","desc":"Today's status, tomorrow's alerts, one-page PDF","page":"pages/0_Daily_Briefing.py"},
+    {"icon":"🗺️","title":"Air Quality Monitoring","desc":"Interactive GIS map · station comparison · SVI structural context","page":"pages/1_Air_Quality_Monitoring.py"},
     {"icon":"📈","title":"Temporal Trends","desc":"Long-term patterns, seasonality, COVID impact","page":"pages/2_Temporal_Trends.py"},
     {"icon":"🌍","title":"Urban Risk Index","desc":"WHO and EU risk scoring, station rankings","page":"pages/3_Urban_Risk_Index.py"},
-    {"icon":"🌤️","title":"Weather Drivers","desc":"How wind, rain and temperature shape pollution","page":"pages/4_Weather_Drivers_&_Air_Pollution_Dynamics.py"},
+    {"icon":"🌤️","title":"Weather Drivers","desc":"Wind transport analysis · dispersion effects · seasonal patterns","page":"pages/4_Weather_Drivers_&_Air_Pollution_Dynamics.py"},
     {"icon":"🔮","title":"Forecasting","desc":"Next-day XGBoost predictions with SHAP","page":"pages/5_Forecasting.py"},
-    {"icon":"🏛️","title":"Decision Support","desc":"Risk prioritization, zone actions, reports","page":"pages/6_Smart_City_Decision_Support.py"},
+    {"icon":"🏛️","title":"Decision Support","desc":"GeoAI spatial intelligence · wind transport · structural risk index","page":"pages/6_Smart_City_Decision_Support.py"},
     {"icon":"📋","title":"Scope & Limitations","desc":"Coverage, model accuracy, known gaps","page":"pages/7_Scope_and_Limitations.py"},
 ]
 
@@ -613,11 +574,11 @@ for i in range(0, len(NAV), 4):
             st.markdown(f"""
             <div class="nav-tile">
                 <div class="nav-icon">{m['icon']}</div>
-                <div class="nav-title">{tr(m['title'])}</div>
-                <div class="nav-desc">{tr(m['desc'])}</div>
+                <div class="nav-title">{m['title']}</div>
+                <div class="nav-desc">{m['desc']}</div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button(tr("Open →"), key=f"nav_{i+j}", width="stretch"):
+            if st.button("Open →", key=f"nav_{i+j}", use_container_width=True):
                 st.switch_page(m["page"])
 
 st.divider()
@@ -629,20 +590,20 @@ st.divider()
 f1, f2, f3 = st.columns(3)
 with f1:
     st.markdown(
-        f"**{tr('Air quality')}**  \n"
+        "**Air quality**  \n"
         "Basque Government — RVCA network  \n"
         "[opendata.euskadi.eus](https://opendata.euskadi.eus/api-air-quality/?api=air-quality)\n"
         "7 stations · © Gobierno Vasco · CC BY 4.0"
     )
 with f2:
     st.markdown(
-        f"**{tr('Meteorology')}**  \n"
+        "**Meteorology**  \n"
         "Open-Meteo ERA5 archive  \n"
         "[open-meteo.com](https://open-meteo.com) · CC BY 4.0"
     )
 with f3:
     st.markdown(
-        f"**{tr('Standards')}**  \n"
+        "**Standards**  \n"
         "WHO 2021 guidelines (analysis)  \n"
         "EU Directive 2008/50/EC (alerts)"
     )
