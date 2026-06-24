@@ -391,7 +391,7 @@ This project was developed during the **AI & Data Tech** training pathway, made 
 _GIS & Remote Sensing Specialist | Spatial Data Scientist | GeoAI Engineer_  
 Bilbao, Spain
 
-- **Portfolio:** [armanghazi.github.io/portfolio/projects](https://armanghazi.github.io/portfolio/projects)
+- **Portfolio:** [armanghazi.github.io/portfolio/projects](https://armanghazi.github.io/portfolio)
 - **Dashboard:** [geoai-dashboard.streamlit.app](https://geoai-dashboard.streamlit.app/)
 
 ---
