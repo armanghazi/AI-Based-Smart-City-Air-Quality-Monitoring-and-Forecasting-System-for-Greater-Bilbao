@@ -778,6 +778,276 @@ with tab5:
                 )
             }
         )
+# ──────────────────────────────────────────────────────────────────────────────
+# WIND TRANSPORT ANALYSIS
+# Source: notebook 10d — wind direction & pollution transport analysis
+# ERA5 note: single grid cell (~31km) shared by all 7 stations
+# ──────────────────────────────────────────────────────────────────────────────
 
+st.divider()
+st.markdown("## 💨 " + tr("Wind Transport Analysis"))
+st.caption(
+    tr(
+        "How regional wind patterns drive pollutant concentrations. "
+        "Source: ERA5 single grid cell (~31 km) — regional signal only. "
+        "Full analysis: notebook 10d."
+    )
+)
+
+# ── Pre-computed hardcoded values from notebook 10d ───────────────────────────
+# Hardcoded to avoid re-computation — verified against parquet 2015-2026
+
+_DIR8_ORDER   = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+_WS_LABELS    = ["< 10", "10–15", "15–20", "20–25", "> 25"]
+_ZONE_CLR     = {
+    "Urban": "#8e44ad", "Industrial": "#e67e22",
+    "Port":  "#2980b9", "Coastal":    "#1abc9c", "Refinery": "#c0392b",
+}
+
+# Wind speed × dispersion (all stations mean)
+_DISP = {
+    "NO2":   [29.85, 21.05, 18.56, 16.03, 12.81],
+    "PM2.5": [13.76, 11.27,  9.55,  7.84,  6.44],
+    "PM10":  [22.70, 19.30, 16.84, 14.64, 12.84],
+    "SO2":   [ 6.32,  5.03,  4.73,  4.39,  4.20],
+}
+
+# Wind direction × NO2 (mean per station per direction)
+_DIR_NO2 = {
+    "ALGORTA_BBIZI2": [ 9.9, 11.7, 15.0, 17.6, 15.5, 14.1, 11.8,  9.3],
+    "BARAKALDO":      [16.9, 18.3, 25.9, 27.4, 23.7, 22.5, 20.2, 17.1],
+    "BASAURI":        [18.8, 20.2, 25.2, 26.0, 25.9, 23.1, 24.5, 19.5],
+    "ERANDIO":        [20.5, 23.3, 31.3, 30.6, 25.9, 24.3, 22.0, 18.8],
+    "MAZARREDO":      [19.3, 23.4, 32.4, 35.3, 32.1, 29.7, 26.4, 20.8],
+    "MUSKIZ":         [ 8.6, 10.5, 13.2, 13.7,  8.4,  7.7,  6.5,  7.5],
+    "SANTURCE":       [17.6, 18.2, 22.8, 25.6, 20.3, 19.4, 16.1, 16.7],
+}
+
+# Wind direction × SO2 MUSKIZ
+_MUSKIZ_SO2 = [5.81, 7.32, 5.93, 5.19, 3.80, 3.86, 3.42, 4.50]
+
+# Wind frequency (% of days)
+_WIND_FREQ = [11.9, 8.6, 4.6, 5.6, 23.0, 9.2, 13.1, 24.0]
+
+# ── Section A: Wind speed × dispersion ────────────────────────────────────────
+st.markdown("### " + tr("A — Wind speed controls atmospheric dispersion"))
+st.caption(
+    tr("Monotonic relationship between wind intensity and mean pollutant concentration.")
+)
+
+_wa1, _wa2 = st.columns([3, 2])
+
+with _wa1:
+    _poll_sel = st.radio(
+        tr("Show pollutant"),
+        ["NO₂", "PM2.5", "PM10", "SO₂"],
+        horizontal=True,
+        key="ws_poll_sel",
+    )
+    _poll_map = {"NO₂": "NO2", "PM2.5": "PM2.5", "PM10": "PM10", "SO₂": "SO2"}
+    _vals = _DISP[_poll_map[_poll_sel]]
+    _clrs = ["#e74c3c", "#e67e22", "#f39c12", "#2ecc71", "#27ae60"]
+
+    # Highlight current D-1 wind speed bin
+    _cur_ws = float(df[df["Date"] == df["Date"].max()]["WindSpeed"].mean())
+    _cur_bin = 0
+    for _i, (_lo, _hi) in enumerate(zip([0,10,15,20,25],[10,15,20,25,100])):
+        if _lo <= _cur_ws < _hi:
+            _cur_bin = _i
+            break
+
+    _clrs_highlight = [
+        "#2c3e50" if _i == _cur_bin else c
+        for _i, c in enumerate(_clrs)
+    ]
+
+    fig_ws = go.Figure(go.Bar(
+        x=_WS_LABELS,
+        y=_vals,
+        marker_color=_clrs_highlight,
+        text=[f"{v:.1f}" for v in _vals],
+        textposition="outside",
+    ))
+    if _cur_bin < len(_WS_LABELS):
+        fig_ws.add_annotation(
+            x=_WS_LABELS[_cur_bin],
+            y=_vals[_cur_bin] + 0.8,
+            text=tr("← D-1"),
+            showarrow=False,
+            font=dict(size=11, color="#2c3e50"),
+        )
+    fig_ws.update_layout(
+        height=320,
+        margin=dict(t=20, b=10, l=10, r=20),
+        xaxis_title=tr("Wind speed (m/s)"),
+        yaxis_title=f"Mean {_poll_sel} (µg/m³)",
+        showlegend=False,
+    )
+    st.plotly_chart(fig_ws, width="stretch")
+
+with _wa2:
+    st.markdown("**" + tr("Reduction: calm → strong wind") + "**")
+    _reductions = {
+        "NO₂":   ("-57%", "inverse"),
+        "PM2.5": ("-53%", "inverse"),
+        "PM10":  ("-43%", "inverse"),
+        "SO₂":   ("-34%", "inverse"),
+    }
+    for _p, (_pct, _dc) in _reductions.items():
+        st.metric(_p, _pct, delta_color=_dc)
+    st.caption(
+        tr(
+            "SO₂ least responsive (−34%) — point-source "
+            "emissions driven more by source intensity than wind."
+        )
+    )
+
+st.divider()
+
+# ── Section B: Wind direction × station heatmap ───────────────────────────────
+st.markdown("### " + tr("B — Wind direction reveals emission source locations"))
+st.caption(
+    tr(
+        "Under the same regional wind, stations respond differently — "
+        "revealing each station's position relative to emission sources. "
+        "ERA5 regional wind — direction = sector wind is coming FROM."
+    )
+)
+
+_st_order = ["MUSKIZ", "SANTURCE", "ALGORTA_BBIZI2",
+             "ERANDIO", "BARAKALDO", "MAZARREDO", "BASAURI"]
+_st_zones = {
+    "ALGORTA_BBIZI2": "Coastal", "BARAKALDO": "Industrial",
+    "BASAURI": "Industrial",     "ERANDIO":   "Urban",
+    "MAZARREDO": "Urban",        "MUSKIZ":    "Refinery",
+    "SANTURCE":  "Port",
+}
+
+_z_matrix = [[_DIR_NO2[s][d] for d in range(8)] for s in _st_order]
+
+fig_dir = go.Figure(go.Heatmap(
+    z=_z_matrix,
+    x=_DIR8_ORDER,
+    y=[f"{s} ({_st_zones[s]})" for s in _st_order],
+    colorscale="RdYlGn_r",
+    text=[[f"{v:.0f}" for v in row] for row in _z_matrix],
+    texttemplate="%{text}",
+    textfont=dict(size=10),
+    colorbar=dict(title="NO₂ µg/m³"),
+))
+fig_dir.update_layout(
+    height=350,
+    margin=dict(t=20, b=10, l=160, r=20),
+    xaxis_title=tr("Wind direction (FROM)"),
+)
+st.plotly_chart(fig_dir, width="stretch")
+
+st.divider()
+
+# ── Section C: MUSKIZ + MAZARREDO signatures ──────────────────────────────────
+st.markdown("### " + tr("C — Two directional signatures"))
+st.caption(
+    tr(
+        "MUSKIZ (Petronor refinery) and MAZARREDO (city centre) "
+        "show the clearest wind-direction signatures in the network."
+    )
+)
+
+_wc1, _wc2 = st.columns(2)
+
+with _wc1:
+    fig_musk = go.Figure()
+    fig_musk.add_trace(go.Bar(
+        x=_DIR8_ORDER, y=_MUSKIZ_SO2,
+        name=tr("Mean SO₂ (µg/m³)"),
+        marker_color="#c0392b", opacity=0.85, yaxis="y",
+    ))
+    fig_musk.add_trace(go.Bar(
+        x=_DIR8_ORDER, y=_WIND_FREQ,
+        name=tr("Wind frequency (%)"),
+        marker_color="#3498db", opacity=0.5, yaxis="y2",
+    ))
+    fig_musk.update_layout(
+        height=320,
+        title=tr("MUSKIZ — SO₂ by wind direction"),
+        barmode="group",
+        yaxis=dict(title="Mean SO₂ (µg/m³)", color="#c0392b"),
+        yaxis2=dict(title=tr("Wind freq (%)"), overlaying="y",
+                    side="right", color="#3498db"),
+        legend=dict(orientation="h", y=-0.25),
+        margin=dict(t=50, b=10),
+    )
+    st.plotly_chart(fig_musk, width="stretch")
+    st.caption(
+        tr(
+            "NE wind → SO₂ = 7.32 µg/m³ — Petronor emissions "
+            "trapped against terrain ridge (TRI = 343 m). "
+            "S wind → SO₂ = 3.80 µg/m³ (sea breeze clears). "
+            "Ratio: 1.93×."
+        )
+    )
+
+with _wc2:
+    _maz_no2_vals = [19.3, 23.4, 32.4, 35.3, 32.1, 29.7, 26.4, 20.8]
+    fig_maz = go.Figure()
+    fig_maz.add_trace(go.Bar(
+        x=_DIR8_ORDER, y=_maz_no2_vals,
+        name=tr("Mean NO₂ (µg/m³)"),
+        marker_color="#8e44ad", opacity=0.85, yaxis="y",
+    ))
+    fig_maz.add_trace(go.Bar(
+        x=_DIR8_ORDER, y=_WIND_FREQ,
+        name=tr("Wind frequency (%)"),
+        marker_color="#3498db", opacity=0.5, yaxis="y2",
+    ))
+    fig_maz.update_layout(
+        height=320,
+        title=tr("MAZARREDO — NO₂ by wind direction"),
+        barmode="group",
+        yaxis=dict(title="Mean NO₂ (µg/m³)", color="#8e44ad"),
+        yaxis2=dict(title=tr("Wind freq (%)"), overlaying="y",
+                    side="right", color="#3498db"),
+        legend=dict(orientation="h", y=-0.25),
+        margin=dict(t=50, b=10),
+    )
+    st.plotly_chart(fig_maz, width="stretch")
+    st.caption(
+        tr(
+            "SE wind → NO₂ = 35.3 µg/m³ (+70% vs NW baseline). "
+            "Nervión valley channels SE flow — "
+            "urban traffic emissions trapped in canyon."
+        )
+    )
+
+st.divider()
+
+# ── Section D: Two regimes ─────────────────────────────────────────────────────
+st.markdown("### " + tr("D — Two dominant wind regimes"))
+
+_dr1, _dr2 = st.columns(2)
+_dr1.success(
+    "**" + tr("NW/W regime (37.2% of days)") + "**  \n"
+    + tr("Bay of Biscay sea air — clean marine inflow.") + "  \n"
+    + tr("Network mean NO₂ = 16.3 µg/m³") + "  \n"
+    + tr("MUSKIZ cleanest — Petronor blown inland") + "  \n"
+    + tr("MAZARREDO lower — valley ventilated")
+)
+_dr2.warning(
+    "**" + tr("S/SW regime (32.0% of days)") + "**  \n"
+    + tr("Inland recirculation — pollution accumulates.") + "  \n"
+    + tr("Network mean NO₂ = 21.4 µg/m³ (+31%)") + "  \n"
+    + tr("MAZARREDO worst — Nervión valley trapping") + "  \n"
+    + tr("BARAKALDO elevated — industrial corridor stagnation")
+)
+
+st.info(
+    "⚠️ **" + tr("ERA5 data note") + ":** "
+    + tr(
+        "Single regional grid cell (~31 km) shared by all 7 stations. "
+        "Wind direction signatures represent synoptic-scale patterns, "
+        "not station-level micrometeorology. "
+        "Source: Open-Meteo ERA5 archive (CC BY 4.0) · Notebook 10d."
+    )
+)
 
 
