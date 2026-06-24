@@ -1,413 +1,516 @@
+"""
+dashboard/pages/7_Scope_and_Limitations.py
+
+GeoAI Methodology & Scope — Greater Bilbao Air Quality Platform
+
+Transforms the former plain-text disclaimer page into a full
+methodology reference: spatial analysis, ML model architecture,
+data pipeline, and honest scientific caveats.
+
+Four sections:
+  1. Platform Overview    — data, coverage, pipeline
+  2. GIS & Spatial        — notebooks 10a-10d findings + top correlations
+  3. ML Models            — XGBoost metrics, benchmark comparison, SHAP
+  4. Honest Caveats       — n=7, ERA5, IDW, leakage fix, D-1 constraint
+"""
+
 import sys
-import streamlit as st
-import joblib
+import pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+
 import pandas as pd
+import plotly.graph_objects as go
+import plotly.express as px
+import streamlit as st
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from config import WHO_ANNUAL, WHO_SO2_DAILY, POLLUTANT_COLOR, center_tables
-
+from config import load_data, WHO_ANNUAL, ZONE_META
 from i18n_auto import language_selector, apply_lang_styles, tr
 
-# --------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
 # PAGE CONFIG
-# --------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="Scope & Limitations",
+    page_title="GeoAI Methodology",
     page_icon="📋",
     layout="wide",
 )
 language_selector()
 apply_lang_styles()
-center_tables()
 
-# --------------------------------------------------
-# CONSTANTS
-# --------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
+# CONSTANTS — all key numbers hardcoded from verified project sources
+# ──────────────────────────────────────────────────────────────────────────────
 
-MODELS_DIR = Path(__file__).parent.parent.parent / "models"
-
-# EU Directive 2008/50/EC — legally binding annual limit values in Spain
-EU_ANNUAL: dict[str, float] = {
-    "PM2.5": 25.0,
-    "PM10":  40.0,
-    "NO2":   40.0,
-}
-EU_DAILY: dict[str, float] = {
-    "PM10": 50.0,   # max 35 exceedance days/year allowed
-    "SO2":  125.0,  # 24-hour limit
+MODEL_METRICS = {
+    "NO2":   {"R2": 0.560, "RMSE": 5.97,  "MAE": 4.43,  "note": "Best — strong weekly traffic cycle"},
+    "PM2.5": {"R2": 0.479, "RMSE": 3.33,  "MAE": 2.50,  "note": "Persistence + weather drivers"},
+    "PM10":  {"R2": 0.460, "RMSE": 6.26,  "MAE": 4.45,  "note": "Dust events add variability"},
+    "SO2":   {"R2": 0.390, "RMSE": 1.87,  "MAE": 1.23,  "note": "Hardest — episodic industrial/port"},
 }
 
-POLLUTANTS = ["PM2.5", "PM10", "NO2", "SO2"]
-
-
-# --------------------------------------------------
-# LOAD MODEL METRICS (live from bundles — never hardcoded)
-# --------------------------------------------------
-
-@st.cache_resource
-def load_metrics() -> dict:
-    """Read R², RMSE, MAE directly from saved model bundles."""
-    metrics = {}
-    for p in POLLUTANTS:
-        prefix = p.replace(".", "").lower()
-        path   = MODELS_DIR / f"xgb_{prefix}_forecast.joblib"
-        if path.exists():
-            bundle       = joblib.load(path)
-            metrics[p]   = bundle.get("metrics", {})
-        else:
-            metrics[p] = {}
-    return metrics
-
-
-# --------------------------------------------------
-# HEADER
-# --------------------------------------------------
-
-st.title(tr("📋 Scope & Limitations"))
-st.markdown(
-    tr("Understanding what this platform **can** and **cannot** do "
-       "is essential for responsible use in decision-making.")
-)
-st.divider()
-
-# ==================================================
-# SECTION 1 — WHAT THIS PLATFORM DOES
-# ==================================================
-
-st.markdown("## ✅ " + tr("What This Platform Does"))
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown(
-        """
-        - **Monitors** daily air quality across 7 stations in Greater Bilbao (2015–present)
-        - **Identifies** spatial pollution patterns by environmental zone
-        - **Analyses** long-term trends including COVID-19 impact
-        - **Benchmarks** concentrations against WHO 2021 guidelines
-        - **Forecasts** next-day pollutant levels using XGBoost ML models
-        - **Updates** automatically every day via a GitHub Actions pipeline
-        - **Supports** zone-level decision-making for urban managers
-        """
-    )
-
-with col2:
-    st.info(
-        tr("**One-sentence summary:**\n\n"
-           "This platform monitors air pollution across Greater Bilbao, "
-           "forecasts tomorrow's levels 24 hours in advance, and identifies "
-           "which zones require priority action — updated daily, automatically.")
-    )
-
-st.divider()
-
-# ==================================================
-# SECTION 2 — WHAT THIS PLATFORM DOES NOT DO
-# ==================================================
-
-st.markdown("## ❌ " + tr("What This Platform Does NOT Do"))
-
-c1, c2, c3 = st.columns(3)
-
-with c1:
-    st.error(
-        tr("**Not for legal compliance**\n\n"
-           "Uses WHO 2021 guidelines, not EU Directive 2008/50/EC "
-           "limit values. Cannot be used as a substitute for official "
-           "compliance reporting to Spanish authorities.")
-    )
-
-with c2:
-    st.error(
-        tr("**Not for real-time emergencies**\n\n"
-           "Data has a ~24-hour lag (D-1). Not suitable for immediate "
-           "emergency response or real-time pollution events.")
-    )
-
-with c3:
-    st.error(
-        tr("**Not spatially continuous**\n\n"
-           "Point measurements only. No spatial interpolation between "
-           "stations. Areas between monitoring points are not covered.")
-    )
-
-st.divider()
-
-# ==================================================
-# SECTION 3 — GEOGRAPHIC & TEMPORAL SCOPE
-# ==================================================
-
-st.markdown("## 🗺️ " + tr("Geographic & Temporal Scope"))
-
-col_geo, col_time = st.columns(2)
-
-with col_geo:
-    st.markdown("### " + tr("Geographic Coverage"))
-
-    # Station table
-    stations_data = {
-        "Station":   ["ALGORTA_BBIZI2", "SANTURCE",  "BASAURI",    "BARAKALDO",  "ERANDIO",  "MAZARREDO", "MUSKIZ"],
-        "Town":      ["Getxo",          "Santurtzi", "Basauri",    "Barakaldo",  "Erandio",  "Bilbao",    "Muskiz"],
-        "Zone":      ["Coastal",        "Port",      "Industrial", "Industrial", "Urban",    "Urban",     "Refinery"],
-        "PM10 sensor": ["✅", "✅", "✅", "✅", "✅", "✅", "✅"],
-    }
-    st.dataframe(
-        pd.DataFrame(stations_data),
-        hide_index=True,
-        width="stretch",
-    )
-    st.caption(
-        tr("SANTURCE has no PM10 sensor — PM10 values are always NaN for this station.")
-    )
-
-with col_time:
-    st.markdown("### " + tr("Temporal Coverage"))
-    st.markdown(
-        """
-        | Parameter | Value |
-        |---|---|
-        | **Start date** | 2015-01-01 |
-        | **Resolution** | Daily means |
-        | **Update frequency** | Every day at ~06:00 UTC |
-        | **Data lag** | D-1 (yesterday's data available today) |
-        | **Missing data policy** | NaN stored as-is — never interpolated |
-        | **Forecast horizon** | Next day only |
-        """
-    )
-
-st.divider()
-
-# ==================================================
-# SECTION 4 — POLLUTANTS COVERED
-# ==================================================
-
-st.markdown("## 🧪 " + tr("Pollutants Covered"))
-
-poll_data = {
-    "Pollutant": ["PM2.5", "PM10", "NO₂", "SO₂"],
-    "Monitored": ["✅", "✅", "✅", "✅"],
-    "Forecasted": ["✅", "✅", "✅", "✅"],
-    "WHO limit": ["5 µg/m³ (annual)", "15 µg/m³ (annual)",
-                  "10 µg/m³ (annual)", "40 µg/m³ (24-hour)"],
-    "EU limit":  ["25 µg/m³ (annual)", "40 µg/m³ (annual)",
-                  "40 µg/m³ (annual)", "125 µg/m³ (24-hour)"],
-    "Not covered": ["—", "—", "—", "—"],
-}
-
-st.dataframe(pd.DataFrame(poll_data), hide_index=True, width="stretch")
-
-st.warning(
-    tr("**Pollutants NOT monitored:** O₃ (ozone), CO (carbon monoxide), "
-       "benzene, NO (nitric oxide), heavy metals. "
-       "These may be relevant for full air quality assessment.")
-)
-
-st.divider()
-
-# ==================================================
-# SECTION 5 — STANDARDS USED
-# ==================================================
-
-st.markdown("## ⚖️ " + tr("Air Quality Standards"))
-
-st.markdown(
-    tr("This platform uses **WHO 2021 guidelines** as the primary benchmark. "
-       "These are stricter than legally binding EU limits. "
-       "For official compliance reporting in Spain, EU Directive 2008/50/EC applies.")
-)
-
-# Comparison table
-compare_data = {
-    "Pollutant":   ["PM2.5", "PM10", "NO₂", "SO₂"],
-    "WHO 2021":    ["5 µg/m³",  "15 µg/m³", "10 µg/m³", "40 µg/m³ (24h)"],
-    "EU Directive":["25 µg/m³", "40 µg/m³", "40 µg/m³", "125 µg/m³ (24h)"],
-    "Ratio WHO/EU":["5×",       "2.7×",      "4×",        "3.1×"],
-    "Legal basis": ["Guidance only", "Guidance only", "Guidance only", "Guidance only"],
-}
-
-st.dataframe(pd.DataFrame(compare_data), hide_index=True, width="stretch")
-
-st.caption(
-    tr("WHO guidelines are typically 2–5× stricter than EU legal limits. "
-       "Exceeding WHO limits does NOT mean a legal violation — "
-       "it means concentrations are above the health-optimal level.")
-)
-
-st.divider()
-
-# ==================================================
-# SECTION 6 — MODEL PERFORMANCE
-# ==================================================
-
-st.markdown("## 🤖 " + tr("Forecast Model Performance"))
-st.markdown(
-    tr("XGBoost models trained on 2015–2022, validated on 2023, "
-       "tested on 2024–2026 (strict time-based split — no data leakage).")
-)
-
-metrics = load_metrics()
-
-cols = st.columns(4)
-for col, pollutant in zip(cols, POLLUTANTS):
-    m = metrics.get(pollutant, {})
-    r2   = m.get("R2",   None)
-    rmse = m.get("RMSE", None)
-    mae  = m.get("MAE",  None)
-
-    with col:
-        color = POLLUTANT_COLOR.get(pollutant, "#888")
-        st.markdown(
-            f"""
-            <div style="border-left:4px solid {color};
-                        padding:12px; border-radius:6px;
-                        background:{color}11;">
-            <div style="font-weight:700; font-size:1.1rem">{pollutant}</div>
-            <div style="font-size:0.85rem; margin-top:6px">
-                R² = <b>{f"{r2:.3f}" if r2 else "N/A"}</b><br>
-                RMSE = <b>{f"{rmse:.2f} µg/m³" if rmse else "N/A"}</b><br>
-                MAE = <b>{f"{mae:.2f} µg/m³" if mae else "N/A"}</b>
-            </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-st.markdown("")
-st.info(
-    tr("**What these numbers mean:**\n\n"
-       "- R² of 0.48 for PM2.5 means the model explains 48% of day-to-day variation. "
-       "The remaining 52% is driven by unpredictable events (dust storms, industrial episodes).\n"
-       "- SO₂ has the lowest R² (0.39) because its emissions are episodic "
-       "(industrial/port events), not regular like traffic-driven NO₂.\n"
-       "- Accuracy degrades for multi-day forecasts — only next-day predictions are published.")
-)
-
-st.divider()
-
-# ==================================================
-# SECTION 7 — DATA SOURCES
-# ==================================================
-
-st.markdown("## 📡 " + tr("Data Sources"))
-
-col_aq, col_met = st.columns(2)
-
-with col_aq:
-    st.markdown("### " + tr("Air Quality"))
-    st.markdown(
-        """
-        **Source:** Basque Government Open Data  
-        *(Red de Control de Calidad del Aire — RVCA)*
-
-        **URL:** opendata.euskadi.eus  
-        **License:** CC BY 4.0  
-        **Coverage:** 60+ stations across the Basque Country  
-        **Resolution:** Daily means (hourly data aggregated)  
-        **Lag:** ~24 hours  
-        **Known issues:**
-        - Data quality depends on Basque Government maintenance
-        - Occasional sensor gaps (stored as NaN, never interpolated)
-        - Data quality depends on Basque Government maintenance
-        """
-    )
-
-with col_met:
-    st.markdown("### " + tr("Meteorology"))
-    st.markdown(
-        """
-        **Source:** Open-Meteo ERA5 Archive API  
-        **URL:** archive-api.open-meteo.com  
-        **License:** CC BY 4.0  
-        **Variables:** Temperature, Humidity, Precipitation,
-        Wind Speed, Wind Direction, Wind U/V components  
-        **Resolution:** Daily  
-        **Lag:** ~24 hours  
-        **Known issues:**
-        - ERA5 reanalysis — not direct sensor measurement
-        - Spatial resolution ~9km — may not capture local microclimates
-        """
-    )
-
-st.divider()
-
-# ==================================================
-# SECTION 8 — RECOMMENDED & NOT RECOMMENDED USE CASES
-# ==================================================
-
-st.markdown("## 🎯 " + tr("Use Cases"))
-
-col_yes, col_no = st.columns(2)
-
-with col_yes:
-    st.success(
-        tr("**✅ Recommended for:**\n\n"
-           "- Daily air quality monitoring by municipal staff\n"
-           "- Early warning before pollution episodes\n"
-           "- Long-term trend analysis (annual/seasonal)\n"
-           "- Environmental zone comparison\n"
-           "- Public communication and awareness\n"
-           "- Research and academic analysis\n"
-           "- Smart City dashboard integration\n"
-           "- Environmental consultancy reporting (indicative)")
-    )
-
-with col_no:
-    st.error(
-        tr("**❌ Not recommended for:**\n\n"
-           "- Legal compliance reporting to Spanish authorities\n"
-           "- Real-time emergency response\n"
-           "- Health risk assessment for individuals\n"
-           "- Regulatory enforcement decisions\n"
-           "- Areas outside Greater Bilbao\n"
-           "- Pollutants not covered (O₃, CO, benzene)\n"
-           "- Multi-day forecasts beyond tomorrow\n"
-           "- Replacing official monitoring networks")
-    )
-
-st.divider()
-
-# ==================================================
-# SECTION 9 — KNOWN LIMITATIONS SUMMARY
-# ==================================================
-
-st.markdown("## ⚠️ " + tr("Known Limitations Summary"))
-
-limitations = [
-    ("Spatial coverage",    "7 stations only — large areas between stations have no direct measurement"),
-    ("No spatial model",    "Point-wise forecasts only — no interpolated pollution surface maps"),
-    ("Forecast horizon",    "Next-day only — accuracy degrades sharply beyond 24 hours"),
-    ("Standard",            "WHO guidelines used — stricter than legally binding EU limits"),
-    ("Missing pollutants",  "O₃, CO, benzene, heavy metals not included"),
-    ("Data lag",            "~24 hours — not suitable for real-time response"),
-    ("ERA5 meteorology",    "Reanalysis data — may differ from local measurements"),
-    ("No causal inference", "Correlations shown — platform cannot prove causality"),
-    ("Single city",         "Validated for Greater Bilbao only — not transferable without revalidation"),
-    ("Model drift",         "Models trained on 2015–2022 — performance may degrade over time without retraining"),
+BENCHMARK = [
+    {"Model": "XGBoost",         "Type": "ML (trees)",    "Scope": "All stations",   "R2": 0.479, "production": True},
+    {"Model": "MLP (128,64)",    "Type": "Deep learning", "Scope": "All stations",   "R2": 0.208, "production": False},
+    {"Model": "SARIMA one-step", "Type": "Classical TS",  "Scope": "Mazarredo only", "R2": 0.463, "production": False},
+    {"Model": "SARIMA long-h.",  "Type": "Classical TS",  "Scope": "Mazarredo only", "R2": 0.000, "production": False},
 ]
 
-for title, description in limitations:
-    st.markdown(f"**{tr(title)}:** {tr(description)}")
+SPATIAL_FINDINGS = [
+    ("road_density_1000m",    "NO₂",   "+0.83", "Road density (1km)",      "Traffic infrastructure is the primary structural driver of NO₂."),
+    ("dist_bilbao_centre_m",  "NO₂",   "−0.77", "Distance to city centre", "Closer to centre = higher NO₂. Urban canyon + traffic concentration."),
+    ("vegetation_proxy_1000m","PM10",  "−0.66", "Green cover (1km)",       "More vegetation = lower PM10. Dry deposition + reduced impervious surface."),
+    ("elev_tri_2000m",        "PM10",  "−0.63", "Terrain Relief Index",    "Complex terrain = stronger turbulent mixing = lower PM10."),
+    ("dist_ap8_barakaldo_m",  "PM2.5", "−0.54", "Distance to AP-8",        "BARAKALDO (354 m from AP-8) records highest PM2.5."),
+]
+
+SPATIAL_NOTEBOOKS = [
+    ("10a", "Buffer Analysis",          "OSM land use + road density at 500m/1km/2km buffers",       "GeoPandas · OSMnx"),
+    ("10b", "Distance Features",        "Haversine distances to Port, Petronor, AP-8, coast, centre","GeoPandas · math"),
+    ("10c", "Elevation & Terrain",      "Copernicus GLO-30 DEM: elevation, TRI, slope per station",  "rasterio · rasterstats"),
+    ("10d", "Wind Transport",           "ERA5 direction × station cross-analysis, dispersion effect", "pandas · plotly"),
+]
+
+ZONE_CLR = {
+    "Urban": "#8e44ad", "Industrial": "#e67e22",
+    "Port": "#2980b9",  "Coastal": "#1abc9c", "Refinery": "#c0392b",
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# LOAD DATA
+# ──────────────────────────────────────────────────────────────────────────────
+
+df = load_data()
+latest_date   = df["Date"].max()
+n_records     = len(df)
+n_years       = df["Year"].nunique()
+date_range    = f"{df['Date'].min().year}–{df['Date'].max().year}"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# HEADER
+# ──────────────────────────────────────────────────────────────────────────────
+
+st.markdown("## 📋 " + tr("GeoAI Methodology & Scope"))
+st.markdown(
+    tr(
+        "Full methodology reference for the GeoAI Smart City Air Quality Platform — "
+        "Greater Bilbao. Covers data architecture, GIS spatial analysis, "
+        "machine learning models, and honest scientific scope and limitations."
+    )
+)
+st.divider()
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SECTION 1 — PLATFORM OVERVIEW
+# ──────────────────────────────────────────────────────────────────────────────
+
+st.markdown("### " + tr("1 · Platform Overview"))
+
+ov1, ov2, ov3, ov4, ov5 = st.columns(5)
+ov1.metric(tr("Monitoring stations"),  "7")
+ov2.metric(tr("Environmental zones"),  "5")
+ov3.metric(tr("Daily records"),        f"{n_records:,}")
+ov4.metric(tr("Data period"),          date_range)
+ov5.metric(tr("Spatial features"),     "~35")
+
+st.markdown("---")
+
+# Data pipeline
+pc1, pc2 = st.columns([2, 1])
+
+with pc1:
+    st.markdown("**" + tr("Data pipeline") + "**")
+    st.markdown(
+        tr(
+            "- **Air quality:** Basque Government RVCA network → opendata.euskadi.eus API "
+            "(7 stations, 4 pollutants: PM2.5, PM10, NO₂, SO₂)  \n"
+            "- **Meteorology:** Open-Meteo ERA5 archive (Temperature, Humidity, "
+            "Precipitation, Wind speed/direction)  \n"
+            "- **Update frequency:** Automated GitHub Actions cron — daily at 06:00 UTC  \n"
+            "- **D-1 constraint:** Pipeline rejects the current incomplete day — "
+            "all data is at least one day old. Labels throughout the dashboard "
+            "reflect this (no 'Today' or 'Current').  \n"
+            "- **Storage:** Parquet (air_quality_weather.parquet) — "
+            "feature engineering (lags, rolling, targets) computed at runtime in config.load_data()"
+        )
+    )
+
+with pc2:
+    st.markdown("**" + tr("Monitoring stations") + "**")
+    zone_summary = (
+        df.groupby(["station", "Zone"])[["PM2.5", "NO2"]].mean().round(1).reset_index()
+    )
+    zone_summary["Station"] = zone_summary["station"].str.split("_").str[0]
+    fig_ov = px.bar(
+        zone_summary.sort_values("NO2"),
+        x="NO2", y="Station", color="Zone",
+        color_discrete_map=ZONE_CLR,
+        orientation="h",
+        labels={"NO2": "Mean NO₂ (µg/m³)", "Station": ""},
+        title=tr("Long-term mean NO₂ by station"),
+    )
+    fig_ov.add_vline(x=WHO_ANNUAL["NO2"], line_dash="dot", line_color="#e74c3c",
+                     annotation_text="WHO", annotation_font_size=9)
+    fig_ov.update_layout(
+        height=280, margin=dict(t=40, b=10, l=10, r=20),
+        showlegend=False,
+    )
+    st.plotly_chart(fig_ov, width="stretch")
 
 st.divider()
 
-# ==================================================
-# FOOTER
-# ==================================================
+# ──────────────────────────────────────────────────────────────────────────────
+# SECTION 2 — GIS & SPATIAL ANALYSIS
+# ──────────────────────────────────────────────────────────────────────────────
 
-st.markdown("## 📬 " + tr("Contact & Feedback"))
-st.markdown(
-    "For questions, data requests, or collaboration enquiries:\n\n"
-    "**Arman Ghaziaskari Naeini**  \n"
-    "GIS & Remote Sensing Specialist | Spatial Data Scientist | GeoAI Enthusiast  \n"
-    "Bilbao, Basque Country, Spain  \n\n"
-    "🔗 [Portfolio](https://armanghazi.github.io/portfolio/projects)  \n"
-    "🌐 [Dashboard](https://geoai-dashboard.streamlit.app/)"
-)
-
+st.markdown("### " + tr("2 · GIS & Spatial Analysis"))
 st.caption(
-    tr("Platform version: Phase C · Last pipeline update: automated daily · "
-       "Data: Basque Government (CC BY 4.0) + Open-Meteo (CC BY 4.0)")
+    tr(
+        "Four GIS notebooks deliver ~35 spatial features per station. "
+        "Correlations computed across n = 7 stations — exploratory and indicative only."
+    )
 )
+
+# Notebooks table
+st.markdown("**" + tr("Spatial analysis notebooks") + "**")
+nb_cols = st.columns(4)
+nb_colors = ["#2980b9", "#27ae60", "#8e44ad", "#e67e22"]
+for col, (nb_id, title, desc, tools), color in zip(nb_cols, SPATIAL_NOTEBOOKS, nb_colors):
+    col.markdown(
+        f"""
+        <div style="border:1px solid {color};border-radius:10px;padding:12px;
+                    border-top:3px solid {color};height:140px">
+            <div style="font-family:monospace;font-size:11px;color:{color};
+                        font-weight:600">notebook {nb_id}</div>
+            <div style="font-weight:600;font-size:13px;margin:4px 0">{title}</div>
+            <div style="font-size:11px;color:#666;line-height:1.4">{desc}</div>
+            <div style="font-size:10px;color:#888;margin-top:6px">{tools}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+st.markdown("---")
+
+# Top spatial findings
+st.markdown("**" + tr("Strongest spatial predictors") + "**")
+
+sp1, sp2 = st.columns([3, 2])
+
+with sp1:
+    rows = []
+    for feat, poll, r, label, interp in SPATIAL_FINDINGS:
+        rows.append({
+            tr("Feature"): label,
+            tr("Pollutant"): poll,
+            "r": r,
+            tr("Interpretation"): interp,
+        })
+    df_sp_tbl = pd.DataFrame(rows)
+    st.dataframe(df_sp_tbl, width="stretch", hide_index=True)
+
+with sp2:
+    # Bar chart of r values
+    _r_vals  = [float(r.replace("−", "-").replace("+", "")) for *_, r, _, _ in SPATIAL_FINDINGS]
+    _r_lbls  = [lbl for _, _, _, lbl, _ in SPATIAL_FINDINGS]
+    _r_clrs  = ["#2980b9" if v > 0 else "#e74c3c" for v in _r_vals]
+
+    fig_r = go.Figure(go.Bar(
+        x=_r_vals,
+        y=_r_lbls,
+        orientation="h",
+        marker_color=_r_clrs,
+        text=[f"r = {r}" for *_, r, _, _ in SPATIAL_FINDINGS],
+        textposition="outside",
+    ))
+    fig_r.add_vline(x=0, line_color="#555", line_width=1)
+    fig_r.update_layout(
+        height=240,
+        margin=dict(t=30, b=10, l=10, r=80),
+        xaxis=dict(range=[-1, 1], title="Pearson r"),
+        title=tr("Top 5 spatial correlations"),
+    )
+    st.plotly_chart(fig_r, width="stretch")
+
+st.markdown("---")
+
+# MUSKIZ paradox callout
+st.markdown("**" + tr("Key GeoAI finding — MUSKIZ dispersion paradox") + "**")
+mx1, mx2, mx3, mx4 = st.columns(4)
+mx1.metric(tr("Industrial land use (1km)"), "34.6%", tr("highest in network"), delta_color="inverse")
+mx2.metric(tr("Mean PM2.5"), "6.50 µg/m³", tr("lowest in network ✓"), delta_color="off")
+mx3.metric(tr("TRI 2km"), "343 m", tr("orographic ventilation"), delta_color="off")
+mx4.metric(tr("NE wind → SO₂ ratio"), "1.93×", tr("vs S-wind baseline"), delta_color="inverse")
+st.success(
+    tr(
+        "Three independent GIS methods (buffer analysis · distance features · DEM terrain) "
+        "converge on the same explanation: MUSKIZ's coastal position + high terrain complexity "
+        "override Petronor emission proximity. This is the clearest GeoAI story in the dataset."
+    )
+)
+
+st.divider()
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SECTION 3 — ML MODELS
+# ──────────────────────────────────────────────────────────────────────────────
+
+st.markdown("### " + tr("3 · Machine Learning Models"))
+st.caption(
+    tr("XGBoost models trained on 2015–2022, validated 2023, tested 2024–2026. "
+       "Time-based split only — no random row splitting.")
+)
+
+# Model metrics
+st.markdown("**" + tr("Production model performance (held-out test 2024–2026)") + "**")
+
+mc1, mc2, mc3, mc4 = st.columns(4)
+for col, (poll, m) in zip([mc1, mc2, mc3, mc4], MODEL_METRICS.items()):
+    col.metric(
+        f"{poll}  R²",
+        f"{m['R2']:.3f}",
+        f"RMSE {m['RMSE']:.2f} | MAE {m['MAE']:.2f}",
+        help=m["note"],
+        delta_color="off",
+    )
+
+st.markdown("---")
+
+# Benchmark table
+st.markdown("**" + tr("Benchmark comparison") + "**")
+bc1, bc2 = st.columns([3, 2])
+
+with bc1:
+    df_bm = pd.DataFrame(BENCHMARK)
+    df_bm["Production"] = df_bm["production"].map({True: "✅ Yes", False: "—"})
+    st.dataframe(
+        df_bm[["Model", "Type", "Scope", "R2", "Production"]].rename(
+            columns={"R2": "R²"}
+        ),
+        width="stretch",
+        hide_index=True,
+    )
+
+with bc2:
+    fig_bm = go.Figure(go.Bar(
+        x=[b["R2"] for b in BENCHMARK],
+        y=[b["Model"] for b in BENCHMARK],
+        orientation="h",
+        marker_color=["#27ae60" if b["production"] else "#95a5a6" for b in BENCHMARK],
+        text=[f"{b['R2']:.3f}" for b in BENCHMARK],
+        textposition="outside",
+    ))
+    fig_bm.update_layout(
+        height=220,
+        margin=dict(t=30, b=10, l=10, r=60),
+        xaxis=dict(range=[0, 0.65], title="R²"),
+        title=tr("R² comparison — green = production model"),
+    )
+    st.plotly_chart(fig_bm, width="stretch")
+
+st.markdown("---")
+
+# Feature architecture
+st.markdown("**" + tr("Feature architecture — 62 features per model") + "**")
+fa1, fa2 = st.columns(2)
+
+with fa1:
+    st.markdown(
+        tr(
+            "**Temporal features (9):** year, month, day, day_of_year, "
+            "week_of_year, day_of_week, is_weekend, season  \n\n"
+            "**Pollutant lags (8):** lag_1 and lag_7 for each of PM2.5, PM10, NO₂, SO₂  \n\n"
+            "**Rolling means (4):** 14-day rolling mean for each pollutant  \n\n"
+            "**Current pollutant values (4):** PM2.5, PM10, NO₂, SO₂ — "
+            "available at prediction time, not leakage"
+        )
+    )
+with fa2:
+    st.markdown(
+        tr(
+            "**Weather features (7):** Temperature, Humidity, Precipitation, "
+            "WindSpeed, WindDirection, wind_u, wind_v  \n\n"
+            "**Station encoding (1):** station_code (integer, global map)  \n\n"
+            "**Interaction features (3):** wind_x_precip, temp_x_humid, "
+            "wind_speed_sq (built but not used — tracked as ALLOWED_UNUSED)  \n\n"
+            "**Important:** bundle['features'] list is the single source of truth "
+            "for column order at prediction time."
+        )
+    )
+
+st.info(
+    tr(
+        "**Leakage fix (documented):** An early row-based random split produced "
+        "inflated R² = 0.84. Switching to strict time-based split (train < 2023) "
+        "corrected this to the honest R² = 0.479. "
+        "This is documented explicitly as a methodological integrity marker."
+    )
+)
+
+st.divider()
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SECTION 4 — HONEST CAVEATS
+# ──────────────────────────────────────────────────────────────────────────────
+
+st.markdown("### " + tr("4 · Scientific Scope & Honest Caveats"))
+st.caption(
+    tr(
+        "These constraints are documented explicitly — not hidden. "
+        "They define where the platform is reliable and where it is not."
+    )
+)
+
+caveats = [
+    (
+        "🔢 " + tr("n = 7 stations"),
+        tr(
+            "Spatial correlations across 7 stations are exploratory and indicative only. "
+            "Statistically significant inference typically requires ≥30 stations "
+            "(standard Land Use Regression study design). "
+            "All spatial correlations in this platform are labelled accordingly."
+        ),
+        "warning",
+    ),
+    (
+        "🌍 " + tr("ERA5 single grid cell"),
+        tr(
+            "All 7 stations share one Open-Meteo ERA5 wind time series (~31 km resolution). "
+            "Wind direction analysis represents regional atmospheric conditions, "
+            "not station-level micrometeorology. "
+            "Station-level wind would require a dense sensor network or numerical "
+            "dispersion model (e.g. AERMOD, HYSPLIT)."
+        ),
+        "warning",
+    ),
+    (
+        "🗺️ " + tr("IDW is visual approximation only"),
+        tr(
+            "The IDW interpolated forecast surface (page 6) is a visual tool, "
+            "not a spatial model. With 7 stations, the interpolation between "
+            "measurement points is purely mathematical — it does not account for "
+            "terrain, wind fields, or emission sources. "
+            "Areas between stations have no observational basis."
+        ),
+        "info",
+    ),
+    (
+        "📅 " + tr("D-1 data constraint"),
+        tr(
+            "The automated pipeline rejects the current incomplete day. "
+            "All data shown is at least 24 hours old. "
+            "No page or label uses 'Today', 'Current', or 'Live'. "
+            "This is by design — partial-day data creates false readings."
+        ),
+        "info",
+    ),
+    (
+        "🏭 " + tr("LUR model not attempted"),
+        tr(
+            "A full Land Use Regression model was considered but not implemented. "
+            "LUR at n=7 would produce an overfit model that cannot be validated. "
+            "The spatial feature table (station_spatial_features_v3.csv) provides "
+            "the same structural understanding without the statistical overreach."
+        ),
+        "info",
+    ),
+    (
+        "📊 " + tr("Petronor confounding"),
+        tr(
+            "Distance to Petronor refinery shows positive correlation with PM2.5/PM10 "
+            "(r = +0.70–0.79) — meaning stations farther from the refinery record higher PM. "
+            "This is a spatial confounding artifact at n=7: MUSKIZ (closest) has the "
+            "lowest PM due to coastal dispersion. This result must not be interpreted "
+            "as evidence that refinery proximity reduces pollution."
+        ),
+        "warning",
+    ),
+]
+
+for title, body, level in caveats:
+    with st.expander(title, expanded=False):
+        getattr(st, level)(body)
+
+st.divider()
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DATA SOURCES & STANDARDS
+# ──────────────────────────────────────────────────────────────────────────────
+
+st.markdown("### " + tr("5 · Data Sources & Standards"))
+
+ds1, ds2, ds3 = st.columns(3)
+
+with ds1:
+    st.markdown(
+        "**" + tr("Air quality data") + "**  \n"
+        "Basque Government RVCA network  \n"
+        "[opendata.euskadi.eus](https://opendata.euskadi.eus)  \n"
+        "7 stations · CC BY 4.0  \n\n"
+        "**" + tr("Meteorology") + "**  \n"
+        "Open-Meteo ERA5 archive  \n"
+        "[open-meteo.com](https://open-meteo.com) · CC BY 4.0"
+    )
+
+with ds2:
+    st.markdown(
+        "**" + tr("GIS data") + "**  \n"
+        "OpenStreetMap (OSM) via OSMnx · ODbL  \n"
+        "Copernicus GLO-30 DEM (30m) · CC BY 4.0  \n"
+        "Open Data Euskadi COMARCAS shapefile  \n"
+        "ETRS89/UTM 30N (EPSG:25830)"
+    )
+
+with ds3:
+    st.markdown(
+        "**" + tr("Standards") + "**  \n"
+        "WHO 2021 annual guidelines (analysis)  \n"
+        "— PM2.5: 5 µg/m³ · PM10: 15 µg/m³ · NO₂: 10 µg/m³  \n"
+        "— SO₂: 40 µg/m³ (24-hour)  \n\n"
+        "EU Directive 2008/50/EC (legal alerts only)  \n"
+        "US EPA AQI shown as secondary reference"
+    )
+
+st.divider()
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TECH STACK
+# ──────────────────────────────────────────────────────────────────────────────
+
+st.markdown("### " + tr("6 · Technology Stack"))
+
+tc1, tc2, tc3, tc4 = st.columns(4)
+
+with tc1:
+    st.markdown(
+        "**GIS & Spatial**  \n"
+        "GeoPandas · Shapely 2.1.2  \n"
+        "OSMnx · Folium  \n"
+        "rasterio · rasterstats  \n"
+        "EPSG:25830 (UTM 30N)"
+    )
+with tc2:
+    st.markdown(
+        "**Machine Learning**  \n"
+        "XGBoost (production)  \n"
+        "Scikit-Learn · SHAP  \n"
+        "statsmodels (OLS)  \n"
+        "62 features · 4 models"
+    )
+with tc3:
+    st.markdown(
+        "**Dashboard**  \n"
+        "Streamlit Cloud  \n"
+        "Plotly ≤5.22.0  \n"
+        "Folium · FPDF2  \n"
+        "i18n: EN / ES"
+    )
+with tc4:
+    st.markdown(
+        "**Infrastructure**  \n"
+        "GitHub Actions (CI/CD)  \n"
+        "Google OAuth OIDC  \n"
+        "Groq/Llama 3.3 70B  \n"
+        "pytest (11 tests)"
+    )
