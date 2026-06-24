@@ -182,6 +182,40 @@ if station_mean.empty:
 
 station_mean["Zone"] = station_mean["Town"].apply(get_zone)
 
+# Load SVI and spatial features for map enrichment
+_SP_V3 = Path(__file__).parent.parent.parent / "data" / "processed" / "station_spatial_features_v3.csv"
+_SP_V1 = Path(__file__).parent.parent.parent / "data" / "processed" / "station_spatial_features.csv"
+_SP_F  = _SP_V3 if _SP_V3.exists() else (_SP_V1 if _SP_V1.exists() else None)
+
+_SVI_DATA: dict = {}
+
+if _SP_F is not None:
+    try:
+        import pandas as _pd_sp
+        _df_sp = _pd_sp.read_csv(_SP_F)
+        _svi_cols = ["road_density_1000m", "dist_bilbao_centre_m", "elev_tri_2000m"]
+        if all(c in _df_sp.columns for c in _svi_cols):
+            _signs = {"road_density_1000m": +1, "dist_bilbao_centre_m": -1, "elev_tri_2000m": -1}
+            for col, sign in _signs.items():
+                _m = _df_sp[col].mean(); _s = _df_sp[col].std()
+                _df_sp[f"_z_{col}"] = sign * (_df_sp[col] - _m) / max(_s, 1e-9)
+            _df_sp["_svi_raw"] = _df_sp[[f"_z_{c}" for c in _svi_cols]].mean(axis=1)
+            _mn = _df_sp["_svi_raw"].min(); _mx = _df_sp["_svi_raw"].max()
+            _df_sp["SVI"] = ((_df_sp["_svi_raw"] - _mn) / max(_mx - _mn, 1e-9) * 100).round(1)
+            _SVI_DATA = dict(zip(_df_sp["station"], _df_sp["SVI"]))
+    except Exception:
+        pass
+
+_DRIVER = {
+    "BARAKALDO":      "Road density 21,267 m/km² + 354 m from AP-8",
+    "MAZARREDO":      "Road density 19,060 m/km² + 501 m from city centre",
+    "BASAURI":        "Industrial land use 32% within 500 m",
+    "ERANDIO":        "1,264 m from AP-8 + 18,631 m/km² road density",
+    "MUSKIZ":         "TRI 343 m + coastal NW breeze → dispersion advantage",
+    "SANTURCE":       "784 m from Port of Bilbao + TRI 445 m",
+    "ALGORTA_BBIZI2": "Lowest road density (9,933 m/km²) + 2.6 km from coast",
+}
+
 # -----------------------
 # KPI values
 # -----------------------
@@ -310,6 +344,22 @@ st.markdown("---")
 # -----------------------
 st.subheader(f"🗺️ Station Map — {pollutant} — {period_label}")
 
+# Map colour mode toggle
+_map_mode = st.radio(
+    tr("Map colour mode"),
+    [tr("Air Quality (AQI)"), tr("Structural Vulnerability (SVI)")],
+    horizontal=True,
+    key="map_mode_radio",
+    help=tr("AQI = current pollution level · SVI = structural exposure from GIS analysis"),
+)
+_use_svi = _map_mode == tr("Structural Vulnerability (SVI)") and bool(_SVI_DATA)
+if _use_svi:
+    st.caption(
+        tr("SVI = Structural Vulnerability Index — composite of road density, "
+           "distance to city centre, and Terrain Relief Index. "
+           "Higher = structurally more exposed to poor air quality.")
+    )
+
 center_lat = station_mean["Latitude"].mean()
 center_lon = station_mean["Longitude"].mean()
 
@@ -333,6 +383,31 @@ for zone_name, meta in ZONE_META.items():
         label  = get_quality_label(value, pollutant)
         radius = max(8, min(22, value / 2))
 
+        _svi_val    = _SVI_DATA.get(row["station"])
+        _driver_txt = _DRIVER.get(row["station"], "")
+        _svi_html   = (
+            f"<br><span style='font-size:11px;color:#555'>"
+            f"SVI: <b>{_svi_val:.0f}/100</b></span>"
+            if _svi_val is not None else ""
+        )
+        _drv_html = (
+            f"<br><span style='font-size:10px;color:#888;font-style:italic'>"
+            f"{_driver_txt}</span>"
+            if _driver_txt else ""
+        )
+        # SVI colour for SVI mode
+        def _svi_color(v):
+            if v is None: return "#95a5a6"
+            if v >= 70: return "#e74c3c"
+            if v >= 40: return "#f39c12"
+            return "#2ecc71"
+
+        _fill_color = _svi_color(_svi_val) if _use_svi else color
+        _popup_val  = (
+            f"SVI: {_svi_val:.0f}/100" if _use_svi and _svi_val is not None
+            else f"{value:.2f} µg/m³"
+        )
+
         popup_html = (
             f"<div style='font-family:sans-serif;min-width:190px;padding:4px'>"
             f"<b style='font-size:14px'>{row['station']}</b><br>"
@@ -342,24 +417,28 @@ for zone_name, meta in ZONE_META.items():
             f"<hr style='margin:4px 0'>"
             f"<b>{pollutant}:</b> {value:.2f} &micro;g/m&sup3;<br>"
             f"<span style='background:{color};color:white;"
-            f"padding:2px 10px;border-radius:10px;font-size:12px'>{label}</span><br>"
-            f"<span style='font-size:11px;color:#888'>Period: {period_label}</span>"
+            f"padding:2px 10px;border-radius:10px;font-size:12px'>{label}</span>"
+            f"{_svi_html}"
+            f"{_drv_html}"
+            f"<br><span style='font-size:11px;color:#888'>Period: {period_label}</span>"
             f"</div>"
         )
 
+        _radius = max(8, min(22, (_svi_val / 4.5) if _use_svi and _svi_val else value / 2))
         folium.CircleMarker(
             location=[row["Latitude"], row["Longitude"]],
-            radius=radius,
-            popup=folium.Popup(popup_html, max_width=250, parse_html=False),
+            radius=_radius,
+            popup=folium.Popup(popup_html, max_width=270, parse_html=False),
             tooltip=(
                 f"{row['station'].split('_')[0]} | "
                 f"{meta['icon']} {zone_name} | "
-                f"{value:.1f} µg/m³ ({label})"
+                + (f"SVI {_svi_val:.0f}/100" if _use_svi and _svi_val is not None
+                   else f"{value:.1f} µg/m³ ({label})")
             ),
             color=z_color,
             weight=3,
             fill=True,
-            fill_color=color,
+            fill_color=_fill_color,
             fill_opacity=0.88,
         ).add_to(fg)
 
