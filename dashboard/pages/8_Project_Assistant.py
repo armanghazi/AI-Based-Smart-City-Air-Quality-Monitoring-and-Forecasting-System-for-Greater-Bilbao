@@ -63,61 +63,83 @@ PURPOSE: End-to-end GeoAI platform that monitors, analyzes, visualizes, and fore
 urban air quality across Greater Bilbao (Bizkaia, Basque Country, Spain). Live on Streamlit Cloud.
 
 DATA: 7 monitoring stations, 4 pollutants (PM2.5, PM10, NO2, SO2), daily resolution, 2015-2026.
-Air quality from Open Data Euskadi; weather from Open-Meteo (ERA5). Stored as Parquet.
-Two files: forecasting_dataset.parquet (frozen ML snapshot, MICE-imputed) and
-air_quality_weather.parquet (live dashboard source, raw NaN kept, never interpolated).
+~29,000 daily records. Air quality from Open Data Euskadi; weather from Open-Meteo (ERA5).
+Stored as Parquet. D-1 constraint: pipeline rejects the current incomplete day.
 
 ZONES: Mazarredo/Erandio = Urban (traffic, highest NO2); Basauri/Barakaldo = Industrial (high PM);
 Santurtzi = Port (marine + traffic, SO2); Algorta = Coastal (best dispersion);
 Muskiz = Refinery (Petronor petrochemical profile).
 
-GUIDELINES: PM2.5/PM10/NO2 compared to WHO 2021 ANNUAL limits (5 / 15 / 10 ug/m3).
-SO2 is handled SEPARATELY against the WHO 24-HOUR guideline (40 ug/m3) because its behavior is
-episodic (industrial/port), not annual. Dashboard also benchmarks against EU regulatory limits.
+GUIDELINES: PM2.5/PM10/NO2 vs WHO 2021 ANNUAL limits (5 / 15 / 10 ug/m3).
+SO2 vs WHO 24-HOUR guideline (40 ug/m3) — episodic industrial/port behavior.
 
-AIR QUALITY INDEX (AQI): the dashboard shows a DUAL index. Primary = European Air Quality Index
-(EEA), which the Spanish ICA (MITECO) follows; secondary reference = US EPA AQI. The overall AQI
-of a station is the WORST (highest) pollutant category, NOT an average (official EAQI/ICA rule).
-Because the data is daily means while the official index uses shorter windows, it is a
-daily-mean-based APPROXIMATION. The logic lives in the shared aqi.py module (single source of truth).
+AIR QUALITY INDEX: DUAL index. Primary = EAQI/ICA (European/Spanish). Secondary = US EPA AQI.
+Overall AQI = WORST pollutant category (not an average — official EAQI/ICA rule).
+Daily-mean approximation. Logic in shared aqi.py.
 
-FORECASTING (production = XGBoost, one model per pollutant, 62 features each):
-- Task: next-day forecast, target(t+1) per station.
-- Test-set results (held out 2024-2026): NO2 R2=0.560, PM2.5 R2=0.479, PM10 R2=0.460, SO2 R2=0.390.
-- SO2's lower R2 is EXPECTED (episodic emissions), not a bug.
-METHODOLOGY (rigor):
-- Strict TIME-BASED split (train <2023, validation 2023, test >=2024). A row-based split once
-  produced an inflated R2=0.84 via leakage; this was found and fixed. When R2 jumps, suspect leakage.
-- Keeping TODAY's pollutant value as a feature is VALID (available at prediction time, not leakage).
-  Removing PM2.5 drops its R2 from 0.48 to 0.34.
-- SHAP confirmed physically meaningful behavior: higher wind speed and precipitation push predictions
-  DOWN (dispersion, wet deposition). NO2 shows strong day-of-week (traffic) importance.
-- Benchmarks (notebook 08): XGBoost 0.479 > SARIMA one-step 0.463 (single station only) > MLP 0.208.
-  XGBoost chosen for production: 4 models cover all stations (vs 28 for SARIMA), uses weather signal,
-  degrades gracefully on multi-day horizons. ARIMA/SARIMA/LSTM are benchmark-only, never production.
-- Models are FROZEN: runtime feature engineering means live daily data improves predictions
-  without retraining.
+FORECASTING (XGBoost, one model per pollutant, 62 features, time-based split):
+- NO2 R2=0.560 | PM2.5 R2=0.479 | PM10 R2=0.460 | SO2 R2=0.390 (held-out test 2024-2026)
+- SO2 lower R2 is EXPECTED (episodic source), not a bug.
+- Row-based split once gave fake R2=0.84 (leakage) — fixed to honest 0.479.
+- Today's pollutant value is VALID as feature (available at prediction time).
+- SHAP: wind speed/precipitation push DOWN (dispersion). NO2: day-of-week = traffic signal.
+- ARIMA/SARIMA/LSTM are benchmark-only, never production.
+- Models FROZEN: live daily data improves predictions without retraining.
 
-SPATIAL GeoAI (Phase C): IDW interpolation surfaces masked to the Gran Bilbao comarca boundary
-(EPSG:25830). Covariate analysis: distance to Petronor refinery vs mean SO2 gave Pearson r = -0.15,
-interpreted as SO2 having DISTRIBUTED sources (traffic, local combustion) rather than one point source.
-Road-density (osmnx) vs NO2 analysis is in progress.
+GIS SPATIAL ANALYSIS (notebooks 10a-10d — COMPLETED):
+NOTE: All spatial correlations across n=7 stations are exploratory/indicative only.
 
-PIPELINE (Phase B, live): GitHub Actions cron runs scripts/daily_update.py to fetch new records from
-Open Data Euskadi + Open-Meteo and append to the dashboard parquet (idempotent, current day rejected,
-zero duplicates). The commit triggers a Streamlit Cloud redeploy. No retraining.
+Top structural predictors of air pollution:
+1. Road density 1km vs NO2:          r = +0.83 (strongest signal — traffic infrastructure)
+2. Distance to city centre vs NO2:   r = -0.77 (closer = higher NO2 — urban canyon)
+3. Green cover 1km vs PM10:          r = -0.66 (more green = lower PM10)
+4. Terrain Relief Index 2km vs PM10: r = -0.63 (complex terrain = better dispersion)
+5. Distance to AP-8 motorway vs PM2.5: r = -0.54 (BARAKALDO 354m from AP-8 = highest PM2.5)
 
-DASHBOARD PAGES: 1 Monitoring, 2 Temporal Trends, 3 Urban Risk Index, 4 Weather Drivers,
-5 Forecasting (backtest + recursive forecast + SHAP), 6 Smart City Decision Support
-(GeoAI risk map, IDW surface, scenario simulator, recommended actions, PDF/CSV export).
+Station structural profiles (from GIS analysis):
+- BARAKALDO:  road density 21,267 m/km2 + 354m from AP-8 -> structural driver of elevated PM2.5/NO2
+- MAZARREDO:  77% residential yet highest NO2 (25.8 ug/m3): road density 19,060 m/km2 + 501m from centre
+- BASAURI:    industrial land use 32% within 500m (21% at 1km) -> local emission concentration
+- MUSKIZ:     34.6% industrial (Petronor) yet LOWEST PM2.5 (6.5 ug/m3): TRI 343m + coastal NW breeze
+- SANTURCE:   784m from Port of Bilbao + elevation 93m + TRI 445m -> port drives SO2 episodes
+- ALGORTA:    lowest road density (9,933 m/km2) + 2.6km coast -> structurally cleanest station
+- ERANDIO:    1,264m from AP-8 + 18,631 m/km2 road density -> traffic corridor exposure
+
+Structural Vulnerability Index (SVI — composite: road density + city centre distance + TRI):
+BARAKALDO=100 | MAZARREDO=89.8 | ERANDIO=87.4 | BASAURI=51.7 | ALGORTA=34.7 | SANTURCE=10.5 | MUSKIZ=0
+
+MUSKIZ dispersion paradox (key GeoAI finding): Three independent GIS methods (buffer analysis,
+distance features, DEM terrain) confirm that coastal position + TRI 343m + NW sea breeze override
+Petronor proximity. Despite highest industrial land use (34.6%), MUSKIZ records lowest PM2.5 (6.5 ug/m3).
+
+WIND TRANSPORT (notebook 10d — ERA5 single grid cell, ~31km, shared by all 7 stations):
+- Wind speed dispersion: NO2 drops 57% from calm (<10 m/s) to strong (>25 m/s)
+- Two regimes: NW/W (37.2% of days, sea air, NO2=16.3) vs S/SW (32.0%, inland, NO2=21.4, +31%)
+- MUSKIZ NE wind: SO2=7.32 ug/m3 (Petronor trapped by terrain, 1.93x vs S-wind baseline)
+- MAZARREDO SE wind: NO2=35.3 ug/m3 (+70% vs NW — Nervion valley channelling)
+- ERA5 caveat: single grid = regional patterns only, not station micrometeorology
+
+PIPELINE (Phase B, live): GitHub Actions cron daily_update.py -> append parquet -> Streamlit redeploy.
+
+DASHBOARD PAGES:
+0 Daily Briefing | 1 Air Quality Monitoring | 2 Temporal Trends
+3 GeoAI Spatial Analysis (4 tabs: Station DNA / Spatial Drivers / Terrain & Dispersion / Wind Transport)
+4 Weather Drivers (incl. wind transport section) | 5 Forecasting (backtest + recursive + SHAP)
+6 Smart City Decision Support (4 tabs: Status / Forecast & Map / Decisions / Spatial Intelligence)
+7 GeoAI Methodology (model metrics, spatial findings, honest caveats)
+8 Project Assistant (this page) | 9 Admin Operations (Google OAuth, sensor health)
 """.strip()
 
 # Example questions shown as quick-start buttons
 EXAMPLES = [
+    "What is the latest air quality status across all stations?",
+    "Why does MUSKIZ have low pollution despite being next to Petronor refinery?",
+    "Which station has the worst structural vulnerability index (SVI)?",
+    "How does wind direction affect SO2 at MUSKIZ?",
     "What is the yearly NO2 trend at MAZARREDO?",
-    "Which station has the worst PM2.5 exceedance rate vs the WHO limit?",
     "Why is SO2 handled separately, and why is its R2 lower than the others?",
     "How were the forecasting models protected against data leakage?",
+    "Which station benefits most from coastal dispersion?",
 ]
 
 
