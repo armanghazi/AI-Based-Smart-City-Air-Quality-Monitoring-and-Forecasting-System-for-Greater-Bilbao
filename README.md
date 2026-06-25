@@ -299,7 +299,6 @@ project/
 │   ├── auth.py                              # OIDC gate: require_auth, current_role, logout_button
 │   ├── aqi.py                               # EAQI/ICA + EPA dual index (single source of truth)
 │   ├── aqi_components.py                    # visual AQI components
-│   ├── assistant_query.py                   # parametric query tool for the AI assistant
 │   ├── forecast_utils.py                    # shared prepare_features (62 features)
 │   ├── gauge_component.py                   # WHO-referenced gauge row
 │   ├── i18n_auto.py                         # bilingual EN/ES + RTL-ready
@@ -317,7 +316,7 @@ project/
 │       ├── 5_Forecasting.py
 │       ├── 6_Smart_City_Decision_Support.py # 4 tabs + SVI + wind transport
 │       ├── 7_Scope_and_Limitations.py       # GeoAI Methodology reference
-│       ├── 8_Project_Assistant.py           # Groq AI + spatial findings context
+        ├── 8_Project_Assistant.py           # AI agent (9 tools) via OpenRouter · Llama 3.3 70B
 │       └── 9_Smart_City_Operations.py       # admin-only
 │
 ├── tests/                                   # pytest suite (11 tests)
