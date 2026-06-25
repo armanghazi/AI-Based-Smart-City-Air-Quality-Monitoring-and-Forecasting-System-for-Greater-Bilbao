@@ -1,731 +1,1024 @@
-"""
-dashboard/pages/3_GeoAI_Spatial_Analysis.py
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-GeoAI Spatial Analysis — Greater Bilbao Monitoring Network
-
-Replaces the former Urban Risk Index page.
-Four analytical tabs:
-  Tab 1 — Station DNA        : full spatial profile per station
-  Tab 2 — Spatial Drivers    : correlation matrix + interactive scatter
-  Tab 3 — Terrain & Dispersion: DEM elevation + TRI + Copernicus GLO-30
-  Tab 4 — Wind Transport     : direction × pollutant + dispersion effect
-
-Data sources:
-  - station_spatial_features_v3.csv  (notebooks 10a/10b/10c)
-  - air_quality_weather.parquet      (config.load_data)
-  - ERA5 wind via Open-Meteo         (CC BY 4.0)
-"""
-
-import numpy as np
+from config import (
+    load_data,
+    WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
+    POLLUTANT_COLOR, MONTH_NAMES, RISK_COLORS, RISK_ORDER,
+    ZONE_MAP, ZONE_META, get_zone,EU_ANNUAL,
+    classify_core_risk, risk_color, short_term_flag,
+    who_ratio_label, who_delta,get_fav_station, center_tables
+)
+ 
+import streamlit as st
 import pandas as pd
+import folium
+from folium.plugins import HeatMap
+from streamlit_folium import st_folium
 import plotly.express as px
 import plotly.graph_objects as go
-import streamlit as st
-from pathlib import Path
+from plotly.subplots import make_subplots
+import numpy as np
 
-from config import load_data, WHO_ANNUAL, ZONE_META
+from i18n_auto import language_selector, apply_lang_styles, tr
 
-# ──────────────────────────────────────────────────────────────────────────────
+
+# --------------------------------------------------
 # PAGE CONFIG
-# ──────────────────────────────────────────────────────────────────────────────
+# --------------------------------------------------
 
 st.set_page_config(
-    page_title="GeoAI Spatial Analysis",
-    page_icon="🌍",
+    page_title="Urban Air Quality — Greater Bilbao",
     layout="wide",
+    initial_sidebar_state="expanded"
+)
+language_selector()
+apply_lang_styles()
+center_tables()
+
+st.markdown("""
+<style>
+    .metric-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px 16px;
+        border-left: 4px solid #e74c3c;
+    }
+    .section-header {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 4px;
+    }
+    div[data-testid="stMetricValue"] { font-size: 1.6rem; }
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
+    .stTabs [data-baseweb="tab"] { border-radius: 6px 6px 0 0; }
+</style>
+""", unsafe_allow_html=True)
+
+# --------------------------------------------------
+# LOAD DATA
+# --------------------------------------------------
+
+df           = load_data()
+all_stations = sorted(df["station"].unique().tolist())
+all_years    = sorted(df["Year"].dropna().unique().tolist())
+
+# --------------------------------------------------
+# SIDEBAR
+# --------------------------------------------------
+
+with st.sidebar:
+    st.markdown("## 🌍 " + tr("Urban Air Quality"))
+    st.markdown(tr("Greater Bilbao · WHO 2021 Guidelines"))
+    st.divider()
+
+    st.markdown("### " + tr("Filters"))
+
+    # ── Station / Zone filter ──────────────────────
+    filter_mode = st.radio(tr("Filter by"), ["Station", "Zone"], horizontal=True)
+
+    if filter_mode == "Station":
+        selected_stations = st.multiselect(
+            tr("Stations (leave empty = all)"),
+            options=all_stations,
+            default=[]
+        )
+        selected_zone = None
+    else:
+        selected_zone = st.selectbox(
+            tr("Zone"),
+            list(ZONE_META.keys()),
+            format_func=lambda z: f"{ZONE_META[z]['icon']} {z}"
+        )
+        selected_stations = []
+
+    st.divider()
+
+    # ── Time granularity ──────────────────────────
+    st.markdown("### " + tr("Time Range"))
+    time_mode = st.radio(tr("Granularity"), ["Year", "Month", "Day"], horizontal=True)
+
+    if time_mode == "Year":
+        year_options     = ["All years"] + [str(y) for y in all_years]
+        selected_year_str = st.selectbox(tr("Year"), year_options, index=0)
+        selected_year    = None if selected_year_str == "All years" else int(selected_year_str)
+        selected_month   = None
+        selected_day     = None
+
+    elif time_mode == "Month":
+        selected_year    = st.selectbox(tr("Year"), all_years, index=len(all_years) - 1)
+        month_avail      = sorted(df[df["Year"] == selected_year]["Month"].dropna().unique().tolist())
+        month_opts       = ["All"] + [MONTH_NAMES[m] for m in month_avail]
+        sel_month_label  = st.selectbox(tr("Month"), month_opts, index=0)
+        selected_month   = (
+            {v: k for k, v in MONTH_NAMES.items()}[sel_month_label]
+            if sel_month_label != "All" else None
+        )
+        selected_day     = None
+        selected_year_str = str(selected_year)
+
+    else:  # Day
+        selected_year    = st.selectbox(tr("Year"), all_years, index=len(all_years) - 1)
+        month_avail      = sorted(df[df["Year"] == selected_year]["Month"].dropna().unique().tolist())
+        sel_month_label  = st.selectbox(tr("Month"), [MONTH_NAMES[m] for m in month_avail])
+        selected_month   = {v: k for k, v in MONTH_NAMES.items()}[sel_month_label]
+        day_avail        = sorted(
+            df[(df["Year"] == selected_year) & (df["Month"] == selected_month)]["Day"]
+            .dropna().unique().tolist()
+        )
+        selected_day     = st.selectbox(
+            tr("Day"), day_avail,
+            format_func=lambda d: pd.Timestamp(d).strftime("%d %b %Y")
+        )
+        selected_year_str = pd.Timestamp(selected_day).strftime("%d %B %Y")
+
+    st.divider()
+
+    # ── Display options ───────────────────────────
+    st.markdown("### " + tr("Display"))
+    map_mode       = st.radio(tr("Map layer"), ["Risk score", "Heatmap — PM2.5", "Heatmap — NO2", "Heatmap — PM10"])
+    show_who_lines = st.toggle(tr("Show WHO guideline lines"), value=True)
+
+    st.divider()
+
+    # ── Zone legend ───────────────────────────────
+    st.markdown("### 🗺️ " + tr("Environmental Zones"))
+    for z, meta in ZONE_META.items():
+        stations_in_zone = df[df["Zone"] == z]["station"].unique().tolist()
+        short = [s.split("_")[0] for s in stations_in_zone]
+        st.markdown(
+            f"{meta['icon']} **{z}**  \n"
+            f"<span style='font-size:11px;color:#777'>{', '.join(short)}</span>",
+            unsafe_allow_html=True
+        )
+
+    st.divider()
+    st.caption(tr("Data: 7 monitoring stations, 2015–2026 (~27k daily records)"))
+
+# --------------------------------------------------
+# APPLY FILTERS — station / zone
+# --------------------------------------------------
+
+base_df = df.copy()
+
+if filter_mode == "Zone" and selected_zone:
+    base_df     = base_df[base_df["Zone"] == selected_zone]
+    scope_label = f"{ZONE_META[selected_zone]['icon']} {selected_zone}"
+elif filter_mode == "Station" and selected_stations:
+    base_df     = base_df[base_df["station"].isin(selected_stations)]
+    scope_label = ", ".join(selected_stations)
+else:
+    scope_label = "All Stations"
+
+# ── Apply time filter ─────────────────────────────
+if time_mode == "Year":
+    if selected_year:
+        base_df      = base_df[base_df["Year"] == selected_year]
+    period_label = selected_year_str
+
+elif time_mode == "Month":
+    base_df = base_df[base_df["Year"] == selected_year]
+    if selected_month:
+        base_df      = base_df[base_df["Month"] == selected_month]
+        period_label = f"{MONTH_NAMES[selected_month]} {selected_year}"
+    else:
+        period_label = f"All months of {selected_year}"
+
+else:  # Day
+    base_df      = base_df[base_df["Day"] == selected_day]
+    period_label = selected_year_str
+
+if base_df.empty:
+    st.warning(tr("No data for selected filters."))
+    st.stop()
+
+# --------------------------------------------------
+# DAILY AGGREGATION
+# --------------------------------------------------
+
+grp_cols = ["station", "Town", "Zone", "Latitude", "Longitude", "Date", "Year", "Month", "YearMonth"]
+daily_df = (
+    base_df
+    .groupby(grp_cols, as_index=False)
+    .agg({"PM2.5": "mean", "PM10": "mean", "NO2": "mean", "SO2": "mean"})
 )
 
-# ──────────────────────────────────────────────────────────────────────────────
-# CONSTANTS
-# ──────────────────────────────────────────────────────────────────────────────
+# --------------------------------------------------
+# STATION-YEAR ANNUAL TABLE
+# --------------------------------------------------
 
-POLLUTANTS = ["PM2.5", "PM10", "NO2", "SO2"]
-
-ZONE_CLR = {
-    "Urban":      "#8e44ad",
-    "Industrial": "#e67e22",
-    "Port":       "#2980b9",
-    "Coastal":    "#1abc9c",
-    "Refinery":   "#c0392b",
-}
-
-STATION_ZONES = {
-    "ALGORTA_BBIZI2": "Coastal",
-    "BARAKALDO":      "Industrial",
-    "BASAURI":        "Industrial",
-    "ERANDIO":        "Urban",
-    "MAZARREDO":      "Urban",
-    "MUSKIZ":         "Refinery",
-    "SANTURCE":       "Port",
-}
-
-# Structural driver sentences (from GIS analysis findings)
-STATION_DRIVER = {
-    "BARAKALDO":      "Highest road density in network (21,267 m/km²) + 354 m from AP-8 interchange → structural driver of elevated PM2.5 and NO₂.",
-    "MAZARREDO":      "77% residential land use yet highest NO₂ (25.8 µg/m³): road density 19,060 m/km² + urban canyon + 501 m from city centre.",
-    "BASAURI":        "Industrial land use 32% within 500 m (drops to 21% at 1 km) — emission sources concentrated immediately around the sensor.",
-    "ERANDIO":        "1,264 m from AP-8 + 18,631 m/km² road density — traffic corridor exposure without the urban canyon attenuation.",
-    "MUSKIZ":         "34.6% industrial land use (Petronor) yet lowest PM2.5 (6.5 µg/m³): TRI 343 m + coastal NW sea breeze override emission proximity.",
-    "SANTURCE":       "784 m from Port of Bilbao + elevation 93 m + TRI 445 m — port proximity drives SO₂ episodes; terrain aids dispersion of other pollutants.",
-    "ALGORTA_BBIZI2": "Lowest road density (9,933 m/km²) + 2.6 km from Cantabrian coast → consistent NW sea breeze flushing → structurally cleanest station.",
-}
-
-# Top spatial findings for display
-TOP_FINDINGS = [
-    ("road_density_1000m", "NO2",  "+0.83", "Road density → NO₂",
-     "Strongest spatial predictor. Traffic infrastructure is the primary structural driver of NO₂."),
-    ("dist_bilbao_centre_m", "NO2", "−0.77", "Distance to city centre → NO₂",
-     "Closer to city centre = higher NO₂. Confirms urban canyon + traffic concentration effect."),
-    ("vegetation_proxy_1000m", "PM10", "−0.66", "Green cover → PM10",
-     "More vegetation within 1 km = lower PM10. Dry deposition + lower impervious surface."),
-    ("elev_tri_2000m", "PM10", "−0.63", "Terrain Relief Index → PM10",
-     "More complex terrain = stronger turbulent mixing = lower PM10. MUSKIZ TRI = 343 m."),
-    ("dist_ap8_barakaldo_m", "PM2.5", "−0.54", "Distance to AP-8 motorway → PM2.5",
-     "BARAKALDO (354 m from AP-8) records the highest PM2.5. Road traffic proximity confirmed."),
-]
-
-DIR8_ORDER = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-
-# ──────────────────────────────────────────────────────────────────────────────
-# DATA LOADING
-# ──────────────────────────────────────────────────────────────────────────────
-
-df = load_data()
-latest_date = df["Date"].max()
-
-# Spatial features — try v3 → v2 → v1
-_DATA_DIR = Path(__file__).parent.parent.parent / "data" / "processed"
-_SP_FILE = (
-    _DATA_DIR / "station_spatial_features_v3.csv"
-    if (_DATA_DIR / "station_spatial_features_v3.csv").exists()
-    else _DATA_DIR / "station_spatial_features_v2.csv"
-    if (_DATA_DIR / "station_spatial_features_v2.csv").exists()
-    else _DATA_DIR / "station_spatial_features.csv"
+station_year = (
+    daily_df
+    .groupby(["station", "Town", "Zone", "Latitude", "Longitude", "Year"], as_index=False)
+    .agg({"PM2.5": "mean", "PM10": "mean", "NO2": "mean", "SO2": "mean", "Date": "nunique"})
+    .rename(columns={"Date": "ValidDays"})
 )
 
+# Coverage threshold — relax for Month/Day modes
+if time_mode == "Year":
+    if selected_year:
+        total_days = daily_df["Date"].dt.normalize().nunique()
+        min_valid  = max(30, int(total_days * 0.6))
+    else:
+        min_valid = 200
+else:
+    min_valid = 1   # Month / Day: no coverage filter
 
-@st.cache_data
-def load_spatial() -> pd.DataFrame:
-    if not _SP_FILE.exists():
-        return pd.DataFrame()
-    return pd.read_csv(_SP_FILE)
+station_year = station_year[station_year["ValidDays"] >= min_valid].copy()
 
+if station_year.empty:
+    st.warning(tr("Not enough data coverage for the selected period. Try 'All years'."))
+    st.stop()
 
-@st.cache_data
-def load_means() -> pd.DataFrame:
-    return df.groupby("station")[POLLUTANTS].mean().reset_index()
+# WHO ratios & core risk
+for p, col in [("PM2.5","PM25_ratio"), ("PM10","PM10_ratio"), ("NO2","NO2_ratio")]:
+    station_year[col] = (station_year[p] / WHO_ANNUAL[p]).clip(upper=5)
 
+station_year["CoreRiskScore"] = 100 * (
+    station_year["PM25_ratio"] + station_year["PM10_ratio"] + station_year["NO2_ratio"]
+) / 3
+station_year["CoreRiskLevel"] = station_year["CoreRiskScore"].apply(classify_core_risk)
 
-df_sp    = load_spatial()
-df_means = load_means()
-
-if not df_sp.empty and "station" in df_sp.columns:
-    df_sp = df_sp.merge(df_means, on="station", how="left")
-
-spatial_ok = not df_sp.empty
-
-# ──────────────────────────────────────────────────────────────────────────────
-# HEADER
-# ──────────────────────────────────────────────────────────────────────────────
-
-st.markdown("## 🌍 GeoAI Spatial Analysis")
-st.markdown(
-    "Structural spatial context for the Greater Bilbao air quality monitoring network.  \n"
-    "**Sources:** OSM buffer analysis (notebook 10a) · Haversine distances (10b) · "
-    "Copernicus GLO-30 DEM (10c) · ERA5 wind transport (10d).  \n"
-    "n = 7 stations — all correlations are exploratory and indicative only."
-)
-
-if not spatial_ok:
-    st.warning(
-        "Spatial features file not found. "
-        "Run notebooks 10a–10c locally and commit `station_spatial_features_v3.csv` "
-        "to `data/processed/`. Some tabs will show reduced content."
+# SO2 exceedance
+daily_df["SO2_Exceed"] = daily_df["SO2"] > WHO_SO2_DAILY
+so2_stats = (
+    daily_df
+    .groupby(["station", "Town", "Zone", "Latitude", "Longitude", "Year"], as_index=False)
+    .agg(
+        SO2_HighDays       = ("SO2_Exceed", "sum"),
+        SO2_ExceedanceRate = ("SO2_Exceed", "mean"),
+        SO2_AnnualMean     = ("SO2", "mean")
     )
+)
+station_year = station_year.merge(
+    so2_stats,
+    on=["station", "Town", "Zone", "Latitude", "Longitude", "Year"],
+    how="left"
+)
+station_year["SO2_HighDays"]        = station_year["SO2_HighDays"].fillna(0).astype(int)
+station_year["SO2_ExceedanceRate"]  = station_year["SO2_ExceedanceRate"].fillna(0)
+station_year["SO2_AnnualMean"]      = station_year["SO2_AnnualMean"].fillna(0)
+station_year["SO2_PressureLevel"]   = station_year["SO2_ExceedanceRate"].apply(short_term_flag)
 
-# Key finding strip
-f1, f2, f3, f4, f5 = st.columns(5)
-for col, (feat, poll, r, label, _) in zip([f1, f2, f3, f4, f5], TOP_FINDINGS):
-    col.metric(label, r, help=f"{feat} × {poll}")
+
+
+# Final station risk (average across years if "All")
+if time_mode == "Year" and not selected_year:
+    station_risk = (
+        station_year
+        .groupby(["station", "Town", "Zone", "Latitude", "Longitude"], as_index=False)
+        .agg(
+            ValidYears         = ("Year",              "nunique"),
+            AvgValidDays       = ("ValidDays",          "mean"),
+            **{p: (p, "mean") for p in CORE_POLLUTANTS},
+            SO2_AnnualMean     = ("SO2_AnnualMean",     "mean"),
+            CoreRiskScore      = ("CoreRiskScore",      "mean"),
+            SO2_HighDays       = ("SO2_HighDays",       "mean"),
+            SO2_ExceedanceRate = ("SO2_ExceedanceRate", "mean"),
+            PM25_ratio         = ("PM25_ratio",         "mean"),
+            PM10_ratio         = ("PM10_ratio",         "mean"),
+            NO2_ratio          = ("NO2_ratio",          "mean"),
+        )
+    )
+    station_risk["CoreRiskLevel"]    = station_risk["CoreRiskScore"].apply(classify_core_risk)
+    station_risk["SO2_PressureLevel"]= station_risk["SO2_ExceedanceRate"].apply(short_term_flag)
+else:
+    station_risk                     = station_year.copy()
+    station_risk["ValidYears"]       = 1
+    station_risk["AvgValidDays"]     = station_risk["ValidDays"]
+
+ranking = station_risk.sort_values("CoreRiskScore", ascending=False).reset_index(drop=True)
+
+# --------------------------------------------------
+# HEADER & KPIs
+# --------------------------------------------------
+
+st.title(tr("🌍 Urban Air Quality — Greater Bilbao"))
+st.caption(
+    f"Period: **{period_label}** · Scope: **{scope_label}** · "
+    f"Stations: **{len(ranking)}** · WHO 2021 annual guidelines"
+)
+
+avg_risk     = ranking["CoreRiskScore"].mean()
+worst        = ranking.iloc[0]
+best         = ranking.sort_values("CoreRiskScore").iloc[0]
+so2_stations = int((ranking["SO2_ExceedanceRate"] > 0).sum())
+
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric(tr("Mean Core Risk Score"), f"{avg_risk:.1f}", help=tr("100 = 1× WHO limit"))
+c2.metric(tr("Worst Station"),  worst["station"], f"{tr('Score')} {worst['CoreRiskScore']:.1f}")
+c3.metric(tr("Best Station"),   best["station"],  f"{tr('Score')} {best['CoreRiskScore']:.1f}")
+c4.metric(tr("Avg NO₂"),        f"{ranking['NO2'].mean():.1f} µg/m³",
+          f"WHO limit: {WHO_ANNUAL['NO2']} µg/m³")
+c5.metric(tr("SO₂ exceedance stations"), f"{so2_stations} / {len(ranking)}")
+
+# ── Zone summary banner ───────────────────────────
+st.markdown("---")
+st.subheader(tr("🗺️ Environmental Zone Summary"))
+
+zones_present = [z for z in ZONE_META if z in ranking["Zone"].values]
+zone_cols     = st.columns(len(zones_present) or 1)
+
+for idx, zone_name in enumerate(zones_present):
+    meta       = ZONE_META[zone_name]
+    zone_data  = ranking[ranking["Zone"] == zone_name]
+    z_avg      = zone_data["CoreRiskScore"].mean()
+    z_no2      = zone_data["NO2"].mean()
+    z_pm25     = zone_data["PM2.5"].mean()
+    z_worst    = zone_data.iloc[0]["station"].split("_")[0] if not zone_data.empty else "—"
+    n          = len(zone_data)
+
+    with zone_cols[idx]:
+        st.markdown(
+            f"""
+            <div style="
+                border-left:5px solid {meta['border']};
+                background:linear-gradient(135deg,{meta['color']}18,{meta['color']}06);
+                border-radius:10px; padding:14px 16px; margin-bottom:8px;
+            ">
+                <div style="font-size:18px;margin-bottom:4px">
+                    {meta['icon']} <strong>{zone_name}</strong>
+                </div>
+                <div style="color:#666;font-size:11px;margin-bottom:8px">{meta['description']}</div>
+                <table style="width:100%;font-size:13px;border-collapse:collapse">
+                    <tr><td style="color:#777;padding:2px 0">Stations</td>
+                        <td style="text-align:right;font-weight:600">{n}</td></tr>
+                    <tr><td style="color:#777;padding:2px 0">Avg Risk Score</td>
+                        <td style="text-align:right;font-weight:600">{z_avg:.1f}</td></tr>
+                    <tr><td style="color:#777;padding:2px 0">Avg NO₂</td>
+                        <td style="text-align:right;font-weight:600">{z_no2:.1f} µg/m³</td></tr>
+                    <tr><td style="color:#777;padding:2px 0">Avg PM2.5</td>
+                        <td style="text-align:right;font-weight:600">{z_pm25:.1f} µg/m³</td></tr>
+                    <tr><td style="color:#777;padding:2px 0">Highest station</td>
+                        <td style="text-align:right;font-weight:600">{z_worst}</td></tr>
+                </table>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 st.divider()
 
-# ──────────────────────────────────────────────────────────────────────────────
-# TABS
-# ──────────────────────────────────────────────────────────────────────────────
+# --------------------------------------------------
+# MAIN TABS
+# --------------------------------------------------
 
-tab_dna, tab_drivers, tab_terrain, tab_wind = st.tabs([
-    "🗺️ Station DNA",
-    "📊 Spatial Drivers",
-    "⛰️ Terrain & Dispersion",
-    "💨 Wind Transport",
+tab_map, tab_risk, tab_trend, tab_seasonal, tab_table = st.tabs([
+    tr("🗺️ Risk Map"),
+    tr("📊 Risk Breakdown"),
+    tr("📈 Trends over Time"),
+    tr("🌡️ Seasonal Patterns"),
+    tr("🔢 Data Table"),
 ])
 
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 1 — STATION DNA
-# ══════════════════════════════════════════════════════════════════════════════
+# ==================== TAB 1: MAP ====================
+with tab_map:
+    col_map, col_legend = st.columns([3, 1])
 
-with tab_dna:
-    st.markdown("### Station Spatial Profile")
-    st.caption(
-        "Complete structural context for each station from OSM buffer analysis, "
-        "landmark distances, and Copernicus DEM terrain analysis."
-    )
+    with col_map:
+        center_lat = ranking["Latitude"].mean()
+        center_lon = ranking["Longitude"].mean()
 
-    if not spatial_ok:
-        st.info("Spatial features file required. Run notebooks 10a–10c.")
-    else:
-        # Station selector
-        selected = st.selectbox(
-            "Select station",
-            options=df_sp["station"].tolist(),
-            format_func=lambda s: f"{s}  ({STATION_ZONES.get(s, '')})",
+        m = folium.Map(
+            location=[center_lat, center_lon],
+            zoom_start=11,
+            tiles="CartoDB positron"
         )
 
-        sp_row = df_sp[df_sp["station"] == selected].iloc[0]
-        zone   = STATION_ZONES.get(selected, "")
-        zcolor = ZONE_CLR.get(zone, "#555")
-
-        # Structural driver narrative
-        drv = STATION_DRIVER.get(selected, "")
-        if drv:
-            st.info(f"📍 {drv}")
-
-        # Three columns: Land Use | Distances | Terrain
-        c1, c2, c3 = st.columns(3)
-
-        with c1:
-            st.markdown(f"**🏘️ Land Use** *(1 000 m buffer)*")
-            for lbl, col, icon in [
-                ("Green %",       "green_pct_1000m",       "🌿"),
-                ("Industrial %",  "industrial_pct_1000m",  "🏭"),
-                ("Residential %", "residential_pct_1000m", "🏘️"),
-                ("Commercial %",  "commercial_pct_1000m",  "🏪"),
-                ("Road density",  "road_density_1000m",    "🛣️"),
-            ]:
-                val = sp_row.get(col)
-                if val is not None and not (isinstance(val, float) and np.isnan(val)):
-                    unit = " m/km²" if "density" in col else "%"
-                    st.metric(f"{icon} {lbl}", f"{val:.1f}{unit}")
-
-        with c2:
-            st.markdown("**📍 Distances to Sources**")
-            for lbl, col, icon in [
-                ("Port of Bilbao",  "dist_port_bilbao_m",   "⚓"),
-                ("Petronor",        "dist_petronor_m",      "🛢️"),
-                ("AP-8 Motorway",   "dist_ap8_barakaldo_m", "🚗"),
-                ("City Centre",     "dist_bilbao_centre_m", "🏙️"),
-                ("Coastline",       "dist_coast_getxo_m",   "🌊"),
-            ]:
-                val = sp_row.get(col)
-                if val is not None and not (isinstance(val, float) and np.isnan(val)):
-                    st.metric(f"{icon} {lbl}", f"{val/1000:.1f} km")
-
-        with c3:
-            st.markdown("**⛰️ Terrain** *(Copernicus GLO-30)*")
-            for lbl, col, icon in [
-                ("Elevation",   "elev_point_m",  "📏"),
-                ("Slope",       "slope_deg",      "📐"),
-                ("TRI 2km",     "elev_tri_2000m", "🏔️"),
-                ("Mean elev 1km","elev_mean_1000m","📊"),
-            ]:
-                val = sp_row.get(col)
-                if val is not None and not (isinstance(val, float) and np.isnan(val)):
-                    unit = "°" if col == "slope_deg" else " m"
-                    st.metric(f"{icon} {lbl}", f"{val:.1f}{unit}")
-
-        st.divider()
-
-        # Pollutant profile vs network mean
-        st.markdown("**📈 Observed pollution vs network mean**")
-        net_mean = df_means.set_index("station")[POLLUTANTS].mean()
-        station_vals = df_means[df_means["station"] == selected].iloc[0]
-
-        poll_cols = st.columns(4)
-        for col, poll in zip(poll_cols, POLLUTANTS):
-            val  = station_vals[poll]
-            mean = net_mean[poll]
-            diff = val - mean
-            col.metric(
-                poll,
-                f"{val:.1f} µg/m³",
-                delta=f"{diff:+.1f} vs network",
-                delta_color="inverse",
-            )
-
-        st.divider()
-
-        # Network comparison bar chart
-        st.markdown("**📊 Network comparison — mean pollutants**")
-        nc1, nc2 = st.columns(2)
-        for col, poll in zip([nc1, nc2], ["NO2", "PM2.5"]):
-            df_bar = df_means.sort_values(poll, ascending=True).copy()
-            df_bar["color"] = [
-                "#2c3e50" if s == selected else ZONE_CLR.get(STATION_ZONES.get(s, ""), "#95a5a6")
-                for s in df_bar["station"]
+        if "Heatmap" in map_mode:
+            pollutant_key = map_mode.split("— ")[1]
+            heat_data = [
+                [row["Latitude"], row["Longitude"], row[pollutant_key]]
+                for _, row in ranking.iterrows()
+                if pd.notna(row[pollutant_key])
             ]
-            fig = go.Figure(go.Bar(
-                x=df_bar[poll],
-                y=df_bar["station"],
-                orientation="h",
-                marker_color=df_bar["color"],
-                text=df_bar[poll].round(1),
-                textposition="outside",
+            HeatMap(
+                heat_data, radius=40, blur=25,
+                gradient={0.2:"#2ecc71", 0.5:"#f39c12", 0.8:"#e74c3c", 1.0:"#7b241c"}
+            ).add_to(m)
+
+        # FeatureGroup per zone
+        for zone_name, meta in ZONE_META.items():
+            zone_rows = ranking[ranking["Zone"] == zone_name]
+            if zone_rows.empty:
+                continue
+            fg = folium.FeatureGroup(name=f"{meta['icon']} {zone_name}")
+
+            for _, row in zone_rows.iterrows():
+                score    = row["CoreRiskScore"]
+                color    = risk_color(score)
+                z_color  = meta["color"]
+                radius   = 10 + (score / 50)
+
+                popup_lines = [
+                    f"<b style='font-size:14px'>{row['station']}</b>",
+                    f"<i>{row['Town']}</i>",
+                    f"<span style='background:{z_color};color:white;padding:1px 8px;"
+                    f"border-radius:8px;font-size:11px'>{zone_name}</span>",
+                    "<hr style='margin:4px 0'>",
+                    f"<b>Core Risk Score:</b> {score:.1f} ({row['CoreRiskLevel']})",
+                    "<hr style='margin:4px 0'>",
+                    f"PM2.5: <b>{row['PM2.5']:.1f}</b> µg/m³ ({who_ratio_label(row['PM2.5'],'PM2.5')} WHO)",
+                    f"PM10: <b>{row['PM10']:.1f}</b> µg/m³ ({who_ratio_label(row['PM10'],'PM10')} WHO)",
+                    f"NO₂: <b>{row['NO2']:.1f}</b> µg/m³ ({who_ratio_label(row['NO2'],'NO2')} WHO)",
+                    f"SO₂: <b>{row['SO2_AnnualMean']:.1f}</b> µg/m³",
+                    "<hr style='margin:4px 0'>",
+                    f"SO₂ exceedance: <b>{row['SO2_ExceedanceRate']*100:.1f}%</b> ({row['SO2_PressureLevel']})",
+                ]
+
+                folium.CircleMarker(
+                    location=[row["Latitude"], row["Longitude"]],
+                    radius=radius,
+                    popup=folium.Popup("<br>".join(popup_lines), max_width=270),
+                    tooltip=f"<b>{row['station']}</b> · {zone_name} · Score {score:.0f}",
+                    color=z_color,
+                    weight=3,
+                    fill=True,
+                    fill_color=color,
+                    fill_opacity=0.88
+                ).add_to(fg)
+
+                folium.Marker(
+                    location=[row["Latitude"] + 0.003, row["Longitude"]],
+                    icon=folium.DivIcon(
+                        html=(
+                            f'<div style="font-size:10px;font-weight:600;'
+                            f'color:#2c3e50;white-space:nowrap">'
+                            f'{row["station"].split("_")[0]}</div>'
+                        ),
+                        icon_size=(120, 20),
+                        icon_anchor=(60, 0)
+                    )
+                ).add_to(fg)
+
+            fg.add_to(m)
+
+        folium.LayerControl(collapsed=False).add_to(m)
+        st_folium(m, width=None, height=580, returned_objects=[],
+                  key=f"map_{time_mode}_{period_label}_{scope_label}")
+
+    with col_legend:
+        st.markdown("#### " + tr("Air Quality"))
+        for level, color in RISK_COLORS.items():
+            n = int((ranking["CoreRiskLevel"] == level).sum())
+            st.markdown(
+                f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+                f'<div style="width:18px;height:18px;border-radius:50%;background:{color};flex-shrink:0"></div>'
+                f'<span style="font-size:13px">{level}<br><b>{n} station{"s" if n!=1 else ""}</b></span></div>',
+                unsafe_allow_html=True
+            )
+
+        st.markdown("---")
+        st.markdown("#### " + tr("Zones (border)"))
+        for z, meta in ZONE_META.items():
+            st.markdown(
+                f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+                f'<div style="width:18px;height:18px;border-radius:50%;border:3px solid {meta["color"]};flex-shrink:0"></div>'
+                f'<span style="font-size:12px">{meta["icon"]} {z}</span></div>',
+                unsafe_allow_html=True
+            )
+
+        st.markdown("---")
+        st.markdown(f"**{tr('Score guide')}**")
+        st.markdown(f"""
+<div style='font-size:12px;line-height:1.8'>
+• <b>&lt;100</b>: {tr('below WHO')}<br>
+• <b>100–200</b>: 1–2× WHO<br>
+• <b>&gt;200</b>: &gt;2× WHO<br><br>
+{tr('Fill = air quality · Border = zone')}
+</div>
+""", unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown(f"**{tr('WHO 2021 annual limits')}**")
+        for p, v in WHO_ANNUAL.items():
+            eu_v = EU_ANNUAL.get(p, "—")
+            st.markdown(
+                f"<div style='font-size:12px'>"
+                f"{p}: <b>{v} µg/m³</b> WHO · <span style='color:#888'>{eu_v} µg/m³ EU</span>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        st.caption(tr("EU = Directive 2008/50/EC"))
+
+
+# ==================== TAB 2: RISK BREAKDOWN ====================
+with tab_risk:
+    c_left, c_right = st.columns(2)
+
+    with c_left:
+        fig_bar = px.bar(
+            ranking.sort_values("CoreRiskScore"),
+            x="CoreRiskScore",
+            y="station",
+            color="CoreRiskLevel",
+            color_discrete_map=RISK_COLORS,
+            category_orders={"CoreRiskLevel": RISK_ORDER},
+            orientation="h",
+            title=tr("Annual Core Risk Score by Station"),
+            labels={"CoreRiskScore": tr("Core Risk Score"), "station": ""},
+            text="CoreRiskScore",
+            pattern_shape="Zone",
+        )
+        fig_bar.update_traces(texttemplate="%{text:.0f}", textposition="outside")
+        if show_who_lines:
+            fig_bar.add_vline(x=100, line_dash="dash", line_color="#f39c12",
+                              annotation_text="1× WHO", annotation_position="top")
+            fig_bar.add_vline(x=200, line_dash="dash", line_color="#e74c3c",
+                              annotation_text="2× WHO", annotation_position="top")
+        fig_bar.update_layout(showlegend=True, height=400,
+                              margin=dict(l=10, r=60, t=40, b=10))
+        st.plotly_chart(fig_bar,  width="stretch")
+
+    with c_right:
+        cats = ["PM2.5 ratio", "PM10 ratio", "NO₂ ratio"]
+        fig_radar = go.Figure()
+
+        for _, row in ranking.iterrows():
+            zone_color = ZONE_META.get(row.get("Zone", ""), {}).get("color", "#999")
+            vals = [row["PM25_ratio"], row["PM10_ratio"], row["NO2_ratio"]]
+            fig_radar.add_trace(go.Scatterpolar(
+                r=vals + [vals[0]],
+                theta=cats + [cats[0]],
+                fill="toself",
+                name=f"{row['station'].split('_')[0]} ({row.get('Zone','')[:3]}…)",
+                opacity=0.5,
+                line=dict(width=1.5, color=zone_color)
             ))
-            who_lim = WHO_ANNUAL.get(poll)
-            if who_lim:
-                fig.add_vline(x=who_lim, line_dash="dot", line_color="#e74c3c",
-                              annotation_text="WHO", annotation_font_size=9)
-            fig.update_layout(
-                height=280, margin=dict(t=30, b=10, l=10, r=50),
-                title=f"Mean {poll} — selected station highlighted",
-                xaxis_title=f"µg/m³",
-                yaxis=dict(autorange="reversed"),
-            )
-            col.plotly_chart(fig, width="stretch")
 
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 2 — SPATIAL DRIVERS
-# ══════════════════════════════════════════════════════════════════════════════
-
-with tab_drivers:
-    st.markdown("### Spatial Driver Analysis")
-    st.caption(
-        "Pearson r between spatial features and long-term mean pollutant concentrations. "
-        "n = 7 stations — correlations are exploratory and indicative only."
-    )
-
-    if not spatial_ok:
-        st.info("Spatial features file required.")
-    else:
-        # ── Correlation heatmap ────────────────────────────────────────────────
-        st.markdown("#### Correlation matrix — spatial features × pollutants")
-
-        _feature_groups = {
-            "Buffer — Land Use": [
-                "green_pct_1000m", "industrial_pct_1000m",
-                "residential_pct_1000m", "road_density_1000m",
-            ],
-            "Distances": [
-                "dist_port_bilbao_m", "dist_petronor_m",
-                "dist_ap8_barakaldo_m", "dist_bilbao_centre_m",
-                "dist_coast_getxo_m",
-            ],
-            "Terrain": [
-                "elev_point_m", "elev_tri_2000m",
-                "elev_std_1000m", "slope_deg",
-            ],
-        }
-        _all_feat = [f for grp in _feature_groups.values() for f in grp
-                     if f in df_sp.columns]
-        _poll_cols = [p for p in POLLUTANTS if p in df_sp.columns]
-
-        if _all_feat and _poll_cols:
-            corr = df_sp[_all_feat + _poll_cols].corr().loc[_all_feat, _poll_cols]
-
-            _labels = {
-                "green_pct_1000m":       "Green % (1km)",
-                "industrial_pct_1000m":  "Industrial % (1km)",
-                "residential_pct_1000m": "Residential % (1km)",
-                "road_density_1000m":    "Road density (1km)",
-                "dist_port_bilbao_m":    "Dist. Port (m)",
-                "dist_petronor_m":       "Dist. Petronor (m)",
-                "dist_ap8_barakaldo_m":  "Dist. AP-8 (m)",
-                "dist_bilbao_centre_m":  "Dist. City Centre (m)",
-                "dist_coast_getxo_m":    "Dist. Coast (m)",
-                "elev_point_m":          "Elevation (m)",
-                "elev_tri_2000m":        "TRI 2km (m)",
-                "elev_std_1000m":        "Elev std 1km (m)",
-                "slope_deg":             "Slope (°)",
-            }
-
-            fig_hm = go.Figure(go.Heatmap(
-                z=corr.values,
-                x=[p.replace(".", "") for p in _poll_cols],
-                y=[_labels.get(f, f) for f in _all_feat],
-                colorscale="RdBu",
-                zmid=0, zmin=-1, zmax=1,
-                text=np.round(corr.values, 2),
-                texttemplate="%{text}",
-                textfont=dict(size=11),
-                colorbar=dict(title="Pearson r"),
-            ))
-            fig_hm.update_layout(
-                height=480,
-                margin=dict(t=20, b=10, l=160, r=20),
-                xaxis=dict(side="top"),
-            )
-            st.plotly_chart(fig_hm, width="stretch")
-
-        st.divider()
-
-        # ── Interactive scatter ────────────────────────────────────────────────
-        st.markdown("#### Spatial driver explorer")
-        st.caption("Choose X (spatial feature) and Y (pollutant) to explore the relationship.")
-
-        _feat_labels = {
-            "Road density (1km)":         "road_density_1000m",
-            "Industrial % (1km)":         "industrial_pct_1000m",
-            "Green % (1km)":              "green_pct_1000m",
-            "Distance to City Centre (km)":"dist_bilbao_centre_m",
-            "Distance to Port (km)":       "dist_port_bilbao_m",
-            "Distance to AP-8 (km)":       "dist_ap8_barakaldo_m",
-            "Elevation (m)":              "elev_point_m",
-            "TRI 2km (m)":               "elev_tri_2000m",
-            "Slope (°)":                 "slope_deg",
-        }
-        _avail = {k: v for k, v in _feat_labels.items() if v in df_sp.columns}
-
-        _sc1, _sc2 = st.columns(2)
-        x_lbl = _sc1.selectbox("Spatial feature (X)", list(_avail.keys()), index=0)
-        y_lbl = _sc2.selectbox("Pollutant (Y)", POLLUTANTS, index=2)
-
-        x_col = _avail[x_lbl]
-        y_col = y_lbl
-
-        _df_sc = df_sp[["station", "zone", x_col, y_col]].dropna().copy()
-        if "dist_" in x_col:
-            _df_sc[x_col] = _df_sc[x_col] / 1000
-
-        if len(_df_sc) >= 3:
-            _r = _df_sc[[x_col, y_col]].corr().iloc[0, 1]
-            fig_sc = px.scatter(
-                _df_sc, x=x_col, y=y_col, text="station",
-                trendline="ols",
-                color="zone",
-                color_discrete_map=ZONE_CLR,
-                labels={x_col: x_lbl, y_col: f"Mean {y_lbl} (µg/m³)"},
-                title=f"{x_lbl} vs Mean {y_lbl}  |  Pearson r = {_r:.2f}  (n = {len(_df_sc)})",
-            )
-            fig_sc.update_traces(textposition="top center",
-                                 selector=dict(mode="markers+text"))
-            fig_sc.update_layout(
-                height=400, margin=dict(t=55, b=10),
-                legend=dict(orientation="h", y=-0.2),
-            )
-            st.plotly_chart(fig_sc, width="stretch")
-
-            _badge = ("🟢 Strong" if abs(_r) >= 0.7
-                      else "🟡 Moderate" if abs(_r) >= 0.4
-                      else "⚪ Weak")
-            st.info(f"{_badge} signal  |  r = {_r:.2f}")
-
-        st.divider()
-
-        # Top findings table
-        st.markdown("#### Summary — strongest spatial predictors")
-        _rows = []
-        for feat, poll, r, label, explanation in TOP_FINDINGS:
-            _rows.append({"Feature": label, "Pollutant": poll, "r": r, "Interpretation": explanation})
-        st.dataframe(pd.DataFrame(_rows), width="stretch", hide_index=True)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 3 — TERRAIN & DISPERSION
-# ══════════════════════════════════════════════════════════════════════════════
-
-with tab_terrain:
-    st.markdown("### Terrain & Atmospheric Dispersion")
-    st.caption(
-        "Elevation and terrain complexity derived from Copernicus GLO-30 DEM (30 m resolution). "
-        "Higher Terrain Relief Index (TRI) = more complex terrain = stronger turbulent mixing."
-    )
-
-    if not spatial_ok or "elev_point_m" not in df_sp.columns:
-        st.info(
-            "Terrain features require station_spatial_features_v3.csv. "
-            "Run notebook 10c (elevation_terrain_features)."
+        fig_radar.update_layout(
+            polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
+            title="Pollutant Ratios vs WHO Limit<br><sup>Line color = zone</sup>",
+            showlegend=True,
+            height=400,
+            margin=dict(l=30, r=30, t=60, b=30)
         )
-    else:
-        df_ter = df_sp.copy().dropna(subset=["elev_point_m"])
+        st.plotly_chart(fig_radar,  width="stretch")
 
-        # ── Three-panel chart: elevation + TRI + slope ─────────────────────────
-        t1, t2, t3 = st.columns(3)
+    # Grouped bar — by zone
+    st.markdown("#### " + tr("Zone-level Pollutant Comparison"))
 
-        with t1:
-            df_e = df_ter.sort_values("elev_point_m")
-            fig_e = go.Figure(go.Bar(
-                x=df_e["elev_point_m"], y=df_e["station"],
-                orientation="h",
-                marker_color=[ZONE_CLR.get(STATION_ZONES.get(s, ""), "#95a5a6")
-                              for s in df_e["station"]],
-                text=df_e["elev_point_m"].round(0).astype(int).astype(str) + " m",
-                textposition="outside",
-            ))
-            fig_e.update_layout(height=300, margin=dict(t=30,b=10,l=10,r=60),
-                                title="Station elevation (m)")
-            st.plotly_chart(fig_e, width="stretch")
+    zone_poll_rows = []
+    for zone_name in ZONE_META:
+        zone_data = ranking[ranking["Zone"] == zone_name]
+        if zone_data.empty:
+            continue
+        for p in CORE_POLLUTANTS:
+            zone_poll_rows.append({
+                "Zone":          zone_name,
+                "Pollutant":     p,
+                "Concentration": zone_data[p].mean(),
+                "WHO_Limit":     WHO_ANNUAL[p]
+            })
+    zpdf = pd.DataFrame(zone_poll_rows)
 
-        with t2:
-            if "elev_tri_2000m" in df_ter.columns:
-                df_tri = df_ter.dropna(subset=["elev_tri_2000m"]).sort_values("elev_tri_2000m")
-                fig_tri = go.Figure(go.Bar(
-                    x=df_tri["elev_tri_2000m"], y=df_tri["station"],
-                    orientation="h",
-                    marker_color=[ZONE_CLR.get(STATION_ZONES.get(s, ""), "#95a5a6")
-                                  for s in df_tri["station"]],
-                    text=df_tri["elev_tri_2000m"].round(0).astype(int).astype(str) + " m",
-                    textposition="outside",
-                ))
-                fig_tri.update_layout(height=300, margin=dict(t=30,b=10,l=10,r=60),
-                                      title="TRI — 2km buffer (m)")
-                st.plotly_chart(fig_tri, width="stretch")
-
-        with t3:
-            if "slope_deg" in df_ter.columns:
-                df_sl = df_ter.sort_values("slope_deg")
-                fig_sl = go.Figure(go.Bar(
-                    x=df_sl["slope_deg"], y=df_sl["station"],
-                    orientation="h",
-                    marker_color=[ZONE_CLR.get(STATION_ZONES.get(s, ""), "#95a5a6")
-                                  for s in df_sl["station"]],
-                    text=df_sl["slope_deg"].round(1).astype(str) + "°",
-                    textposition="outside",
-                ))
-                fig_sl.update_layout(height=300, margin=dict(t=30,b=10,l=10,r=60),
-                                     title="Slope at station (°)")
-                st.plotly_chart(fig_sl, width="stretch")
-
-        st.divider()
-
-        # ── Terrain vs pollutant scatter ───────────────────────────────────────
-        st.markdown("#### TRI × mean PM10  — terrain complexity reduces particulate levels")
-        if "elev_tri_2000m" in df_sp.columns and "PM10" in df_sp.columns:
-            df_tsc = df_sp[["station", "zone", "elev_tri_2000m", "PM10",
-                            "elev_point_m"]].dropna()
-            r_tri = df_tsc["elev_tri_2000m"].corr(df_tsc["PM10"])
-            fig_tsc = px.scatter(
-                df_tsc, x="elev_tri_2000m", y="PM10", text="station",
-                trendline="ols",
-                color="zone", color_discrete_map=ZONE_CLR,
-                labels={"elev_tri_2000m": "Terrain Relief Index 2km (m)",
-                        "PM10": "Mean PM10 (µg/m³)"},
-                title=f"TRI × Mean PM10  |  r = {r_tri:.2f}  (n = {len(df_tsc)})",
-            )
-            fig_tsc.update_traces(textposition="top center",
-                                  selector=dict(mode="markers+text"))
-            fig_tsc.update_layout(height=380, margin=dict(t=55,b=10),
-                                  showlegend=False)
-            st.plotly_chart(fig_tsc, width="stretch")
-
-        st.divider()
-
-        # ── Key terrain finding ────────────────────────────────────────────────
-        st.markdown("#### MUSKIZ dispersion paradox — confirmed by terrain analysis")
-        _mc1, _mc2, _mc3 = st.columns(3)
-        _mc1.metric("Industrial land use (1km)", "34.6%", "Highest in network",
-                    delta_color="inverse")
-        _mc2.metric("Mean PM2.5", "6.50 µg/m³", "Lowest in network ✓",
-                    delta_color="off")
-        _mc3.metric("TRI 2km", "343 m", "2nd highest — orographic ventilation",
-                    delta_color="off")
-        st.success(
-            "Three independent GIS methods confirm the MUSKIZ paradox: "
-            "coastal location (notebook 10a) + farthest from city centre (10b) + "
-            "high TRI from terrain ridge (10c) together override Petronor emission proximity."
-        )
-
-        st.info(
-            "**DEM source:** Copernicus GLO-30, 30 m resolution · EPSG:25830 · "
-            "Tiles: N43_W003 + N43_W004. Full analysis: notebook 10c."
-        )
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 4 — WIND TRANSPORT
-# ══════════════════════════════════════════════════════════════════════════════
-
-with tab_wind:
-    st.markdown("### Wind Transport Analysis")
-    st.caption(
-        "Regional wind conditions from ERA5 (single grid cell, ~31 km resolution). "
-        "Direction = sector wind is coming FROM. All 7 stations share the same ERA5 time series."
-    )
-
-    def dir8(wd):
-        dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-        return dirs[int((float(wd) + 22.5) / 45) % 8]
-
-    df["dir8"] = df["WindDirection"].apply(dir8)
-
-    # ── Section A: Wind speed × dispersion ────────────────────────────────────
-    st.markdown("#### A — Wind speed reduces pollution monotonically")
-
-    _ws_labels = ["< 10", "10–15", "15–20", "20–25", "> 25"]
-    _no2_means = [29.85, 21.05, 18.56, 16.03, 12.81]
-    _pm25_means = [13.76, 11.27,  9.55,  7.84,  6.44]
-    _pm10_means = [22.70, 19.30, 16.84, 14.64, 12.84]
-    _so2_means  = [ 6.32,  5.03,  4.73,  4.39,  4.20]
-
-    _colors_ws = ["#e74c3c", "#e67e22", "#f39c12", "#2ecc71", "#27ae60"]
-
-    _wa1, _wa2 = st.columns(2)
-
-    with _wa1:
-        fig_ws = go.Figure()
-        for poll, vals, dash in [
-            ("NO₂", _no2_means, "solid"),
-            ("PM2.5", _pm25_means, "dash"),
-            ("PM10", _pm10_means, "dot"),
-        ]:
-            fig_ws.add_trace(go.Scatter(
-                x=_ws_labels, y=vals, mode="lines+markers",
-                name=poll, line=dict(dash=dash),
-            ))
-        fig_ws.update_layout(
-            height=300, title="Mean concentration by wind speed (m/s)",
-            margin=dict(t=45, b=10),
-            xaxis_title="Wind speed", yaxis_title="µg/m³",
-            legend=dict(orientation="h", y=-0.2),
-        )
-        st.plotly_chart(fig_ws, width="stretch")
-
-    with _wa2:
-        _pcts = {
-            "NO₂":  "-57%", "PM2.5": "-53%",
-            "PM10": "-43%", "SO₂":   "-34%",
-        }
-        st.markdown("**Reduction: calm → strong wind**")
-        for poll, pct in _pcts.items():
-            st.metric(f"{poll} reduction", pct,
-                      help="Calm < 10 m/s vs strong > 25 m/s")
-        st.caption(
-            "SO₂ least responsive (−34%) — point-source emissions "
-            "driven more by source intensity than wind speed."
-        )
-
-    st.divider()
-
-    # ── Section B: Direction × station heatmaps ───────────────────────────────
-    st.markdown("#### B — Wind direction × station cross-analysis")
-    st.caption(
-        "Under the same regional wind, stations respond differently — "
-        "revealing each station's position relative to emission sources."
-    )
-
-    _poll_wind = st.selectbox("Pollutant", POLLUTANTS, index=2, key="wind_poll")
-
-    _pivot = (
-        df.groupby(["dir8", "station"])[_poll_wind]
-        .mean()
-        .unstack("station")
-        .reindex(DIR8_ORDER)
-    )
-    _st_order = ["MUSKIZ", "SANTURCE", "ALGORTA_BBIZI2",
-                 "ERANDIO", "BARAKALDO", "MAZARREDO", "BASAURI"]
-    _st_order = [s for s in _st_order if s in _pivot.columns]
-    _pivot = _pivot[_st_order]
-
-    fig_dir = go.Figure(go.Heatmap(
-        z=_pivot.values.T,
-        x=DIR8_ORDER,
-        y=[f"{s}\n({STATION_ZONES.get(s,'')})" for s in _st_order],
-        colorscale="RdYlGn_r",
-        text=np.round(_pivot.values.T, 1),
-        texttemplate="%{text}",
-        textfont=dict(size=10),
-        colorbar=dict(title="µg/m³"),
-    ))
-    fig_dir.update_layout(
-        height=380,
-        margin=dict(t=20, b=10, l=140, r=20),
-        xaxis_title="Wind direction (FROM)",
-    )
-    st.plotly_chart(fig_dir, width="stretch")
-
-    st.divider()
-
-    # ── Section C: MUSKIZ + MAZARREDO deep-dive ────────────────────────────────
-    st.markdown("#### C — Station signatures: MUSKIZ SO₂ + MAZARREDO NO₂")
-
-    _muskiz_so2 = [5.81, 7.32, 5.93, 5.19, 3.80, 3.86, 3.42, 4.50]
-    _maz_no2    = [19.31, 23.36, 32.36, 35.32, 32.09, 29.68, 26.37, 20.79]
-
-    _wc1, _wc2 = st.columns(2)
-
-    with _wc1:
-        _daily_freq = (
-            df.drop_duplicates("Date")["dir8"]
-            .value_counts(normalize=True).reindex(DIR8_ORDER).fillna(0) * 100
-        )
-        fig_m = go.Figure()
-        fig_m.add_trace(go.Bar(
-            x=DIR8_ORDER, y=_muskiz_so2,
-            name="Mean SO₂ (µg/m³)",
-            marker_color="#c0392b", opacity=0.85,
-        ))
-        _ax2 = go.Bar(
-            x=DIR8_ORDER, y=_daily_freq.values,
-            name="Wind frequency (%)",
-            marker_color="#3498db", opacity=0.5,
-            yaxis="y2",
-        )
-        fig_m.add_trace(_ax2)
-        fig_m.update_layout(
-            height=320,
-            title="MUSKIZ — SO₂ by wind direction (Petronor refinery)",
-            yaxis=dict(title="Mean SO₂ (µg/m³)", color="#c0392b"),
-            yaxis2=dict(title="Wind freq (%)", overlaying="y", side="right",
-                        color="#3498db"),
-            legend=dict(orientation="h", y=-0.25),
-            margin=dict(t=50, b=10),
+    if not zpdf.empty:
+        fig_zone_poll = px.bar(
+            zpdf,
+            x="Zone",
+            y="Concentration",
+            color="Pollutant",
             barmode="group",
+            color_discrete_map=POLLUTANT_COLOR,
+            labels={"Concentration": "µg/m³"},
+            title="Zone-average pollutant concentrations"
         )
-        st.plotly_chart(fig_m, width="stretch")
-        st.caption(
-            "NE wind → SO₂ = 7.32 µg/m³ (Petronor trapped against terrain, TRI = 343 m). "
-            "S wind → SO₂ = 3.80 µg/m³ (sea breeze clears emissions). Ratio: **1.93×**."
+        if show_who_lines:
+            for p, lim in WHO_ANNUAL.items():
+                fig_zone_poll.add_hline(
+                    y=lim, line_dash="dot", line_color=POLLUTANT_COLOR[p],
+                    annotation_text=f"WHO {p}", annotation_font_size=10
+                )
+        fig_zone_poll.update_layout(height=320)
+        st.plotly_chart(fig_zone_poll,  width="stretch")
+
+    # Individual pollutant means per station
+    st.markdown("#### " + tr("Individual Pollutant Annual Means vs WHO Guideline"))
+
+    pollutant_rows = []
+    for _, row in ranking.iterrows():
+        for p in CORE_POLLUTANTS:
+            pollutant_rows.append({
+                "station":       row["station"].split("_")[0],
+                "Zone":          row.get("Zone", ""),
+                "Pollutant":     p,
+                "Concentration": row[p],
+            })
+    pdf = pd.DataFrame(pollutant_rows)
+
+    fig_grouped = px.bar(
+        pdf,
+        x="station",
+        y="Concentration",
+        color="Pollutant",
+        barmode="group",
+        color_discrete_map=POLLUTANT_COLOR,
+        facet_col="Zone",
+        facet_col_wrap=3,
+        labels={"Concentration": "µg/m³", "station": ""},
+        title="Annual mean concentrations by station and pollutant (grouped by zone)"
+    )
+    if show_who_lines:
+        for p, lim in WHO_ANNUAL.items():
+            fig_grouped.add_hline(
+                y=lim, line_dash="dot", line_color=POLLUTANT_COLOR[p],
+                annotation_text=f"WHO {p}", annotation_font_size=9
+            )
+    fig_grouped.update_layout(height=360)
+    st.plotly_chart(fig_grouped,  width="stretch")
+
+    # SO2
+    st.markdown("#### " + tr("SO₂ Short-Term Pressure"))
+    fig_so2 = px.bar(
+        ranking.sort_values("SO2_ExceedanceRate", ascending=False),
+        x="station",
+        y="SO2_ExceedanceRate",
+        color="Zone",
+        color_discrete_map={z: m["color"] for z, m in ZONE_META.items()},
+        pattern_shape="SO2_PressureLevel",
+        labels={"SO2_ExceedanceRate": "Exceedance rate (fraction)", "station": ""},
+        title="Fraction of days exceeding WHO SO₂ 24h guideline (40 µg/m³) — colored by zone",
+        text_auto=".1%"
+    )
+    fig_so2.update_layout(height=320)
+    st.plotly_chart(fig_so2,  width="stretch")
+
+    # --------------------------------------------------
+# WHO vs EU comparison table
+# --------------------------------------------------
+st.markdown("#### " + tr("WHO 2021 vs EU Directive 2008/50/EC"))
+st.caption(
+    tr("WHO guidelines are stricter than legally binding EU limits. "
+       "Exceeding WHO does NOT mean a legal violation.")
+)
+
+# Build comparison per station
+eu_rows = []
+for _, row in ranking.iterrows():
+    for p in CORE_POLLUTANTS:
+        val      = row[p]
+        who_lim  = WHO_ANNUAL[p]
+        eu_lim   = EU_ANNUAL[p]
+        eu_rows.append({
+            "Station":    row["station"].split("_")[0],
+            "Zone":       row.get("Zone", ""),
+            "Pollutant":  p,
+            "Mean (µg/m³)": round(val, 1),
+            "vs WHO":     f"{val/who_lim:.1f}×",
+            "vs EU":      f"{val/eu_lim:.1f}×",
+            "WHO status": "⚠️ Above" if val > who_lim else "✅ Below",
+            "EU status":  "⚠️ Above" if val > eu_lim  else "✅ Below",
+        })
+
+eu_df = pd.DataFrame(eu_rows)
+st.dataframe(eu_df, hide_index=True, width="stretch")
+
+
+# ==================== TAB 3: TRENDS ====================
+with tab_trend:
+
+    # In Day mode: no time-series trend makes sense — show snapshot bar
+    if time_mode == "Day":
+        st.markdown(f"### {period_label} — {tr('station snapshot')}")
+
+        snap = (
+            daily_df
+            .groupby(["station", "Zone"])[CORE_POLLUTANTS]
+            .mean()
+            .reset_index()
+        )
+        poll_day = st.selectbox(tr("Pollutant"), CORE_POLLUTANTS + ["SO2"],
+                                key="trend_day_poll")
+        fig_snap = px.bar(
+            snap.sort_values(poll_day, ascending=False),
+            x="station", y=poll_day,
+            color="Zone",
+            color_discrete_map={z: m["color"] for z, m in ZONE_META.items()},
+            title=f"{poll_day} on {period_label}",
+            labels={poll_day: f"{poll_day} (µg/m³)"}
+        )
+        if show_who_lines and poll_day in WHO_ANNUAL:
+            fig_snap.add_hline(
+                y=WHO_ANNUAL[poll_day], line_dash="dash", line_color="red",
+                annotation_text=f"WHO {WHO_ANNUAL[poll_day]} µg/m³"
+            )
+        fig_snap.update_layout(height=380)
+        st.plotly_chart(fig_snap,  width="stretch")
+
+    else:
+        st.markdown("### " + tr("Trends — stations colored by zone"))
+
+        # Use full df for trend (all years), restricted to station/zone scope
+        trend_base = df.copy()
+        if filter_mode == "Zone" and selected_zone:
+            trend_base = trend_base[trend_base["Zone"] == selected_zone]
+        elif filter_mode == "Station" and selected_stations:
+            trend_base = trend_base[trend_base["station"].isin(selected_stations)]
+
+        pollutant_choice = st.selectbox(
+            tr("Pollutant"), CORE_POLLUTANTS + ["SO2"], index=0, key="trend_poll"
         )
 
-    with _wc2:
-        fig_maz = go.Figure()
-        fig_maz.add_trace(go.Bar(
-            x=DIR8_ORDER, y=_maz_no2,
-            name="Mean NO₂ (µg/m³)",
-            marker_color="#8e44ad", opacity=0.85,
+        if time_mode == "Year":
+            yearly = (
+                trend_base
+                .groupby(["Year", "station", "Zone"], as_index=False)
+                .agg({pollutant_choice: "mean"})
+            )
+            fig_trend = px.line(
+                yearly, x="Year", y=pollutant_choice,
+                color="station",
+                line_dash="Zone",
+                color_discrete_map={
+                    s: ZONE_META.get(
+                        trend_base[trend_base["station"] == s]["Zone"].iloc[0], {}
+                    ).get("color", "#999")
+                    for s in yearly["station"].unique()
+                },
+                markers=True,
+                title=f"{pollutant_choice} annual mean — {scope_label}",
+                labels={pollutant_choice: f"{pollutant_choice} µg/m³"}
+            )
+
+        else:  # Month mode
+            monthly_t = (
+                trend_base[trend_base["Year"] == selected_year]
+                .groupby(["Month", "station", "Zone"], as_index=False)
+                .agg({pollutant_choice: "mean"})
+            )
+            monthly_t["MonthName"] = monthly_t["Month"].map(MONTH_NAMES)
+            fig_trend = px.line(
+                monthly_t, x="MonthName", y=pollutant_choice,
+                color="station",
+                line_dash="Zone",
+                color_discrete_map={
+                    s: ZONE_META.get(
+                        trend_base[trend_base["station"] == s]["Zone"].iloc[0], {}
+                    ).get("color", "#999")
+                    for s in monthly_t["station"].unique()
+                },
+                markers=True,
+                title=f"{pollutant_choice} monthly mean — {scope_label} — {period_label}",
+                labels={pollutant_choice: f"{pollutant_choice} µg/m³", "MonthName": "Month"}
+            )
+
+        if show_who_lines and pollutant_choice in WHO_ANNUAL:
+            fig_trend.add_hline(
+                y=WHO_ANNUAL[pollutant_choice], line_dash="dash", line_color="red",
+                annotation_text=f"WHO limit {WHO_ANNUAL[pollutant_choice]} µg/m³",
+                annotation_position="bottom right"
+            )
+        fig_trend.update_layout(height=420, hovermode="x unified")
+        st.plotly_chart(fig_trend,  width="stretch")
+
+        # Zone-level trend (Year mode only)
+        if time_mode == "Year":
+            st.markdown("### " + tr("Zone-level trend (aggregated)"))
+
+            zone_yearly = (
+                trend_base
+                .groupby(["Year", "Zone"], as_index=False)
+                .agg({pollutant_choice: "mean"})
+            )
+            fig_zone_trend = px.line(
+                zone_yearly, x="Year", y=pollutant_choice,
+                color="Zone",
+                color_discrete_map={z: m["color"] for z, m in ZONE_META.items()},
+                markers=True,
+                title=f"{pollutant_choice} annual mean by zone",
+                labels={pollutant_choice: f"{pollutant_choice} µg/m³"}
+            )
+            if show_who_lines and pollutant_choice in WHO_ANNUAL:
+                fig_zone_trend.add_hline(
+                    y=WHO_ANNUAL[pollutant_choice], line_dash="dash", line_color="red",
+                    annotation_text=f"WHO {WHO_ANNUAL[pollutant_choice]} µg/m³"
+                )
+            fig_zone_trend.update_layout(height=360, hovermode="x unified")
+            st.plotly_chart(fig_zone_trend,  width="stretch")
+
+            # City-wide rolling area chart
+            st.markdown("### " + tr("City-wide monthly average (3-month rolling)"))
+            monthly_all = (
+                trend_base
+                .groupby("YearMonth", as_index=False)
+                .agg({"PM2.5": "mean", "PM10": "mean", "NO2": "mean", "SO2": "mean"})
+                .sort_values("YearMonth")
+            )
+            fig_area = go.Figure()
+            for p in CORE_POLLUTANTS:
+                fig_area.add_trace(go.Scatter(
+                    x=monthly_all["YearMonth"],
+                    y=monthly_all[p].rolling(3, center=True, min_periods=1).mean(),
+                    name=p, fill="tozeroy",
+                    line=dict(color=POLLUTANT_COLOR[p], width=1.5),
+                    opacity=0.4
+                ))
+            if show_who_lines:
+                for p, lim in WHO_ANNUAL.items():
+                    fig_area.add_hline(y=lim, line_dash="dot",
+                                       line_color=POLLUTANT_COLOR[p],
+                                       annotation_text=f"WHO {p}",
+                                       annotation_font_size=9, opacity=0.6)
+            fig_area.update_layout(
+                title="3-month rolling average — µg/m³",
+                xaxis_title="Date", yaxis_title="µg/m³",
+                height=380, hovermode="x unified",
+                legend=dict(orientation="h", y=1.05)
+            )
+            st.plotly_chart(fig_area,  width="stretch")
+
+
+# ==================== TAB 4: SEASONAL ====================
+with tab_seasonal:
+    st.markdown("### " + tr("Monthly seasonality by zone"))
+
+    poll_s = st.selectbox(tr("Pollutant"), CORE_POLLUTANTS + ["SO2"],
+                          index=2, key="seas_poll")
+
+    # Zone-level seasonality
+    monthly_zone = (
+        daily_df
+        .groupby(["Zone", "Month"], as_index=False)
+        .agg({poll_s: "mean"})
+    )
+    monthly_zone["MonthName"] = monthly_zone["Month"].map(MONTH_NAMES)
+
+    fig_zone_season = px.line(
+        monthly_zone, x="Month", y=poll_s,
+        color="Zone",
+        color_discrete_map={z: m["color"] for z, m in ZONE_META.items()},
+        markers=True,
+        title=f"{poll_s} monthly mean by zone",
+        labels={poll_s: f"{poll_s} µg/m³", "Month": "Month"}
+    )
+    fig_zone_season.update_xaxes(
+        tickmode="array",
+        tickvals=list(range(1, 13)),
+        ticktext=list(MONTH_NAMES.values())
+    )
+    if show_who_lines and poll_s in WHO_ANNUAL:
+        fig_zone_season.add_hline(
+            y=WHO_ANNUAL[poll_s], line_dash="dash", line_color="red",
+            annotation_text="WHO limit"
+        )
+    fig_zone_season.update_layout(height=360, hovermode="x unified")
+    st.plotly_chart(fig_zone_season,  width="stretch")
+
+    # Station-level seasonality
+    st.markdown("### " + tr("Monthly seasonality by station"))
+
+    monthly_station = (
+        daily_df
+        .groupby(["station", "Zone", "Month"], as_index=False)
+        .agg({poll_s: "mean"})
+    )
+    monthly_station["MonthName"] = monthly_station["Month"].map(MONTH_NAMES)
+
+    fig_season = px.line(
+        monthly_station, x="Month", y=poll_s,
+        color="station",
+        line_dash="Zone",
+        color_discrete_map={
+            s: ZONE_META.get(
+                monthly_station[monthly_station["station"] == s]["Zone"].iloc[0], {}
+            ).get("color", "#999")
+            for s in monthly_station["station"].unique()
+        },
+        markers=True,
+        title=f"{poll_s} monthly mean by station (line style = zone)",
+        labels={poll_s: f"{poll_s} µg/m³", "Month": "Month"}
+    )
+    fig_season.update_xaxes(
+        tickmode="array",
+        tickvals=list(range(1, 13)),
+        ticktext=list(MONTH_NAMES.values())
+    )
+    if show_who_lines and poll_s in WHO_ANNUAL:
+        fig_season.add_hline(
+            y=WHO_ANNUAL[poll_s], line_dash="dash", line_color="red",
+            annotation_text="WHO limit"
+        )
+    fig_season.update_layout(height=400, hovermode="x unified")
+    st.plotly_chart(fig_season,  width="stretch")
+
+    # Heatmap: station × month
+    st.markdown("### " + tr("Station × Month heatmap"))
+
+    pivot = monthly_station.pivot(index="station", columns="Month", values=poll_s)
+    pivot.columns = [MONTH_NAMES[c] for c in pivot.columns]
+
+    # Sort rows by zone
+    zone_keys = list(ZONE_META.keys())
+
+    def _zone_order(station: str) -> int:
+        rows = daily_df[daily_df["station"] == station]
+        if rows.empty:
+            return 99
+        zone = rows["Zone"].iloc[0]
+        return zone_keys.index(zone) if zone in zone_keys else 99
+
+    pivot = pivot.loc[sorted(pivot.index, key=_zone_order)]
+    
+    fig_hm = px.imshow(
+        pivot,
+        color_continuous_scale=["#2ecc71", "#f9ca24", "#e74c3c"],
+        aspect="auto",
+        title=f"{poll_s} µg/m³ — station × month (rows sorted by zone)",
+        labels={"color": f"{poll_s} µg/m³"}
+    )
+    fig_hm.update_layout(height=340, margin=dict(l=10, r=10, t=50, b=10))
+    st.plotly_chart(fig_hm,  width="stretch")
+
+
+# ==================== TAB 5: TABLE ====================
+with tab_table:
+    st.markdown("### " + tr("Station risk summary table"))
+
+    display_cols = [
+        "station", "Town", "Zone", "CoreRiskScore", "CoreRiskLevel",
+        "PM2.5", "PM10", "NO2", "SO2_AnnualMean",
+        "SO2_ExceedanceRate", "SO2_PressureLevel"
+    ]
+    if time_mode == "Year" and selected_year:
+        display_cols = ["Year", "ValidDays"] + display_cols
+    else:
+        display_cols = ["ValidYears", "AvgValidDays"] + display_cols
+
+    display_df = ranking[[c for c in display_cols if c in ranking.columns]].copy()
+    float_cols = ["CoreRiskScore","PM2.5","PM10","NO2","SO2_AnnualMean",
+                  "SO2_ExceedanceRate","AvgValidDays"]
+    for col in float_cols:
+        if col in display_df.columns:
+            display_df[col] = display_df[col].round(2)
+
+    st.dataframe(
+        display_df,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "CoreRiskScore": st.column_config.ProgressColumn(
+                tr("Core Risk Score"), min_value=0,
+                max_value=float(display_df["CoreRiskScore"].max() * 1.1),
+                format="%.1f"
+            ),
+            "SO2_ExceedanceRate": st.column_config.ProgressColumn(
+                tr("SO₂ Exceedance Rate"), min_value=0, max_value=1, format="%.1%"
+            ),
+            "Zone": st.column_config.TextColumn(tr("Environmental Zone"))
+        }
+    )
+
+    # Zone comparison expander
+    with st.expander(tr("📊 Zone Comparison Table")):
+        zone_comp = (
+            ranking
+            .groupby("Zone")[["CoreRiskScore", "PM2.5", "PM10", "NO2", "SO2_ExceedanceRate"]]
+            .agg(["mean", "min", "max"])
+            .round(2)
+        )
+        st.dataframe(zone_comp, width="stretch")
+
+    st.markdown("---")
+    st.markdown("### " + tr("Daily raw data explorer"))
+
+    _fav = get_fav_station(all_stations)
+    _idx = all_stations.index(_fav) if _fav in all_stations else 0
+    station_sel = st.selectbox(tr("Select station"), options=all_stations, index=_idx)
+    
+    raw = daily_df[daily_df["station"] == station_sel][["Date","PM2.5","PM10","NO2","SO2"]].copy()
+    raw = raw.sort_values("Date")
+
+    station_zone = daily_df[daily_df["station"] == station_sel]["Zone"].iloc[0] \
+        if not daily_df[daily_df["station"] == station_sel].empty else "Unknown"
+    zone_c = ZONE_META.get(station_zone, {}).get("color", "#999")
+
+    st.markdown(
+        f"<span style='background:{zone_c};color:white;padding:2px 10px;"
+        f"border-radius:8px;font-size:12px'>"
+        f"{ZONE_META.get(station_zone,{}).get('icon','')} {station_zone}</span>",
+        unsafe_allow_html=True
+    )
+
+    fig_raw = go.Figure()
+    for p in CORE_POLLUTANTS:
+        fig_raw.add_trace(go.Scatter(
+            x=raw["Date"], y=raw[p], name=p,
+            line=dict(color=POLLUTANT_COLOR[p], width=1), opacity=0.8
         ))
-        fig_maz.add_trace(go.Bar(
-            x=DIR8_ORDER, y=_daily_freq.values,
-            name="Wind frequency (%)",
-            marker_color="#3498db", opacity=0.5,
-            yaxis="y2",
-        ))
-        fig_maz.update_layout(
-            height=320,
-            title="MAZARREDO — NO₂ by wind direction (Bilbao city centre)",
-            yaxis=dict(title="Mean NO₂ (µg/m³)", color="#8e44ad"),
-            yaxis2=dict(title="Wind freq (%)", overlaying="y", side="right",
-                        color="#3498db"),
-            legend=dict(orientation="h", y=-0.25),
-            margin=dict(t=50, b=10),
-            barmode="group",
-        )
-        st.plotly_chart(fig_maz, width="stretch")
-        st.caption(
-            "SE wind → NO₂ = 35.3 µg/m³ (+70% above NW baseline). "
-            "Nervión valley channels SE flow, trapping urban traffic emissions."
-        )
-
-    st.divider()
-
-    # ── Wind regime summary ────────────────────────────────────────────────────
-    st.markdown("#### D — Two dominant regimes")
-    _r1, _r2 = st.columns(2)
-    _r1.success(
-        "**NW/W regime (37.2% of days) — Bay of Biscay sea air**  \n"
-        "Network-wide mean NO₂ = 16.3 µg/m³  \n"
-        "MUSKIZ cleanest — Petronor emissions blown inland  \n"
-        "MAZARREDO lower — valley ventilated"
+    if show_who_lines:
+        for p, lim in WHO_ANNUAL.items():
+            fig_raw.add_hline(y=lim, line_dash="dot", line_color=POLLUTANT_COLOR[p],
+                              annotation_text=f"WHO {p}", annotation_font_size=9)
+    fig_raw.update_layout(
+        title=f"Daily concentrations — {station_sel} ({station_zone})",
+        xaxis_title="Date", yaxis_title="µg/m³",
+        height=380, hovermode="x unified",
+        legend=dict(orientation="h", y=1.05)
     )
-    _r2.warning(
-        "**S/SW regime (32.0% of days) — inland recirculation**  \n"
-        "Network-wide mean NO₂ = 21.4 µg/m³ (+31%)  \n"
-        "MAZARREDO worst — Nervión valley trapping  \n"
-        "BARAKALDO elevated — industrial corridor stagnation"
-    )
+    st.plotly_chart(fig_raw,  width="stretch")
 
-    st.info(
-        "⚠️ **ERA5 note:** Single regional grid cell (~31 km) — "
-        "all stations share the same wind time series. "
-        "Direction signatures represent synoptic-scale patterns, "
-        "not station-level micrometeorology. "
-        "Source: Open-Meteo ERA5 archive (CC BY 4.0) · Notebook 10d."
-    )
+    with st.expander(tr("Show raw daily data")):
+        st.dataframe(raw,  width="stretch", hide_index=True)
+
