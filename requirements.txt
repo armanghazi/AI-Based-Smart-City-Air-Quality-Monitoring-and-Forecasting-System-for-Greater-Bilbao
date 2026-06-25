@@ -6,7 +6,7 @@ geopandas
 google-genai>=2.10.0
 joblib
 numpy
-openai
+openai>=1.0.0
 pandas
 plotly<=5.22.0
 pyarrow
