@@ -4,9 +4,9 @@ fpdf2
 folium
 geopandas
 google-genai>=2.10.0
-groq
 joblib
 numpy
+openai
 pandas
 plotly<=5.22.0
 pyarrow

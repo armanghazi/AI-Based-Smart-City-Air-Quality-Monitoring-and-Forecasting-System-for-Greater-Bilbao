@@ -5,9 +5,9 @@ Merged assistant: combines the rich Project Knowledge + Data Digest
 from the original chatbot with the full 9-tool agent (GIS, XGBoost
 forecasting, statistics, correlations) from the standalone agent.
 
-Backend : Groq API (llama-3.3-70b-versatile)
-API key : st.secrets["GROQ_API_KEY"]  (Streamlit Cloud)
-          or GROQ_API_KEY env variable (local dev)
+Backend : OpenRouter API (meta-llama/llama-3.3-70b-instruct)
+API key : st.secrets["OPENROUTER_API_KEY"]  (Streamlit Cloud)
+          or OPENROUTER_API_KEY env variable (local dev)
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ _DATA_DIR   = _REPO_ROOT / "data" / "processed"
 _MODELS_DIR = _REPO_ROOT / "models"
 
 # ── Constants ────────────────────────────────────────────────────────────────
-MODEL       = "llama-3.3-70b-versatile"
+MODEL       = "meta-llama/llama-3.3-70b-instruct"
 MAX_HISTORY = 4          # reduced from 10 to cut token usage ~50%
 POLLUTANTS  = ["PM2.5", "PM10", "NO2", "SO2"]
 WEATHER_VARS = ["Temperature", "Humidity", "Precipitation", "WindSpeed", "WindDirection"]
@@ -608,18 +608,21 @@ def build_system_prompt(digest: str, stations: list[str]) -> str:
 
 def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, stations: list) -> tuple[bool, str]:
     api_key = (
-        st.secrets.get("GROQ_API_KEY", None)
-        or os.environ.get("GROQ_API_KEY", None)
+        st.secrets.get("OPENROUTER_API_KEY", None)
+        or os.environ.get("OPENROUTER_API_KEY", None)
     )
     if not api_key:
         return False, (
-            "The assistant is offline — no `GROQ_API_KEY` configured. "
+            "The assistant is offline — no `OPENROUTER_API_KEY` configured. "
             "Add it under Streamlit Cloud → Settings → Secrets."
         )
 
     try:
-        from groq import Groq
-        client = Groq(api_key=api_key)
+        from openai import OpenAI
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://openrouter.ai/api/v1",
+        )
 
         messages = [{"role": "system", "content": build_system_prompt(digest, stations)}]
         messages += [{"role": m["role"], "content": m["content"]} for m in history[-MAX_HISTORY:]]
@@ -715,7 +718,7 @@ tool_map, schemas = _tools_from_data(df, df_fc, gis, mdls)
 
 # Data digest
 digest_text, freshness = build_data_digest()
-st.caption(f"Data through **{freshness}** · {MODEL} via Groq")
+st.caption(f"Data through **{freshness}** · {MODEL} via OpenRouter")
 
 # ── Chat input ───────────────────────────────────────────────────────────────
 st.markdown("""
