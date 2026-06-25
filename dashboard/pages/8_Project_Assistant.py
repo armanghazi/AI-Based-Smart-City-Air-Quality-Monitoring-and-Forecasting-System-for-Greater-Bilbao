@@ -725,10 +725,7 @@ tool_map, schemas = _tools_from_data(df, df_fc, gis, mdls)
 
 # Data digest
 digest_text, freshness = build_data_digest()
-st.caption(f"Grounded on data through **{freshness}** · model `{MODEL}` via Groq")
-
-with st.expander("📋 Project facts (what the assistant is grounded on)"):
-    st.code(digest_text, language="text")
+st.caption(f"Data through **{freshness}** · {MODEL} via Groq")
 
 # ── Chat input ───────────────────────────────────────────────────────────────
 st.markdown("""
