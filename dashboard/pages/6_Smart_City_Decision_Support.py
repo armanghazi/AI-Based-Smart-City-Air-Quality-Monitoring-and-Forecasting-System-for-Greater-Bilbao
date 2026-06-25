@@ -14,6 +14,7 @@ import geopandas as gpd
 import plotly.express as px
 import plotly.graph_objects as go
 
+from glossary import G
 from config import (
     load_data, WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
     POLLUTANT_COLOR, ZONE_META, RISK_COLORS,
@@ -255,18 +256,22 @@ with tab_status:
 
     # 7a-2. KPI metrics
     k1, k2, k3, k4 = st.columns(4)
-    k1.metric(tr("Stations above WHO"), f"{n_above} / {len(station_means)}")
+    k1.metric(tr("Stations above WHO"), f"{n_above} / {len(station_means)}",
+             help=G["WHO_annual"])
     k2.metric(
         tr("Highest-risk station"), worst_station["station"],
         f"{worst_station['RiskScore']:.0f} {tr('risk score')}",
         delta_color="inverse",
+        help=G["risk_score"],
     )
     k3.metric(
         tr("Worst pollutant"), worst_pollutant,
         f"{city_ratios[worst_pollutant]:.1f}× {tr('WHO limit')}",
         delta_color="inverse",
+        help=G["exceedance"],
     )
-    k4.metric(tr("Records"), f"{len(recent):,}")
+    k4.metric(tr("Records"), f"{len(recent):,}",
+             help=G["D1_data"])
 
     st.divider()
 
@@ -674,9 +679,12 @@ with tab_forecast:
         _verdict, _vcol = _dispersion_verdict(_ws)
 
         _wc1, _wc2, _wc3, _wc4 = st.columns(4)
-        _wc1.metric(tr("Wind speed (D-1)"), f"{_ws:.1f} m/s")
-        _wc2.metric(tr("Wind direction"), f"{_wd:.0f}° ({_cardinal(_wd)})")
-        _wc3.metric(tr("Regime"), "NW/W (sea)" if _cardinal(_wd) in ["NW","W","N"] else "S/SW (land)")
+        _wc1.metric(tr("Wind speed (D-1)"), f"{_ws:.1f} m/s",
+                    help=G["dispersion"])
+        _wc2.metric(tr("Wind direction"), f"{_wd:.0f}° ({_cardinal(_wd)})",
+                    help=G["ERA5"])
+        _wc3.metric(tr("Regime"), "NW/W (sea)" if _cardinal(_wd) in ["NW","W","N"] else "S/SW (land)",
+                    help=G["wind_regime"])
         getattr(st, _vcol)(_verdict)
 
         st.markdown("---")
@@ -855,6 +863,14 @@ with tab_action:
 
     # 7c-1. Scenario simulator
     st.markdown("## 🧪 " + tr("Scenario Simulator"))
+    st.info(
+        "💡 " + tr(
+            "**In plain English:** This tool estimates how much the risk score would "  
+            "change if pollution levels were reduced — for example by restricting "  
+            "traffic or upgrading industrial filters. The numbers are model-based "  
+            "estimates, not guarantees."
+        )
+    )
     st.caption(
         tr("Explore how the composite risk score responds to interventions. "
            "Two modes with different epistemic status — read the labels.")
@@ -970,8 +986,10 @@ with tab_action:
 
     # 7c-2. Scenario results
     m1, m2, m3 = st.columns(3)
-    m1.metric(tr("Baseline risk score"),  f"{baseline_score:.0f}")
-    m2.metric(tr("Scenario risk score"),  f"{scenario_score:.0f}")
+    m1.metric(tr("Baseline risk score"),  f"{baseline_score:.0f}",
+              help=G["risk_score"])
+    m2.metric(tr("Scenario risk score"),  f"{scenario_score:.0f}",
+              help=G["risk_score"])
     delta = (
         (scenario_score - baseline_score) / baseline_score * 100
         if baseline_score else 0
@@ -1105,11 +1123,14 @@ city-wide is **{worst_pollutant}** at
             c1, c2 = st.columns([1, 3])
             with c1:
                 st.markdown(f"### {meta['icon']} {zone}")
+                _poll_help = {"NO2": G["NO2"], "PM2.5": G["PM25"],
+                              "PM10": G["PM10"], "SO2": G["SO2"]}
                 st.metric(
                     f"{tr('Key pollutant:')} {key_p}",
                     f"{zrow[key_p]:.1f} µg/m³",
                     f"{ratio:.1f}× WHO" if ratio else None,
                     delta_color="inverse" if ratio and ratio > 1 else "normal",
+                    help=_poll_help.get(key_p, G["WHO_annual"]),
                 )
             with c2:
                 st.markdown(f"**{tr('Profile:')}** {meta['description']}")
@@ -1270,6 +1291,13 @@ with tab_spatial:
     # ── IDEA 1 — Spatial DNA cards per station ────────────────────────────────
     st.markdown("### " + tr("Station Spatial Profile"))
     st.caption(tr("Select a station to expand its full spatial context."))
+    st.info(
+        "💡 " + tr(
+            "**In plain English:** This tab answers 'why is this station always high?' "  
+            "— by looking at what structurally surrounds it: roads, industrial sites, "  
+            "and terrain. These factors do not change day to day."
+        )
+    )
 
     for _, sp_row in df_sp.iterrows():
         zone_clr = _ZONE_CLR.get(sp_row.get("zone",""), "#555")
