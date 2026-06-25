@@ -5,9 +5,9 @@ Merged assistant: combines the rich Project Knowledge + Data Digest
 from the original chatbot with the full 9-tool agent (GIS, XGBoost
 forecasting, statistics, correlations) from the standalone agent.
 
-Backend : Groq API (llama-3.3-70b-versatile)
-API key : st.secrets["GROQ_API_KEY"]  (Streamlit Cloud)
-          or GROQ_API_KEY env variable (local dev)
+Backend : Google AI Studio (gemini-2.0-flash)
+API key : st.secrets["GEMINI_API_KEY"]  (Streamlit Cloud)
+          or GEMINI_API_KEY env variable (local dev)
 """
 
 from __future__ import annotations
@@ -22,6 +22,8 @@ import joblib
 import numpy as np
 import pandas as pd
 import streamlit as st
+from google import genai
+from google.genai import types as gtypes
 
 warnings.filterwarnings("ignore")
 
@@ -50,7 +52,7 @@ _DATA_DIR   = _REPO_ROOT / "data" / "processed"
 _MODELS_DIR = _REPO_ROOT / "models"
 
 # ── Constants ────────────────────────────────────────────────────────────────
-MODEL       = "llama-3.3-70b-versatile"
+MODEL       = "gemini-2.0-flash"
 MAX_HISTORY = 10
 POLLUTANTS  = ["PM2.5", "PM10", "NO2", "SO2"]
 WEATHER_VARS = ["Temperature", "Humidity", "Precipitation", "WindSpeed", "WindDirection"]
@@ -125,7 +127,7 @@ EXAMPLES = [
     "Which station has the worst structural vulnerability index (SVI)?",
     "How does wind direction affect SO2 at MUSKIZ?",
     "Compare all stations by industrial land use",
-    "Forecast NO2 at BARAKALDO for Today",
+    "Forecast NO2 at BARAKALDO for today",
     "What is the yearly NO2 trend at MAZARREDO?",
     "Why is SO2 R² lower than the other models?",
 ]
@@ -456,136 +458,94 @@ def _tools_from_data(df, df_fc, gis, mdls):
         "explain_pollution_by_geography": explain_pollution_by_geography,
     }
 
-    # ── Tool schemas (sent to Groq) ───────────────────────────────────────
+    # ── Tool schemas (Gemini FunctionDeclaration format) ─────────────────
 
-    schemas = [
-        {
-            "type": "function",
-            "function": {
-                "name": "get_station_stats",
-                "description": "Get statistics (mean, max, min, std) for a pollutant or weather variable at a specific station",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "station": {"type": "string"},
-                        "variable": {"type": "string", "description": "NO2, PM10, PM2.5, SO2, Temperature, Humidity, Precipitation, WindSpeed, WindDirection"},
-                    },
-                    "required": ["station", "variable"],
-                },
+    def _fd(name, description, properties, required):
+        """Helper: build a Gemini FunctionDeclaration."""
+        return gtypes.FunctionDeclaration(
+            name=name,
+            description=description,
+            parameters=gtypes.Schema(
+                type="OBJECT",
+                properties={k: gtypes.Schema(**v) for k, v in properties.items()},
+                required=required,
+            ),
+        )
+
+    gemini_tool = gtypes.Tool(function_declarations=[
+        _fd(
+            "get_station_stats",
+            "Get statistics (mean, max, min, std) for a pollutant or weather variable at a specific station",
+            {
+                "station":  {"type": "STRING"},
+                "variable": {"type": "STRING", "description": "NO2, PM10, PM2.5, SO2, Temperature, Humidity, Precipitation, WindSpeed, WindDirection"},
             },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_worst_days",
-                "description": "Get the days with the highest pollution or weather values",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "variable": {"type": "string"},
-                        "top_n": {"type": "integer", "description": "Number of days (default 5)"},
-                    },
-                    "required": ["variable"],
-                },
+            ["station", "variable"],
+        ),
+        _fd(
+            "get_worst_days",
+            "Get the days with the highest pollution or weather values",
+            {
+                "variable": {"type": "STRING"},
+                "top_n":    {"type": "INTEGER", "description": "Number of days (default 5)"},
             },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "compare_all_stations",
-                "description": "Compare all stations by average value of a pollutant or weather variable",
-                "parameters": {
-                    "type": "object",
-                    "properties": {"variable": {"type": "string"}},
-                    "required": ["variable"],
-                },
+            ["variable"],
+        ),
+        _fd(
+            "compare_all_stations",
+            "Compare all stations by average value of a pollutant or weather variable",
+            {"variable": {"type": "STRING"}},
+            ["variable"],
+        ),
+        _fd(
+            "get_yearly_trend",
+            "Get yearly average trend of a variable for a station",
+            {
+                "station":  {"type": "STRING"},
+                "variable": {"type": "STRING"},
             },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_yearly_trend",
-                "description": "Get yearly average trend of a variable for a station",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "station": {"type": "string"},
-                        "variable": {"type": "string"},
-                    },
-                    "required": ["station", "variable"],
-                },
+            ["station", "variable"],
+        ),
+        _fd(
+            "get_correlation",
+            "Get Pearson correlation between a pollutant and a weather variable",
+            {
+                "pollutant":   {"type": "STRING"},
+                "weather_var": {"type": "STRING"},
             },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_correlation",
-                "description": "Get Pearson correlation between a pollutant and a weather variable",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "pollutant": {"type": "string"},
-                        "weather_var": {"type": "string"},
-                    },
-                    "required": ["pollutant", "weather_var"],
-                },
+            ["pollutant", "weather_var"],
+        ),
+        _fd(
+            "forecast_pollutant",
+            "Predict a pollutant level for a station on a specific date using XGBoost ML model",
+            {
+                "station":   {"type": "STRING"},
+                "pollutant": {"type": "STRING", "description": "NO2, PM2.5, PM10, SO2"},
+                "date":      {"type": "STRING", "description": "Date in YYYY-MM-DD format"},
             },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "forecast_pollutant",
-                "description": "Predict a pollutant level for a station on a specific date using XGBoost ML model",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "station": {"type": "string"},
-                        "pollutant": {"type": "string", "description": "NO2, PM2.5, PM10, SO2"},
-                        "date": {"type": "string", "description": "Date in YYYY-MM-DD format"},
-                    },
-                    "required": ["station", "pollutant", "date"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_station_profile",
-                "description": "Get full GIS profile of a station: zone, elevation, land use percentages, distances to port/refinery/city",
-                "parameters": {
-                    "type": "object",
-                    "properties": {"station": {"type": "string"}},
-                    "required": ["station"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_spatial_comparison",
-                "description": "Compare all stations by a GIS feature. Use exact column names: elev_point_m, slope_deg, green_pct_1000m, industrial_pct_1000m, residential_pct_1000m, road_density_1000m, dist_port_bilbao_m, dist_petronor_m, dist_bilbao_centre_m",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "feature": {"type": "string", "description": "Exact GIS column name e.g. green_pct_1000m, industrial_pct_1000m, dist_petronor_m"},
-                    },
-                    "required": ["feature"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "explain_pollution_by_geography",
-                "description": "Explain why a station has its pollution levels based on its geographic context (land use, distances, elevation)",
-                "parameters": {
-                    "type": "object",
-                    "properties": {"station": {"type": "string"}},
-                    "required": ["station"],
-                },
-            },
-        },
-    ]
+            ["station", "pollutant", "date"],
+        ),
+        _fd(
+            "get_station_profile",
+            "Get full GIS profile of a station: zone, elevation, land use percentages, distances to port/refinery/city",
+            {"station": {"type": "STRING"}},
+            ["station"],
+        ),
+        _fd(
+            "get_spatial_comparison",
+            "Compare all stations by a GIS feature. Use exact column names: elev_point_m, slope_deg, green_pct_1000m, industrial_pct_1000m, residential_pct_1000m, road_density_1000m, dist_port_bilbao_m, dist_petronor_m, dist_bilbao_centre_m",
+            {"feature": {"type": "STRING", "description": "Exact GIS column name e.g. green_pct_1000m, industrial_pct_1000m, dist_petronor_m"}},
+            ["feature"],
+        ),
+        _fd(
+            "explain_pollution_by_geography",
+            "Explain why a station has its pollution levels based on its geographic context (land use, distances, elevation)",
+            {"station": {"type": "STRING"}},
+            ["station"],
+        ),
+    ])
+
+    schemas = gemini_tool  # single Tool object (not a list) — passed to GenerateContentConfig
 
     return tool_map, schemas
 
@@ -613,87 +573,96 @@ def build_system_prompt(digest: str, stations: list[str]) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# GROQ CALL
+# GEMINI CALL
 # ═══════════════════════════════════════════════════════════════════════════
 
-def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, stations: list) -> tuple[bool, str]:
+def get_reply(history: list[dict], digest: str, tool_map: dict, schemas, stations: list) -> tuple[bool, str]:
     api_key = (
-        st.secrets.get("GROQ_API_KEY", None)
-        or os.environ.get("GROQ_API_KEY", None)
+        st.secrets.get("GEMINI_API_KEY", None)
+        or os.environ.get("GEMINI_API_KEY", None)
     )
     if not api_key:
         return False, (
-            "The assistant is offline — no `GROQ_API_KEY` configured. "
+            "The assistant is offline — no `GEMINI_API_KEY` configured. "
             "Add it under Streamlit Cloud → Settings → Secrets."
         )
 
     try:
-        from groq import Groq
-        client = Groq(api_key=api_key)
+        client = genai.Client(api_key=api_key)
 
-        messages = [{"role": "system", "content": build_system_prompt(digest, stations)}]
-        messages += [{"role": m["role"], "content": m["content"]} for m in history[-MAX_HISTORY:]]
+        # Build conversation history in Gemini Content format
+        contents: list[gtypes.Content] = []
+        for m in history[-MAX_HISTORY:]:
+            role = "model" if m["role"] == "assistant" else "user"
+            contents.append(gtypes.Content(
+                role=role,
+                parts=[gtypes.Part(text=m["content"])],
+            ))
+
+        cfg = gtypes.GenerateContentConfig(
+            system_instruction=build_system_prompt(digest, stations),
+            temperature=0.2,
+            max_output_tokens=800,
+            tools=[schemas],
+        )
 
         # Up to 3 tool round-trips
         for _ in range(3):
-            try:
-                resp = client.chat.completions.create(
-                    model=MODEL,
-                    messages=messages,
-                    temperature=0.2,
-                    max_tokens=800,
-                    tools=schemas,
-                    tool_choice="auto",
-                )
-            except Exception:
-                # Retry without tools (handles Groq 400 on bad tool-call generation)
-                resp = client.chat.completions.create(
-                    model=MODEL,
-                    messages=messages,
-                    temperature=0.2,
-                    max_tokens=800,
-                )
-                return True, (resp.choices[0].message.content or "").strip()
+            resp = client.models.generate_content(
+                model=MODEL,
+                contents=contents,
+                config=cfg,
+            )
 
-            msg = resp.choices[0].message
-            if not getattr(msg, "tool_calls", None):
-                return True, (msg.content or "").strip()
+            candidate = resp.candidates[0]
 
-            # Record assistant tool-call turn
-            messages.append({
-                "role": "assistant",
-                "content": msg.content or "",
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {"name": tc.function.name, "arguments": tc.function.arguments},
-                    }
-                    for tc in msg.tool_calls
-                ],
-            })
+            # Check if any part is a function call
+            fn_calls = [p for p in candidate.content.parts if p.function_call]
 
-            # Execute tools
-            for tc in msg.tool_calls:
-                fn = tool_map.get(tc.function.name)
+            if not fn_calls:
+                # No tool call — extract text and return
+                text = "".join(
+                    p.text for p in candidate.content.parts if hasattr(p, "text") and p.text
+                ).strip()
+                return True, text
+
+            # Append model's tool-call turn to history
+            contents.append(candidate.content)
+
+            # Execute each tool and append results
+            result_parts = []
+            for part in fn_calls:
+                fc = part.function_call
+                fn = tool_map.get(fc.name)
                 try:
-                    args = json.loads(tc.function.arguments or "{}")
-                    result = fn(**args) if fn else f"Tool '{tc.function.name}' not found."
+                    args = dict(fc.args) if fc.args else {}
+                    result = fn(**args) if fn else f"Tool '{fc.name}' not found."
                 except Exception as e:
                     result = f"Tool error: {e}"
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tc.id,
-                    "content": str(result)[:3000],
-                })
+                result_parts.append(gtypes.Part(
+                    function_response=gtypes.FunctionResponse(
+                        name=fc.name,
+                        response={"result": str(result)[:3000]},
+                    )
+                ))
 
-        # Safety net
-        resp = client.chat.completions.create(model=MODEL, messages=messages, max_tokens=800)
-        return True, (resp.choices[0].message.content or "").strip()
+            contents.append(gtypes.Content(role="user", parts=result_parts))
+
+        # Safety net — ask for final answer without tools
+        cfg_no_tools = gtypes.GenerateContentConfig(
+            system_instruction=build_system_prompt(digest, stations),
+            temperature=0.2,
+            max_output_tokens=800,
+        )
+        resp = client.models.generate_content(model=MODEL, contents=contents, config=cfg_no_tools)
+        text = "".join(
+            p.text for p in resp.candidates[0].content.parts if hasattr(p, "text") and p.text
+        ).strip()
+        return True, text
 
     except Exception as exc:
         return False, (
-            f"The assistant could not answer right now (possibly a rate limit). "
+            f"The assistant could not answer right now. "
             f"Details: `{exc}`"
         )
 
@@ -725,7 +694,7 @@ tool_map, schemas = _tools_from_data(df, df_fc, gis, mdls)
 
 # Data digest
 digest_text, freshness = build_data_digest()
-st.caption(f"Data through **{freshness}** · {MODEL} via Groq")
+st.caption(f"Data through **{freshness}** · {MODEL} via Google AI Studio")
 
 # ── Chat input ───────────────────────────────────────────────────────────────
 st.markdown("""
