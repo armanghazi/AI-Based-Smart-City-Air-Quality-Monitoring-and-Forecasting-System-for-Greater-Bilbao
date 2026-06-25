@@ -634,7 +634,7 @@ def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, s
                     model=MODEL,
                     messages=messages,
                     temperature=0.1,
-                    max_tokens=600,
+                    max_tokens=900,
                     tools=schemas,
                     tool_choice="auto",
                 )
@@ -644,7 +644,7 @@ def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, s
                     model=MODEL,
                     messages=messages,
                     temperature=0.1,
-                    max_tokens=600,
+                    max_tokens=900,
                 )
                 return True, (resp.choices[0].message.content or "").strip()
 
@@ -681,7 +681,7 @@ def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, s
                 })
 
         # Safety net
-        resp = client.chat.completions.create(model=MODEL, messages=messages, max_tokens=600)
+        resp = client.chat.completions.create(model=MODEL, messages=messages, max_tokens=900)
         return True, (resp.choices[0].message.content or "").strip()
 
     except Exception as exc:
