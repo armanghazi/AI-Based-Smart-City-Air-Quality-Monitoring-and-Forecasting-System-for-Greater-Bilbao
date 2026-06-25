@@ -29,11 +29,6 @@ from pdf_report import generate_daily_report
 
 from i18n_auto import language_selector, apply_lang_styles, tr
 
-from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
-
-plotly_touch_config()  
-
-
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
@@ -298,7 +293,7 @@ for col, p in zip(cols, POLLUTANTS):
     color        = POLLUTANT_COLOR.get(p, "#888")
 
     delta_val  = tomorrow_val - today_val
-    delta_str  = f"{delta_val:+.1f} µg/m³ vs today"
+    delta_str  = f"{delta_val:+.1f} µg/m³ vs D-1"
 
     with col:
         st.markdown(
@@ -367,7 +362,6 @@ if not fc_df.empty:
         line=dict(color="red", width=0),
     )
     st.plotly_chart(fig_hm,  width="stretch")
-
 
 # --------------------------------------------------
 # SECTION 4 — EXCEEDANCE DETAIL TABLE
@@ -459,8 +453,6 @@ fig_spark.update_layout(
     xaxis=dict(tickformat="%d %b"),
 )
 st.plotly_chart(fig_spark,  width="stretch")
-   
-st.plotly_chart(fig, config=PLOTLY_CONFIG)
 
 st.divider()
 

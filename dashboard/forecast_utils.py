@@ -3,9 +3,28 @@
 Extracted from 5_Forecasting.py and 6_smart_city_decision_support.py which
 held identical copies. Import from here; do not duplicate.
 """
+import streamlit as st
 import pandas as pd
 
 POLLUTANTS = ["PM2.5", "PM10", "NO2", "SO2"]
+
+PLOTLY_CONFIG = {
+    "scrollZoom": False,
+    "displayModeBar": False,
+    "doubleClick": False,
+    "modeBarButtonsToRemove": ["zoom2d", "pan2d", "zoomIn2d", "zoomOut2d"],
+}
+
+
+def plotly_touch_config():
+    """Apply touch-friendly CSS for all plotly charts."""
+    st.markdown("""
+        <style>
+        .js-plotly-plot .plotly {
+            touch-action: pan-x pan-y;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
 
 def prepare_features(
@@ -37,7 +56,7 @@ def prepare_features(
     df["day_of_week"]  = df["Date"].dt.dayofweek
     df["is_weekend"]   = (df["Date"].dt.weekday >= 5).astype(int)
 
-    # Season → int; handles any incoming dtype (object, string[pyarrow], numeric).
+    # Season -> int; handles any incoming dtype (object, string[pyarrow], numeric).
     season_to_int = {"Winter": 0, "Spring": 1, "Summer": 2, "Autumn": 3}
     season_str = df["season"].astype(str).str.capitalize()
     mapped = season_str.map(season_to_int)
@@ -48,7 +67,6 @@ def prepare_features(
     df["season"] = mapped.fillna(month_season).fillna(0).astype(int)
 
     # station_code must use the global training mapping.
-    # On a single-station frame, .cat.codes collapses to 0 — wrong for non-first stations.
     if station_codes is not None:
         df["station_code"] = df["station"].map(station_codes).fillna(-1).astype(int)
     else:
@@ -64,26 +82,8 @@ def prepare_features(
                 .transform(lambda x: x.shift(1).rolling(14, min_periods=1).mean())
             )
 
-    def plotly_touch_config():
-        """Apply touch-friendly CSS for all plotly charts."""
-        st.markdown("""
-            <style>
-            .js-plotly-plot .plotly {
-                touch-action: pan-x pan-y;
-            }
-            </style>
-        """, unsafe_allow_html=True)
-
-    PLOTLY_CONFIG = {
-        "scrollZoom": False,
-        "doubleClick": False,
-        "modeBarButtonsToRemove": ["zoom2d", "pan2d", "zoomIn2d", "zoomOut2d"],
-    }
-
-
-
     # Interaction features.
-    # NOTE: wind_x_precip and temp_x_humid are in NONE of the current models'
+    # NOTE: wind_x_precip and temp_x_humid are in NONE of the current models
     # feature lists (feature-engineering / model drift). Built here for compatibility;
     # tracked as ALLOWED_UNUSED in tests/test_model_contracts.py.
     df["wind_x_precip"] = df["WindSpeed"] * df["Precipitation"]

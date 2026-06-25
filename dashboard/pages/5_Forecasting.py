@@ -17,11 +17,6 @@ from config import (
 
 from i18n_auto import language_selector, apply_lang_styles, tr
 
-from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
-
-plotly_touch_config()  
-
-
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
@@ -67,7 +62,6 @@ def load_model(pollutant: str):
 # --------------------------------------------------
 
 from forecast_utils import prepare_features
-from glossary import G
 
 
 # --------------------------------------------------
@@ -160,12 +154,9 @@ with st.sidebar:
     bundle = load_model(sel_pollutant)
     if bundle:
         m = bundle["metrics"]
-        st.metric(tr("Model R²"),   f"{m['R2']:.3f}",
-                  help=G["R2"])
-        st.metric(tr("Model MAE"),  f"{m['MAE']:.2f} µg/m³",
-                  help=G["MAE"])
-        st.metric(tr("Model RMSE"), f"{m['RMSE']:.2f} µg/m³",
-                  help=G["RMSE"])
+        st.metric(tr("Model R²"),  f"{m['R2']:.3f}")
+        st.metric(tr("Model MAE"), f"{m['MAE']:.2f} µg/m³")
+        st.metric(tr("Model RMSE"), f"{m['RMSE']:.2f} µg/m³")
     else:
         st.error(f"{tr('Model for')} {sel_pollutant} {tr('not found in')} {MODELS_DIR}")
 
@@ -206,13 +197,6 @@ with tab1:
     st.caption(
         tr("The model predicts the next day's value using today's data. "
            "Shown on the held-out test period (2024+) for honest evaluation.")
-    )
-    st.info(
-        "💡 " + tr(
-            "**In plain English:** A backtest checks if the model would have predicted "
-            "the past correctly — using data the model had never seen during training. "
-            "It is the honest measure of real-world accuracy."
-        )
     )
 
     # Prepare features and predict on the test period
@@ -268,23 +252,13 @@ with tab1:
         mae = mean_absolute_error(plot_df["actual"], plot_df["prediction"])
         r2  = r2_score(plot_df["actual"], plot_df["prediction"])
         c1, c2 = st.columns(2)
-        c1.metric(tr("Station MAE"), f"{mae:.2f} µg/m³",
-                  help=G["MAE"])
-        c2.metric(tr("Station R²"),  f"{r2:.3f}",
-                  help=G["R2"])
+        c1.metric(tr("Station MAE"), f"{mae:.2f} µg/m³")
+        c2.metric(tr("Station R²"),  f"{r2:.3f}")
 
 # ==================== TAB 2: RECURSIVE MULTI-DAY ====================
 with tab2:
     st.markdown(f"### {tr('Multi-Day Forecast')} — {sel_pollutant} {tr('at')} {sel_station}")
 
-    st.info(
-        "💡 " + tr(
-            "**In plain English:** This uses today's reading to predict tomorrow, "
-            "then uses tomorrow's prediction to predict the day after — and so on. "
-            "Like rolling a snowball: small errors compound. Days 1–3 are reliable; "
-            "days 4–7 show the trend direction, not exact values."
-        )
-    )
     st.warning(
         tr("⚠️ **Recursive forecasting limitation:** each day's prediction feeds "
            "into the next, and future weather is held constant at the last known "
@@ -292,8 +266,7 @@ with tab2:
            "indicative trend, not precise values.")
     )
 
-    horizon = st.slider(tr("Forecast horizon (days)"), 1, 14, 7,
-                    help=tr("Days 1–3: reliable · Days 4–7: indicative trend · Beyond 7: treat as scenario only"))
+    horizon = st.slider(tr("Forecast horizon (days)"), 1, 14, 7)
 
     prep_station = prepare_features(station_df, features, station_codes=STATION_CODES)
 
@@ -339,8 +312,6 @@ with tab2:
             legend=dict(orientation="h", y=1.05),
         )
         st.plotly_chart(fig2,  width="stretch")
-        # ...
-        st.plotly_chart(fig, config=PLOTLY_CONFIG)
 
         # Forecast table
         st.markdown("#### " + tr("Forecast values"))
@@ -364,14 +335,6 @@ with tab3:
     st.caption(
         tr("SHAP (SHapley Additive exPlanations) shows how each feature pushes "
            "individual predictions up or down — beyond simple importance ranking.")
-    )
-    st.info(
-        "💡 " + tr(
-            "**In plain English:** SHAP answers 'why did the model predict this specific value?'. "
-            "Red arrows = this factor pushed pollution higher. "
-            "Blue arrows = this factor pushed it lower. "
-            "It confirms the model learned real cause-and-effect, not coincidence."
-        )
     )
 
     col1, col2 = st.columns([3, 2])
@@ -398,7 +361,7 @@ with tab3:
         st.markdown("#### " + tr("Key physical insights"))
         st.markdown(
             """
-- **Today's pollutant level** is the strongest predictor — pollution
+- **Latest day's pollutant level** is the strongest predictor — pollution
   persists day-to-day (atmospheric inertia).
 - **Higher wind speed** pushes forecasts **down** → dispersion.
 - **Precipitation** pushes forecasts **down** → wet deposition (washout).
