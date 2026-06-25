@@ -125,7 +125,7 @@ EXAMPLES = [
     "Which station has the worst structural vulnerability index (SVI)?",
     "How does wind direction affect SO2 at MUSKIZ?",
     "Compare all stations by industrial land use",
-    "Forecast NO2 at BARAKALDO for 2025-06-01",
+    "Forecast NO2 at BARAKALDO for Today",
     "What is the yearly NO2 trend at MAZARREDO?",
     "Why is SO2 R² lower than the other models?",
 ]
