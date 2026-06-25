@@ -16,6 +16,8 @@ from config import (
 )
 
 from i18n_auto import language_selector, apply_lang_styles, tr
+from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
+from glossary import G
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -29,6 +31,7 @@ st.set_page_config(
 language_selector()
 apply_lang_styles()
 center_tables()
+plotly_touch_config()
 
 # --------------------------------------------------
 # CONSTANTS
@@ -154,9 +157,9 @@ with st.sidebar:
     bundle = load_model(sel_pollutant)
     if bundle:
         m = bundle["metrics"]
-        st.metric(tr("Model R²"),  f"{m['R2']:.3f}")
-        st.metric(tr("Model MAE"), f"{m['MAE']:.2f} µg/m³")
-        st.metric(tr("Model RMSE"), f"{m['RMSE']:.2f} µg/m³")
+        st.metric(tr("Model R²"),   f"{m['R2']:.3f}",   help=G["R2"])
+        st.metric(tr("Model MAE"),  f"{m['MAE']:.2f} µg/m³",  help=G["MAE"])
+        st.metric(tr("Model RMSE"), f"{m['RMSE']:.2f} µg/m³", help=G["RMSE"])
     else:
         st.error(f"{tr('Model for')} {sel_pollutant} {tr('not found in')} {MODELS_DIR}")
 
@@ -244,8 +247,9 @@ with tab1:
             height=450, hovermode="x unified",
             xaxis_title="Date", yaxis_title=f"{sel_pollutant} (µg/m³)",
             legend=dict(orientation="h", y=1.05),
+            dragmode=False,
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch", config=PLOTLY_CONFIG)
 
         # Accuracy on this station
         from sklearn.metrics import mean_absolute_error, r2_score
@@ -310,8 +314,9 @@ with tab2:
             height=450, hovermode="x unified",
             xaxis_title="Date", yaxis_title=f"{sel_pollutant} (µg/m³)",
             legend=dict(orientation="h", y=1.05),
+            dragmode=False,
         )
-        st.plotly_chart(fig2,  width="stretch")
+        st.plotly_chart(fig2, width="stretch", config=PLOTLY_CONFIG)
 
         # Forecast table
         st.markdown("#### " + tr("Forecast values"))
@@ -396,8 +401,8 @@ with tab3:
         color_discrete_sequence=[POLLUTANT_COLOR.get(sel_pollutant, "#3498db")],
         labels={"importance": "Importance", "feature": ""},
     )
-    fig_imp.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10))
-    st.plotly_chart(fig_imp, width="stretch")
+    fig_imp.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10), dragmode=False)
+    st.plotly_chart(fig_imp, width="stretch", config=PLOTLY_CONFIG)
 
     # Model card
     with st.expander(tr("ℹ️ Model details")):

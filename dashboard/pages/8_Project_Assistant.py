@@ -115,7 +115,7 @@ EXAMPLES = [
     "Which station has the worst structural vulnerability index (SVI)?",
     "How does wind direction affect SO2 at MUSKIZ?",
     "Compare all stations by industrial land use",
-    "Forecast NO2 at BARAKALDO for Today",
+    "Forecast NO2 at BARAKALDO for the latest date",
     "What is the yearly NO2 trend at MAZARREDO?",
     "Why is SO2 R² lower than the other models?",
 ]
@@ -446,7 +446,7 @@ def _tools_from_data(df, df_fc, gis, mdls):
         "explain_pollution_by_geography": explain_pollution_by_geography,
     }
 
-    # ── Tool schemas (sent to Groq) ───────────────────────────────────────
+    # ── Tool schemas (sent to OpenRouter) ────────────────────────────────
 
     schemas = [
         {

@@ -392,8 +392,8 @@ if outlier_rows:
                       line_color="red", annotation_text=f"+{SIGMA_THRESHOLD:.0f}σ")
         fig.add_hline(y=mu_w - SIGMA_THRESHOLD * sd_w, line_dash="dash",
                       line_color="red", annotation_text=f"−{SIGMA_THRESHOLD:.0f}σ")
-        fig.update_layout(height=260, margin=dict(l=0, r=0, t=40, b=0))
-        st.plotly_chart(fig, width="stretch")
+        fig.update_layout(height=260, margin=dict(l=0, r=0, t=40, b=0), dragmode=False)
+        st.plotly_chart(fig, width="stretch", config=PLOTLY_CONFIG)
 else:
     st.success(f"✅ {tr('No statistical outliers detected across all stations.')}")
 
@@ -469,8 +469,8 @@ with st.expander(f"🛠 {tr('Detailed diagnostics')}", expanded=False):
             labels={"x": tr("Date"), "y": tr("Records")},
             title=tr("Daily records ingested — last 30 days"),
         )
-        fig_bar.update_layout(height=260, margin=dict(l=0, r=0, t=40, b=0))
-        st.plotly_chart(fig_bar, width="stretch")
+        fig_bar.update_layout(height=260, margin=dict(l=0, r=0, t=40, b=0), dragmode=False)
+        st.plotly_chart(fig_bar, width="stretch", config=PLOTLY_CONFIG)
         st.caption(tr("A healthy day shows one record per reporting station (≈7)."))
 
     # ...
