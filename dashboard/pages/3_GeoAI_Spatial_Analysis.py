@@ -28,6 +28,7 @@ import streamlit as st
 from pathlib import Path
 
 from config import load_data, WHO_ANNUAL, ZONE_META
+from glossary import G
 from i18n_auto import language_selector, apply_lang_styles, tr
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -152,8 +153,15 @@ if not spatial_ok:
 
 # Key finding strip
 f1, f2, f3, f4, f5 = st.columns(5)
-for col, (feat, poll, r, label, _) in zip([f1, f2, f3, f4, f5], TOP_FINDINGS):
-    col.metric(label, r, help=f"{feat} × {poll}")
+_KPI_HELP = {
+    "Road density → NO₂":      G["road_density"],
+    "Distance to city centre → NO₂": G["Pearson_r"],
+    "Green cover → PM10":       G["buffer"],
+    "Terrain Relief Index → PM10": G["TRI"],
+    "Distance to AP-8 → PM2.5": G["Haversine"],
+}
+for col, (feat, poll, r, label, explanation) in zip([f1, f2, f3, f4, f5], TOP_FINDINGS):
+    col.metric(label, r, help=_KPI_HELP.get(label, explanation))
 
 st.divider()
 
@@ -203,6 +211,13 @@ with tab_dna:
 
         with c1:
             st.markdown(f"**🏘️ Land Use** *(1 000 m buffer)*")
+            _LU_HELP = {
+                "green_pct_1000m":       G["buffer"],
+                "industrial_pct_1000m":  G["buffer"],
+                "residential_pct_1000m": G["buffer"],
+                "commercial_pct_1000m":  G["buffer"],
+                "road_density_1000m":    G["road_density"],
+            }
             for lbl, col, icon in [
                 ("Green %",       "green_pct_1000m",       "🌿"),
                 ("Industrial %",  "industrial_pct_1000m",  "🏭"),
@@ -213,10 +228,12 @@ with tab_dna:
                 val = sp_row.get(col)
                 if val is not None and not (isinstance(val, float) and np.isnan(val)):
                     unit = " m/km²" if "density" in col else "%"
-                    st.metric(f"{icon} {lbl}", f"{val:.1f}{unit}")
+                    st.metric(f"{icon} {lbl}", f"{val:.1f}{unit}",
+                              help=_LU_HELP.get(col, ""))
 
         with c2:
             st.markdown("**📍 Distances to Sources**")
+            _DIST_HELP = G["Haversine"]
             for lbl, col, icon in [
                 ("Port of Bilbao",  "dist_port_bilbao_m",   "⚓"),
                 ("Petronor",        "dist_petronor_m",      "🛢️"),
@@ -226,10 +243,17 @@ with tab_dna:
             ]:
                 val = sp_row.get(col)
                 if val is not None and not (isinstance(val, float) and np.isnan(val)):
-                    st.metric(f"{icon} {lbl}", f"{val/1000:.1f} km")
+                    st.metric(f"{icon} {lbl}", f"{val/1000:.1f} km",
+                              help=_DIST_HELP)
 
         with c3:
             st.markdown("**⛰️ Terrain** *(Copernicus GLO-30)*")
+            _TERR_HELP = {
+                "elev_point_m":   "Elevation above sea level at the station location.",
+                "slope_deg":      "How steep the ground is at the station, in degrees.",
+                "elev_tri_2000m": G["TRI"],
+                "elev_mean_1000m":"Average elevation of the area within 1 km of the station.",
+            }
             for lbl, col, icon in [
                 ("Elevation",   "elev_point_m",  "📏"),
                 ("Slope",       "slope_deg",      "📐"),
@@ -239,7 +263,8 @@ with tab_dna:
                 val = sp_row.get(col)
                 if val is not None and not (isinstance(val, float) and np.isnan(val)):
                     unit = "°" if col == "slope_deg" else " m"
-                    st.metric(f"{icon} {lbl}", f"{val:.1f}{unit}")
+                    st.metric(f"{icon} {lbl}", f"{val:.1f}{unit}",
+                              help=_TERR_HELP.get(col, ""))
 
         st.divider()
 
@@ -248,6 +273,12 @@ with tab_dna:
         net_mean = df_means.set_index("station")[POLLUTANTS].mean()
         station_vals = df_means[df_means["station"] == selected].iloc[0]
 
+        _POLL_HELP = {
+            "PM2.5": G["PM25"],
+            "PM10":  G["PM10"],
+            "NO2":   G["NO2"],
+            "SO2":   G["SO2"],
+        }
         poll_cols = st.columns(4)
         for col, poll in zip(poll_cols, POLLUTANTS):
             val  = station_vals[poll]
@@ -258,6 +289,7 @@ with tab_dna:
                 f"{val:.1f} µg/m³",
                 delta=f"{diff:+.1f} vs network",
                 delta_color="inverse",
+                help=_POLL_HELP.get(poll, ""),
             )
 
         st.divider()
@@ -415,7 +447,8 @@ with tab_drivers:
             _badge = ("🟢 Strong" if abs(_r) >= 0.7
                       else "🟡 Moderate" if abs(_r) >= 0.4
                       else "⚪ Weak")
-            st.info(f"{_badge} signal  |  r = {_r:.2f}")
+            st.info(f"{_badge} signal  |  r = {_r:.2f}  — "
+                    + G["Pearson_r"])
 
         st.divider()
 

@@ -25,6 +25,7 @@ import streamlit as st
 from pathlib import Path
 
 from config import load_data, WHO_ANNUAL, ZONE_META
+from glossary import G
 from i18n_auto import language_selector, apply_lang_styles, tr
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -110,9 +111,11 @@ st.markdown("### " + tr("1 · Platform Overview"))
 ov1, ov2, ov3, ov4, ov5 = st.columns(5)
 ov1.metric(tr("Monitoring stations"),  "7")
 ov2.metric(tr("Environmental zones"),  "5")
-ov3.metric(tr("Daily records"),        f"{n_records:,}")
+ov3.metric(tr("Daily records"),        f"{n_records:,}",
+           help=G["D1_data"])
 ov4.metric(tr("Data period"),          date_range)
-ov5.metric(tr("Spatial features"),     "~35")
+ov5.metric(tr("Spatial features"),     "~35",
+           help=G["buffer"])
 
 st.markdown("---")
 
@@ -169,6 +172,14 @@ st.caption(
     tr(
         "Four GIS notebooks deliver ~35 spatial features per station. "
         "Correlations computed across n = 7 stations — exploratory and indicative only."
+    )
+)
+st.info(
+    "💡 " + tr(
+        "**In plain English:** We analysed what physically surrounds each sensor — "
+        "nearby roads, distance to industrial sites, and terrain complexity — "
+        "to understand why some stations are structurally more polluted than others, "
+        "regardless of daily weather."
     )
 )
 
@@ -238,10 +249,14 @@ st.markdown("---")
 # MUSKIZ paradox callout
 st.markdown("**" + tr("Key GeoAI finding — MUSKIZ dispersion paradox") + "**")
 mx1, mx2, mx3, mx4 = st.columns(4)
-mx1.metric(tr("Industrial land use (1km)"), "34.6%", tr("highest in network"), delta_color="inverse")
-mx2.metric(tr("Mean PM2.5"), "6.50 µg/m³", tr("lowest in network ✓"), delta_color="off")
-mx3.metric(tr("TRI 2km"), "343 m", tr("orographic ventilation"), delta_color="off")
-mx4.metric(tr("NE wind → SO₂ ratio"), "1.93×", tr("vs S-wind baseline"), delta_color="inverse")
+mx1.metric(tr("Industrial land use (1km)"), "34.6%", tr("highest in network"),
+           delta_color="inverse", help=G["buffer"])
+mx2.metric(tr("Mean PM2.5"), "6.50 µg/m³", tr("lowest in network ✓"),
+           delta_color="off", help=G["PM25"])
+mx3.metric(tr("TRI 2km"), "343 m", tr("orographic ventilation"),
+           delta_color="off", help=G["TRI"])
+mx4.metric(tr("NE wind → SO₂ ratio"), "1.93×", tr("vs S-wind baseline"),
+           delta_color="inverse", help=G["wind_regime"])
 st.success(
     tr(
         "Three independent GIS methods (buffer analysis · distance features · DEM terrain) "
@@ -261,6 +276,13 @@ st.caption(
     tr("XGBoost models trained on 2015–2022, validated 2023, tested 2024–2026. "
        "Time-based split only — no random row splitting.")
 )
+st.info(
+    "💡 " + tr(
+        "**In plain English:** The models learn from past data and are tested on "
+        "future data they have never seen — the same way a weather forecast is judged "
+        "by whether tomorrow actually matches what it predicted."
+    )
+)
 
 # Model metrics
 st.markdown("**" + tr("Production model performance (held-out test 2024–2026)") + "**")
@@ -271,7 +293,7 @@ for col, (poll, m) in zip([mc1, mc2, mc3, mc4], MODEL_METRICS.items()):
         f"{poll}  R²",
         f"{m['R2']:.3f}",
         f"RMSE {m['RMSE']:.2f} | MAE {m['MAE']:.2f}",
-        help=m["note"],
+        help=m["note"] + "  ·  " + G["R2"],
         delta_color="off",
     )
 
@@ -359,6 +381,13 @@ st.caption(
     tr(
         "These constraints are documented explicitly — not hidden. "
         "They define where the platform is reliable and where it is not."
+    )
+)
+st.info(
+    tr(
+        "💡 **In plain English:** Every analytical tool has boundaries. "
+        "This section tells you exactly where this platform stops being reliable "
+        "and why — so you can use it with confidence within those boundaries."
     )
 )
 
