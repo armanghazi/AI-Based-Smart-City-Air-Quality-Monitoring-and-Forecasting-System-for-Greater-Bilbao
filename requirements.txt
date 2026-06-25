@@ -3,7 +3,7 @@ deep-translator
 fpdf2
 folium
 geopandas
-groq
+google-genai
 joblib
 numpy
 pandas
