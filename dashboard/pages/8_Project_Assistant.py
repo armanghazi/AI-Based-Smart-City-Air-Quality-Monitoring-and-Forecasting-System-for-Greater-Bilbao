@@ -50,8 +50,8 @@ _DATA_DIR   = _REPO_ROOT / "data" / "processed"
 _MODELS_DIR = _REPO_ROOT / "models"
 
 # ── Constants ────────────────────────────────────────────────────────────────
-MODEL       = "llama-3.1-8b-instant"
-MAX_HISTORY = 10
+MODEL       = "llama-3.3-70b-versatile"
+MAX_HISTORY = 4          # reduced from 10 to cut token usage ~50%
 POLLUTANTS  = ["PM2.5", "PM10", "NO2", "SO2"]
 WEATHER_VARS = ["Temperature", "Humidity", "Precipitation", "WindSpeed", "WindDirection"]
 
@@ -89,34 +89,24 @@ FORECASTING (XGBoost, one model per pollutant, 62 features, time-based split):
 
 GIS SPATIAL ANALYSIS (notebooks 10a-10d):
 NOTE: All spatial correlations across n=7 stations are exploratory/indicative only.
+Top predictors: road density→NO2 (r=+0.83), dist city centre→NO2 (r=-0.77),
+green cover→PM10 (r=-0.66), terrain relief→PM10 (r=-0.63), dist AP-8→PM2.5 (r=-0.54).
 
-Top structural predictors of air pollution:
-1. Road density 1km vs NO2:          r = +0.83 (strongest signal — traffic infrastructure)
-2. Distance to city centre vs NO2:   r = -0.77 (closer = higher NO2 — urban canyon)
-3. Green cover 1km vs PM10:          r = -0.66 (more green = lower PM10)
-4. Terrain Relief Index 2km vs PM10: r = -0.63 (complex terrain = better dispersion)
-5. Distance to AP-8 motorway vs PM2.5: r = -0.54 (BARAKALDO 354m from AP-8 = highest PM2.5)
+Station profiles (use get_station_profile tool for full details):
+- BARAKALDO: road density 21,267 m/km2 + 354m from AP-8 → highest PM2.5/NO2
+- MAZARREDO: 77% residential yet highest NO2 (25.8 ug/m3): road density 19,060 m/km2
+- BASAURI:   industrial 32% within 500m → local emission concentration
+- MUSKIZ:    34.6% industrial (Petronor) yet LOWEST PM2.5 (6.5 ug/m3): TRI 343m + NW breeze
+- SANTURCE:  784m from Port + elevation 93m + TRI 445m → port drives SO2 episodes
+- ALGORTA:   lowest road density (9,933 m/km2) + 2.6km coast → cleanest station
+- ERANDIO:   1,264m from AP-8 + 18,631 m/km2 road density → traffic corridor
 
-Station structural profiles:
-- BARAKALDO:  road density 21,267 m/km2 + 354m from AP-8 -> structural driver of elevated PM2.5/NO2
-- MAZARREDO:  77% residential yet highest NO2 (25.8 ug/m3): road density 19,060 m/km2 + 501m from centre
-- BASAURI:    industrial land use 32% within 500m (21% at 1km) -> local emission concentration
-- MUSKIZ:     34.6% industrial (Petronor) yet LOWEST PM2.5 (6.5 ug/m3): TRI 343m + coastal NW breeze
-- SANTURCE:   784m from Port of Bilbao + elevation 93m + TRI 445m -> port drives SO2 episodes
-- ALGORTA:    lowest road density (9,933 m/km2) + 2.6km coast -> structurally cleanest station
-- ERANDIO:    1,264m from AP-8 + 18,631 m/km2 road density -> traffic corridor exposure
-
-Structural Vulnerability Index (SVI — composite: road density + city centre distance + TRI):
+SVI (Structural Vulnerability Index):
 BARAKALDO=100 | MAZARREDO=89.8 | ERANDIO=87.4 | BASAURI=51.7 | ALGORTA=34.7 | SANTURCE=10.5 | MUSKIZ=0
 
-MUSKIZ dispersion paradox: coastal position + TRI 343m + NW sea breeze override Petronor proximity.
-Despite highest industrial land use (34.6%), MUSKIZ records lowest PM2.5 (6.5 ug/m3).
-
-WIND TRANSPORT (ERA5 single grid cell, ~31km, shared by all 7 stations):
-- Wind speed dispersion: NO2 drops 57% from calm (<10 m/s) to strong (>25 m/s)
-- NW/W (37.2% of days, sea air, NO2=16.3) vs S/SW (32.0%, inland, NO2=21.4, +31%)
-- MUSKIZ NE wind: SO2=7.32 ug/m3 (Petronor trapped by terrain, 1.93x vs S-wind baseline)
-- MAZARREDO SE wind: NO2=35.3 ug/m3 (+70% vs NW — Nervion valley channelling)
+WIND TRANSPORT (ERA5 single grid cell ~31km, regional only — not station-specific):
+- NO2 drops 57% calm→strong wind. NW/W (37.2% days, NO2=16.3) vs S/SW (32%, NO2=21.4, +31%)
+- MUSKIZ NE wind: SO2=7.32 ug/m3 (1.93x vs S-wind). MAZARREDO SE wind: NO2=35.3 ug/m3 (+70% vs NW)
 """.strip()
 
 EXAMPLES = [
@@ -256,7 +246,7 @@ def build_data_digest() -> tuple[str, str]:
                 f"driver {res['driver']}{epa_s}."
             )
 
-    return "\n".join(lines), str(dmax)
+    return "\n".join(lines[:15]), str(dmax)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -640,8 +630,8 @@ def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, s
                 resp = client.chat.completions.create(
                     model=MODEL,
                     messages=messages,
-                    temperature=0.2,
-                    max_tokens=800,
+                    temperature=0.1,
+                    max_tokens=600,
                     tools=schemas,
                     tool_choice="auto",
                 )
@@ -650,8 +640,8 @@ def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, s
                 resp = client.chat.completions.create(
                     model=MODEL,
                     messages=messages,
-                    temperature=0.2,
-                    max_tokens=800,
+                    temperature=0.1,
+                    max_tokens=600,
                 )
                 return True, (resp.choices[0].message.content or "").strip()
 
@@ -688,7 +678,7 @@ def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, s
                 })
 
         # Safety net
-        resp = client.chat.completions.create(model=MODEL, messages=messages, max_tokens=800)
+        resp = client.chat.completions.create(model=MODEL, messages=messages, max_tokens=600)
         return True, (resp.choices[0].message.content or "").strip()
 
     except Exception as exc:
