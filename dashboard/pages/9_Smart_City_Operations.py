@@ -34,6 +34,11 @@ from config import load_data, DATA_FILE, WHO_ANNUAL, WHO_SO2_DAILY, POLLUTANT_CO
 from auth import require_auth, logout_button  # noqa: E402
 from i18n_auto import language_selector, apply_lang_styles, tr  # noqa: E402
 
+from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
+
+plotly_touch_config()  
+
+
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
@@ -467,6 +472,9 @@ with st.expander(f"🛠 {tr('Detailed diagnostics')}", expanded=False):
         fig_bar.update_layout(height=260, margin=dict(l=0, r=0, t=40, b=0))
         st.plotly_chart(fig_bar, width="stretch")
         st.caption(tr("A healthy day shows one record per reporting station (≈7)."))
+
+    # ...
+    st.plotly_chart(fig, config=PLOTLY_CONFIG)
 
     # ── Integrity ──
     with tab_int:

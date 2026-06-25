@@ -34,6 +34,11 @@ from pdf_report import generate_daily_report, generate_monthly_report
 
 from i18n_auto import language_selector, apply_lang_styles, tr
 
+from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
+
+plotly_touch_config()  
+
+
 # ==================================================
 # 1. PAGE CONFIG
 # ==================================================
@@ -1641,6 +1646,8 @@ with tab_spatial:
                 "or terrain. SVI should not be used as a standalone forecast tool."
             )
         )
+# ...
+    st.plotly_chart(fig, config=PLOTLY_CONFIG)
 
     # ── Full data table ───────────────────────────────────────────────────────
     with st.expander(tr("📋 Full spatial features table (v3)")):

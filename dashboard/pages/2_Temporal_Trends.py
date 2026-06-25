@@ -20,6 +20,11 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
+from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
+
+plotly_touch_config()  
+
+
 st.set_page_config(page_title="Temporal Trends", layout="wide")
 language_selector()
 apply_lang_styles()
@@ -299,6 +304,8 @@ if time_mode == "Day":
             )
         fig_day.update_layout(height=380)
         st.plotly_chart(fig_day,  width="stretch")
+        
+    st.plotly_chart(fig, config=PLOTLY_CONFIG)
 
     # ── Weather snapshot for this specific day ──────────────────────────
     st.subheader("🌦️ Weather conditions — this day")

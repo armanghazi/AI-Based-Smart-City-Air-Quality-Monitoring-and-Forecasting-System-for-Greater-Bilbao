@@ -64,6 +64,24 @@ def prepare_features(
                 .transform(lambda x: x.shift(1).rolling(14, min_periods=1).mean())
             )
 
+    def plotly_touch_config():
+        """Apply touch-friendly CSS for all plotly charts."""
+        st.markdown("""
+            <style>
+            .js-plotly-plot .plotly {
+                touch-action: pan-x pan-y;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+    PLOTLY_CONFIG = {
+        "scrollZoom": False,
+        "doubleClick": False,
+        "modeBarButtonsToRemove": ["zoom2d", "pan2d", "zoomIn2d", "zoomOut2d"],
+    }
+
+
+
     # Interaction features.
     # NOTE: wind_x_precip and temp_x_humid are in NONE of the current models'
     # feature lists (feature-engineering / model drift). Built here for compatibility;

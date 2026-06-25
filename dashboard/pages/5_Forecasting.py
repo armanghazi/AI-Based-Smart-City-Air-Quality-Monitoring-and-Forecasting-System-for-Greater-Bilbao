@@ -17,6 +17,11 @@ from config import (
 
 from i18n_auto import language_selector, apply_lang_styles, tr
 
+from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
+
+plotly_touch_config()  
+
+
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
@@ -334,6 +339,8 @@ with tab2:
             legend=dict(orientation="h", y=1.05),
         )
         st.plotly_chart(fig2,  width="stretch")
+        # ...
+        st.plotly_chart(fig, config=PLOTLY_CONFIG)
 
         # Forecast table
         st.markdown("#### " + tr("Forecast values"))

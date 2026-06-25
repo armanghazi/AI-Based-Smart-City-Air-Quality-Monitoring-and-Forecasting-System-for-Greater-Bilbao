@@ -18,6 +18,11 @@ from config import (
 
 from i18n_auto import language_selector, apply_lang_styles, tr
 
+from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
+
+plotly_touch_config()  
+
+
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
@@ -1018,6 +1023,9 @@ with _wc2:
             "urban traffic emissions trapped in canyon."
         )
     )
+
+# ...
+st.plotly_chart(fig, config=PLOTLY_CONFIG)
 
 st.divider()
 

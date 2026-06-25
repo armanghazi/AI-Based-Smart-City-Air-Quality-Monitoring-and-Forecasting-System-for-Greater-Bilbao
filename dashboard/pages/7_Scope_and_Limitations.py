@@ -28,6 +28,11 @@ from config import load_data, WHO_ANNUAL, ZONE_META
 from glossary import G
 from i18n_auto import language_selector, apply_lang_styles, tr
 
+from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
+
+plotly_touch_config()  
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # PAGE CONFIG
 # ──────────────────────────────────────────────────────────────────────────────
@@ -331,6 +336,8 @@ with bc2:
     )
     st.plotly_chart(fig_bm, width="stretch")
 
+# ...
+st.plotly_chart(fig, config=PLOTLY_CONFIG)
 st.markdown("---")
 
 # Feature architecture
