@@ -502,13 +502,13 @@ with col_left:
             annotation_text=f"WHO {poll}", annotation_font_size=9,
             annotation_position="right",
         )
-    fig_trend.update_layout(
+    fig_trend.update_layout(dragmode=False, 
         height=340, margin=dict(t=10, b=10, l=10, r=60),
         hovermode="x unified", legend=dict(orientation="h", y=1.1),
         font=dict(family="IBM Plex Sans"),
         plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
     )
-    st.plotly_chart(fig_trend, width="stretch")
+    st.plotly_chart(fig_trend, width="stretch", config={"scrollZoom": False, "displayModeBar": False})
 
 with col_right:
     st.markdown("#### Station risk ranking")
@@ -538,7 +538,7 @@ with col_right:
     fig_status.update_traces(texttemplate="%{text:.0f}", textposition="outside")
     fig_status.add_vline(x=100, line_dash="dash", line_color="#94a3b8", opacity=0.7,
                          annotation_text="WHO", annotation_font_size=9)
-    fig_status.update_layout(
+    fig_status.update_layout(dragmode=False, 
             height=360, margin=dict(t=40, b=10, l=10, r=30),
             showlegend=True,
             legend=dict(orientation="h", y=1.22, x=0, font=dict(size=9)),
@@ -547,7 +547,7 @@ with col_right:
             font=dict(family="IBM Plex Sans"),
             plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
         )
-    st.plotly_chart(fig_status, width="stretch")
+    st.plotly_chart(fig_status, width="stretch", config={"scrollZoom": False, "displayModeBar": False})
 
 st.caption(
     "Risk score = mean of (concentration ÷ WHO 2021 limit) across PM2.5, PM10, NO₂, ×100. "

@@ -160,11 +160,11 @@ with pc2:
     )
     fig_ov.add_vline(x=WHO_ANNUAL["NO2"], line_dash="dot", line_color="#e74c3c",
                      annotation_text="WHO", annotation_font_size=9)
-    fig_ov.update_layout(
+    fig_ov.update_layout(dragmode=False, 
         height=280, margin=dict(t=40, b=10, l=10, r=20),
         showlegend=False,
     )
-    st.plotly_chart(fig_ov, width="stretch")
+    st.plotly_chart(fig_ov, width="stretch", config=PLOTLY_CONFIG)
 
 st.divider()
 
@@ -241,13 +241,13 @@ with sp2:
         textposition="outside",
     ))
     fig_r.add_vline(x=0, line_color="#555", line_width=1)
-    fig_r.update_layout(
+    fig_r.update_layout(dragmode=False, 
         height=240,
         margin=dict(t=30, b=10, l=10, r=80),
         xaxis=dict(range=[-1, 1], title="Pearson r"),
         title=tr("Top 5 spatial correlations"),
     )
-    st.plotly_chart(fig_r, width="stretch")
+    st.plotly_chart(fig_r, width="stretch", config=PLOTLY_CONFIG)
 
 st.markdown("---")
 
@@ -328,13 +328,13 @@ with bc2:
         text=[f"{b['R2']:.3f}" for b in BENCHMARK],
         textposition="outside",
     ))
-    fig_bm.update_layout(
+    fig_bm.update_layout(dragmode=False, 
         height=220,
         margin=dict(t=30, b=10, l=10, r=60),
         xaxis=dict(range=[0, 0.65], title="R²"),
         title=tr("R² comparison — green = production model"),
     )
-    st.plotly_chart(fig_bm, width="stretch")
+    st.plotly_chart(fig_bm, width="stretch", config=PLOTLY_CONFIG)
 
 # ...
 st.plotly_chart(fig, config=PLOTLY_CONFIG)

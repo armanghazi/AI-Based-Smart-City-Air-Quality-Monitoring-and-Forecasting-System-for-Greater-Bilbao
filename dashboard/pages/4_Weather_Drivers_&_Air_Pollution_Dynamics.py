@@ -257,8 +257,8 @@ with tab1:
             aspect="auto",
             title="Pollutant × Weather (focus view)"
         )
-        fig_focus.update_layout(height=320, margin=dict(t=50, b=10, l=10, r=10))
-        st.plotly_chart(fig_focus,  width="stretch")
+        fig_focus.update_layout(dragmode=False, height=320, margin=dict(t=50, b=10, l=10, r=10))
+        st.plotly_chart(fig_focus,  width="stretch", config=PLOTLY_CONFIG)
 
     with col_full:
         st.markdown("#### " + tr("Strongest pairs"))
@@ -298,8 +298,8 @@ with tab1:
             aspect="auto",
             title="Full Correlation Matrix"
         )
-        fig_full_m.update_layout(height=500)
-        st.plotly_chart(fig_full_m,  width="stretch")
+        fig_full_m.update_layout(dragmode=False, height=500)
+        st.plotly_chart(fig_full_m,  width="stretch", config=PLOTLY_CONFIG)
 
 # ==================== TAB 2: WEATHER RELATIONSHIPS ====================
 with tab2:
@@ -363,8 +363,8 @@ with tab2:
             y=WHO_ANNUAL[y_var], line_dash="dash", line_color="red",
             annotation_text=f"WHO {y_var}", annotation_font_size=10
         )
-    fig_sc.update_layout(height=420, hovermode="closest")
-    st.plotly_chart(fig_sc,  width="stretch")
+    fig_sc.update_layout(dragmode=False, height=420, hovermode="closest")
+    st.plotly_chart(fig_sc,  width="stretch", config=PLOTLY_CONFIG)
 
     st.info(
         f"Pearson correlation between **{x_var}** and **{y_var}**: **{corr_val:.3f}**"
@@ -427,8 +427,8 @@ with tab2:
                     "Label":        "Direction"
                 }
             )
-            fig_rose.update_layout(height=420)
-            st.plotly_chart(fig_rose,  width="stretch")
+            fig_rose.update_layout(dragmode=False, height=420)
+            st.plotly_chart(fig_rose,  width="stretch", config=PLOTLY_CONFIG)
 
         with col_r2:
             fig_speed_rose = px.bar_polar(
@@ -442,8 +442,8 @@ with tab2:
                     "Label":        "Direction"
                 }
             )
-            fig_speed_rose.update_layout(height=420)
-            st.plotly_chart(fig_speed_rose,  width="stretch")
+            fig_speed_rose.update_layout(dragmode=False, height=420)
+            st.plotly_chart(fig_speed_rose,  width="stretch", config=PLOTLY_CONFIG)
 
     # --------------------------------------------------
     # Wind Components (Wind_X / Wind_Y) vs Pollution
@@ -478,9 +478,9 @@ with tab2:
                     y=WHO_ANNUAL[y_var], line_dash="dash", line_color="red",
                     annotation_text=f"WHO {y_var}", annotation_font_size=9
                 )
-            fig_wc.update_layout(height=380)
+            fig_wc.update_layout(dragmode=False, height=380)
             with wc_cols[idx]:
-                st.plotly_chart(fig_wc,  width="stretch")
+                st.plotly_chart(fig_wc,  width="stretch", config=PLOTLY_CONFIG)
     else:
         st.info(
             tr("Wind_X and Wind_Y columns not found. "
@@ -528,8 +528,8 @@ with tab3:
                 title="All pollutants by season",
                 labels={"Concentration": "µg/m³"}
             )
-            fig_seas.update_layout(height=380)
-            st.plotly_chart(fig_seas,  width="stretch")
+            fig_seas.update_layout(dragmode=False, height=380)
+            st.plotly_chart(fig_seas,  width="stretch", config=PLOTLY_CONFIG)
 
         with col_s2:
             fig_sw = make_subplots(specs=[[{"secondary_y": True}]])
@@ -554,12 +554,12 @@ with tab3:
                 )
             fig_sw.update_yaxes(title_text=f"{seas_poll} (µg/m³)", secondary_y=False)
             fig_sw.update_yaxes(title_text="Temperature (°C)",      secondary_y=True)
-            fig_sw.update_layout(
+            fig_sw.update_layout(dragmode=False, 
                 title=f"{seas_poll} vs Temperature by season",
                 height=380, hovermode="x unified",
                 legend=dict(orientation="h", y=1.08)
             )
-            st.plotly_chart(fig_sw,  width="stretch")
+            st.plotly_chart(fig_sw,  width="stretch", config=PLOTLY_CONFIG)
 
         # Zone × Season heatmap
         st.markdown("#### " + tr("Zone × Season heatmap"))
@@ -581,8 +581,8 @@ with tab3:
             aspect="auto",
             title=f"{seas_poll} µg/m³ — Zone × Season"
         )
-        fig_zs.update_layout(height=280)
-        st.plotly_chart(fig_zs,  width="stretch")
+        fig_zs.update_layout(dragmode=False, height=280)
+        st.plotly_chart(fig_zs,  width="stretch", config=PLOTLY_CONFIG)
 
         with st.expander(tr("📊 Full seasonal statistics")):
             st.dataframe(seasonal.set_index("season"), width="stretch")
@@ -639,14 +639,14 @@ with tab4:
             name="Correlation r"
         ))
         fig_lag.add_hline(y=0, line_color="#bbb", line_width=1)
-        fig_lag.update_layout(
+        fig_lag.update_layout(dragmode=False, 
             title=f"{lag_poll} lag features vs {target_col} · correlation",
             xaxis_title="Lag (days)",
             yaxis_title="Pearson r",
             height=400,
             yaxis=dict(range=[-0.1, max(lag_df["r"].max() * 1.2, 0.5)])
         )
-        st.plotly_chart(fig_lag,  width="stretch")
+        st.plotly_chart(fig_lag,  width="stretch", config=PLOTLY_CONFIG)
 
         # ── Rolling Mean ───────────────────────────────────────
         st.markdown("#### " + tr("Rolling Mean Features"))
@@ -681,8 +681,8 @@ with tab4:
             fig_roll.update_traces(
                 texttemplate="%{text:.3f}", textposition="outside"
             )
-            fig_roll.update_layout(height=360, showlegend=False)
-            st.plotly_chart(fig_roll,  width="stretch")
+            fig_roll.update_layout(dragmode=False, height=360, showlegend=False)
+            st.plotly_chart(fig_roll,  width="stretch", config=PLOTLY_CONFIG)
         else:
             st.info(f"No rolling mean columns found for {lag_poll}.")
 
@@ -756,12 +756,12 @@ with tab5:
     )
     fig_feat.update_traces(texttemplate="%{text:.3f}", textposition="outside")
     fig_feat.add_vline(x=0, line_color="#bbb", line_width=1)
-    fig_feat.update_layout(
+    fig_feat.update_layout(dragmode=False, 
         height=max(400, top_n * 28),
         margin=dict(l=10, r=60, t=50, b=10),
         yaxis=dict(autorange="reversed")
     )
-    st.plotly_chart(fig_feat,  width="stretch")
+    st.plotly_chart(fig_feat,  width="stretch", config=PLOTLY_CONFIG)
 
     st.markdown("#### " + tr("Summary by feature category"))
     cat_summary = (
@@ -881,14 +881,14 @@ with _wa1:
             showarrow=False,
             font=dict(size=11, color="#2c3e50"),
         )
-    fig_ws.update_layout(
+    fig_ws.update_layout(dragmode=False, 
         height=320,
         margin=dict(t=20, b=10, l=10, r=20),
         xaxis_title=tr("Wind speed (m/s)"),
         yaxis_title=f"Mean {_poll_sel} (µg/m³)",
         showlegend=False,
     )
-    st.plotly_chart(fig_ws, width="stretch")
+    st.plotly_chart(fig_ws, width="stretch", config=PLOTLY_CONFIG)
 
 with _wa2:
     st.markdown("**" + tr("Reduction: calm → strong wind") + "**")
@@ -940,12 +940,12 @@ fig_dir = go.Figure(go.Heatmap(
     textfont=dict(size=10),
     colorbar=dict(title="NO₂ µg/m³"),
 ))
-fig_dir.update_layout(
+fig_dir.update_layout(dragmode=False, 
     height=350,
     margin=dict(t=20, b=10, l=160, r=20),
     xaxis_title=tr("Wind direction (FROM)"),
 )
-st.plotly_chart(fig_dir, width="stretch")
+st.plotly_chart(fig_dir, width="stretch", config=PLOTLY_CONFIG)
 
 st.divider()
 
@@ -972,7 +972,7 @@ with _wc1:
         name=tr("Wind frequency (%)"),
         marker_color="#3498db", opacity=0.5, yaxis="y2",
     ))
-    fig_musk.update_layout(
+    fig_musk.update_layout(dragmode=False, 
         height=320,
         title=tr("MUSKIZ — SO₂ by wind direction"),
         barmode="group",
@@ -982,7 +982,7 @@ with _wc1:
         legend=dict(orientation="h", y=-0.25),
         margin=dict(t=50, b=10),
     )
-    st.plotly_chart(fig_musk, width="stretch")
+    st.plotly_chart(fig_musk, width="stretch", config=PLOTLY_CONFIG)
     st.caption(
         tr(
             "NE wind → SO₂ = 7.32 µg/m³ — Petronor emissions "
@@ -1005,7 +1005,7 @@ with _wc2:
         name=tr("Wind frequency (%)"),
         marker_color="#3498db", opacity=0.5, yaxis="y2",
     ))
-    fig_maz.update_layout(
+    fig_maz.update_layout(dragmode=False, 
         height=320,
         title=tr("MAZARREDO — NO₂ by wind direction"),
         barmode="group",
@@ -1015,7 +1015,7 @@ with _wc2:
         legend=dict(orientation="h", y=-0.25),
         margin=dict(t=50, b=10),
     )
-    st.plotly_chart(fig_maz, width="stretch")
+    st.plotly_chart(fig_maz, width="stretch", config=PLOTLY_CONFIG)
     st.caption(
         tr(
             "SE wind → NO₂ = 35.3 µg/m³ (+70% vs NW baseline). "
