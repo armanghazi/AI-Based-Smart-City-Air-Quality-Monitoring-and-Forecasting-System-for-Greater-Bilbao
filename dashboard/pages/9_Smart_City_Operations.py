@@ -1,4 +1,4 @@
-"""
+﻿"""
 9_Smart_City_Operations.py — Smart City Operations Dashboard (admin-only).
 
 A professional enterprise-grade operational intelligence page modelled after
@@ -32,7 +32,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import load_data, DATA_FILE, WHO_ANNUAL, WHO_SO2_DAILY, POLLUTANT_COLOR  # noqa: E402
 from auth import require_auth, logout_button  # noqa: E402
-from i18n_auto import language_selector, apply_lang_styles, tr  # noqa: E402
+from i18n_auto import tr  # noqa: E402
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -45,8 +45,6 @@ st.set_page_config(
 
 # Auth gate — must come before any content
 user = require_auth(role="admin")
-language_selector()
-apply_lang_styles()
 
 st.sidebar.success(f"Signed in: {user['name']}\n\nRole: {user['role']}")
 logout_button()

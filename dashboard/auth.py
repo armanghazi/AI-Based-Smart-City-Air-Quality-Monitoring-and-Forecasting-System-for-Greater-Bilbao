@@ -93,6 +93,13 @@ def require_auth(role: str = "viewer") -> dict:
     return {"email": st.user.email, "name": st.user.name, "role": user_role}
 
 
+def is_admin() -> bool:
+    """Safe wrapper for entry-script: never raises, returns False on any error."""
+    try:
+        return current_role() == "admin"
+    except Exception:
+        return False
+
 # ======================================================================
 # secrets.toml TEMPLATE  (do NOT commit real secrets; keep .streamlit/ in .gitignore)
 # ----------------------------------------------------------------------

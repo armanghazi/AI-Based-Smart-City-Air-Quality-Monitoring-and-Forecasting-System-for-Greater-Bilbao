@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 from pathlib import Path
 import streamlit as st
 import pandas as pd
@@ -32,8 +32,6 @@ st.set_page_config(
     page_icon="🌦️",
     layout="wide"
 )
-language_selector()
-apply_lang_styles()
 center_tables()
 
 # --------------------------------------------------
@@ -1024,8 +1022,7 @@ with _wc2:
         )
     )
 
-# ...
-st.plotly_chart(fig, config=PLOTLY_CONFIG)
+
 
 st.divider()
 
@@ -1057,5 +1054,4 @@ st.info(
         "Source: Open-Meteo ERA5 archive (CC BY 4.0) · Notebook 10d."
     )
 )
-
 

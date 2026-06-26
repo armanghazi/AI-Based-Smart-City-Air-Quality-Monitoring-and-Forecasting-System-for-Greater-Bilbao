@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -10,7 +10,7 @@ from config import (
     classify_core_risk, risk_color, short_term_flag,
     who_ratio_label, who_delta, get_fav_station, center_tables
 )
-from i18n_auto import language_selector, apply_lang_styles, tr
+from i18n_auto import tr
 
 from weather_panel import weather_trend
 
@@ -21,8 +21,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 st.set_page_config(page_title="Temporal Trends", layout="wide")
-language_selector()
-apply_lang_styles()
 center_tables()
 
 # -----------------------

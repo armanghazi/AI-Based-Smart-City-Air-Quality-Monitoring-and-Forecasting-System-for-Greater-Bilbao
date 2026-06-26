@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
@@ -32,7 +32,7 @@ from config import EU_ANNUAL
 
 from pdf_report import generate_daily_report, generate_monthly_report
 
-from i18n_auto import language_selector, apply_lang_styles, tr
+from i18n_auto import tr
 
 from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
 
@@ -48,8 +48,6 @@ st.set_page_config(
     page_icon="🏛️",
     layout="wide",
 )
-language_selector()
-apply_lang_styles()
 center_tables()
 # ==================================================
 # 2. CONSTANTS
@@ -1655,8 +1653,6 @@ with tab_spatial:
                 "or terrain. SVI should not be used as a standalone forecast tool."
             )
         )
-# ...
-    st.plotly_chart(fig, config=PLOTLY_CONFIG)
 
     # ── Full data table ───────────────────────────────────────────────────────
     with st.expander(tr("📋 Full spatial features table (v3)")):

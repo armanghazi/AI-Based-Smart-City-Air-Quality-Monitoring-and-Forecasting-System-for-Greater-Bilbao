@@ -1,4 +1,4 @@
-"""
+﻿"""
 dashboard/pages/7_Scope_and_Limitations.py
 
 GeoAI Methodology & Scope — Greater Bilbao Air Quality Platform
@@ -26,7 +26,7 @@ from pathlib import Path
 
 from config import load_data, WHO_ANNUAL, ZONE_META
 from glossary import G
-from i18n_auto import language_selector, apply_lang_styles, tr
+from i18n_auto import tr
 
 from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
 
@@ -42,8 +42,6 @@ st.set_page_config(
     page_icon="📋",
     layout="wide",
 )
-language_selector()
-apply_lang_styles()
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CONSTANTS — all key numbers hardcoded from verified project sources
@@ -336,8 +334,6 @@ with bc2:
     )
     st.plotly_chart(fig_bm, width="stretch", config=PLOTLY_CONFIG)
 
-# ...
-st.plotly_chart(fig, config=PLOTLY_CONFIG)
 st.markdown("---")
 
 # Feature architecture

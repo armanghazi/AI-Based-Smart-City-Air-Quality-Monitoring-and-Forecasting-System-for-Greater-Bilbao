@@ -60,8 +60,8 @@ pages: dict = {
 # Admin cluster — pages absent from st.navigation cannot render at all,
 # so this IS real access control (not just UI hiding).
 # is_admin() is a safe wrapper that returns False on any auth error.
-
-pages["Admin"] = [operations]
+if is_admin():
+    pages["Admin"] = [operations]
 
 pg = st.navigation(pages)
 pg.run()

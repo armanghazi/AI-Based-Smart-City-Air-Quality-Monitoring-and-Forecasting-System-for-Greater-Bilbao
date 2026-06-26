@@ -1,4 +1,4 @@
-"""
+﻿"""
 dashboard/pages/3_GeoAI_Spatial_Analysis.py
 
 GeoAI Spatial Analysis — Greater Bilbao Monitoring Network
@@ -28,7 +28,7 @@ import streamlit as st
 from pathlib import Path
 
 from config import load_data, WHO_ANNUAL, ZONE_META
-from i18n_auto import language_selector, apply_lang_styles, tr
+from i18n_auto import tr
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PAGE CONFIG
@@ -39,8 +39,6 @@ st.set_page_config(
     page_icon="🌍",
     layout="wide",
 )
-language_selector()
-apply_lang_styles()
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CONSTANTS

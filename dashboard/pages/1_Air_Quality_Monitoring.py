@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
@@ -12,7 +12,7 @@ from config import (
     WHO_ANNUAL, POLLUTANT_COLOR, MONTH_NAMES,
     ZONE_MAP, ZONE_META, get_zone, center_tables
 )
-from i18n_auto import language_selector, apply_lang_styles, tr
+from i18n_auto import tr
 
 from weather_panel import weather_snapshot
 
@@ -23,8 +23,6 @@ st.set_page_config(
     page_title="Smart City Air Intelligence",
     layout="wide"
 )
-language_selector()
-apply_lang_styles()
 center_tables()
 st.title(tr("🌍 Smart City Air Quality Dashboard"))
 st.markdown(tr("Greater Bilbao Air Quality Monitoring System"))

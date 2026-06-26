@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -15,7 +15,7 @@ from config import (
     ZONE_META, get_zone,get_fav_station, center_tables
 )
 
-from i18n_auto import language_selector, apply_lang_styles, tr
+from i18n_auto import tr
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -26,8 +26,6 @@ st.set_page_config(
     page_icon="🔮",
     layout="wide",
 )
-language_selector()
-apply_lang_styles()
 center_tables()
 
 # --------------------------------------------------
