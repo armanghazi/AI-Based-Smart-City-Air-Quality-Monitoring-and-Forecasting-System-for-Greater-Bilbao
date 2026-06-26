@@ -55,7 +55,7 @@ pages: dict = {
     "Monitoring":             [monitoring, temporal],
     "Forecasting":            [forecast],
     "GeoAI Spatial Analysis": [spatial, weather, decision],
-    "Project":                [assistant, methods],
+    "Project assistant":                [assistant, methods],
 }
 
 
