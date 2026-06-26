@@ -1,9 +1,8 @@
-# streamlit_app.py (replaces app.py)
+﻿# streamlit_app.py (replaces app.py)
 # Thin router only — no page body here.
 # All content lives in pages/.
 
 import streamlit as st
-from auth import is_admin  # safe wrapper added to auth.py (see instructions)
 from i18n_auto import language_selector, apply_lang_styles
 
 # --------------------------------------------------

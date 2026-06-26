@@ -99,7 +99,6 @@ def is_admin() -> bool:
         return current_role() == "admin"
     except Exception:
         return False
-
 # ======================================================================
 # secrets.toml TEMPLATE  (do NOT commit real secrets; keep .streamlit/ in .gitignore)
 # ----------------------------------------------------------------------
