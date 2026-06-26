@@ -286,31 +286,76 @@ with col_snap:
 st.divider()
 
 # --------------------------------------------------
-# Project Assistant — premium feature card
+# Project Assistant — refined premium feature card
 # --------------------------------------------------
-card_left, card_right = st.columns([5, 1.4], gap="medium")
+st.markdown(f'<p class="eyebrow">{tr("AI capability")}</p>', unsafe_allow_html=True)
+st.markdown("### " + tr("Ask the Project Assistant"))
+
+card_left, card_right = st.columns([5.2, 1.3], gap="medium")
 
 with card_left:
     st.markdown(f"""
     <div style="
-        background:linear-gradient(135deg,rgba(14,165,181,0.06) 0%,rgba(37,99,235,0.08) 100%);
-        border:0.5px solid #93c5fd;
-        border-left:3px solid #2563eb;
-        border-radius:12px;
-        padding:1.1rem 1.4rem;
-        height:100%;
+        background:linear-gradient(135deg, rgba(14,165,181,0.045) 0%, rgba(37,99,235,0.055) 100%);
+        border:1px solid rgba(148,163,184,0.28);
+        border-radius:14px;
+        padding:1.15rem 1.25rem;
+        min-height:112px;
+        box-shadow:0 10px 24px -20px rgba(15,23,42,0.22);
     ">
-        <div style="display:flex;align-items:center;gap:0.9rem">
-            <div style="width:44px;height:44px;border-radius:10px;background:rgba(37,99,235,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.5rem">🤖</div>
-            <div>
-                <div style="display:inline-block;font-size:11px;font-weight:500;background:rgba(37,99,235,0.1);color:#2563eb;border-radius:4px;padding:2px 8px;margin-bottom:5px;letter-spacing:.03em">
-                    AI · Powered by Llama 3.3 70B
+        <div style="display:flex;align-items:flex-start;gap:0.95rem">
+            <div style="
+                width:46px;
+                height:46px;
+                border-radius:12px;
+                background:rgba(37,99,235,0.08);
+                border:1px solid rgba(37,99,235,0.12);
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                flex-shrink:0;
+                font-size:1.2rem;
+            ">
+                ✦
+            </div>
+
+            <div style="min-width:0">
+                <div style="
+                    display:inline-flex;
+                    align-items:center;
+                    gap:0.35rem;
+                    font-size:0.68rem;
+                    font-weight:600;
+                    text-transform:uppercase;
+                    letter-spacing:0.06em;
+                    color:#2563eb;
+                    background:rgba(37,99,235,0.08);
+                    border:1px solid rgba(37,99,235,0.10);
+                    border-radius:999px;
+                    padding:0.22rem 0.55rem;
+                    margin-bottom:0.45rem;
+                ">
+                    AI Assistant
                 </div>
-                <p style="font-weight:600;font-size:0.98rem;color:#0c1521;margin:0 0 2px">
-                    {tr("Ask the Project Assistant")}
+
+                <p style="
+                    font-weight:600;
+                    font-size:1rem;
+                    color:#0c1521;
+                    margin:0 0 0.18rem 0;
+                    letter-spacing:-0.01em;
+                ">
+                    {tr("Ask about data, forecasts, GIS, or methodology")}
                 </p>
-                <p style="font-size:0.81rem;color:#5b7185;margin:0;line-height:1.5">
-                    {tr("Ask about air quality trends, GIS findings, forecast methodology, or station data — in any language.")}
+
+                <p style="
+                    font-size:0.82rem;
+                    color:#5b7185;
+                    margin:0;
+                    line-height:1.55;
+                    max-width:62ch;
+                ">
+                    {tr("Use natural language to explore air quality trends, station differences, forecasting logic, and GeoAI findings across the platform.")}
                 </p>
             </div>
         </div>
@@ -318,11 +363,11 @@ with card_left:
     """, unsafe_allow_html=True)
 
 with card_right:
-    st.markdown("<div style='height:0.6rem'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:0.7rem'></div>", unsafe_allow_html=True)
     if st.button(
-        tr("Open Assistant") + " →",
-        type="primary",
+        tr("Open AI Assistant") + " →",
         key="home_assistant_cta",
+        type="primary",
         use_container_width=True,
     ):
         st.switch_page("pages/8_Project_Assistant.py")
