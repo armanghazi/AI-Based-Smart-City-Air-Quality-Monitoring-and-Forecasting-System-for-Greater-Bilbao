@@ -1,4 +1,4 @@
-"""
+﻿"""
 8_Project_Assistant.py  —  GeoAI Smart City Air Quality Dashboard
 ──────────────────────────────────────────────────────────────────
 Merged assistant: combines the rich Project Knowledge + Data Digest
@@ -23,9 +23,12 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+
+
 warnings.filterwarnings("ignore")
 
 # ── Streamlit Cloud: pages cannot use package-relative imports ──────────────
+from i18n_auto import tr  # noqa: E402
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import load_data, WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS, get_zone  # noqa: E402
 
@@ -697,18 +700,18 @@ def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, s
 
 st.set_page_config(page_title="Project Assistant", page_icon="🤖", layout="wide")
 
-st.title("🤖 Project Assistant")
+st.title("🤖 " + tr("Project Assistant"))
 st.caption(
     "Ask about the air quality data, forecasts, GIS analysis, or the project methodology. "
     "Data questions are answered from the live dataset — the assistant never guesses numbers."
 )
 
 # Load data (once, cached)
-with st.spinner("Loading data and models…"):
+with st.spinner(tr("Loading data and models…")):
     df, df_fc, gis, mdls, load_errors = _load_all()
 
 if load_errors:
-    with st.expander("⚠️ Some resources failed to load", expanded=False):
+    with st.expander(tr("⚠️ Some resources failed to load"), expanded=False):
         for e in load_errors:
             st.warning(e)
 
@@ -740,11 +743,11 @@ st.markdown("""
 if "assistant_msgs" not in st.session_state:
     st.session_state.assistant_msgs = []
 
-typed  = st.chat_input("💬 Ask about air quality, forecasts, GIS, or methodology…")
+typed  = st.chat_input(tr("Ask about air quality, forecasts, GIS, or methodology…"))
 prompt = typed or st.session_state.pop("queued_prompt", None)
 
 # Quick-start buttons
-st.markdown("##### ⚡ Quick start")
+st.markdown("##### ⚡ " + tr("Quick start"))
 cols = st.columns(2)
 for i, q in enumerate(EXAMPLES):
     if cols[i % 2].button(q, key=f"ex_{i}", use_container_width=True):
@@ -764,7 +767,7 @@ if prompt:
     with st.chat_message("user"):
         st.markdown(prompt)
     with st.chat_message("assistant"):
-        with st.spinner("Thinking…"):
+        with st.spinner(tr("Thinking…")):
             ok, reply = get_reply(
                 st.session_state.assistant_msgs,
                 digest_text,
@@ -777,6 +780,6 @@ if prompt:
 
 # Clear button
 if st.session_state.assistant_msgs:
-    if st.button("🗑️ Clear conversation"):
+    if st.button("🗑️ " + tr("Clear conversation")):
         st.session_state.assistant_msgs = []
         st.rer
