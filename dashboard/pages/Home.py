@@ -288,50 +288,44 @@ st.divider()
 # --------------------------------------------------
 # Project Assistant — premium feature card
 # --------------------------------------------------
-st.markdown(f"""
-<div style="
-    background: linear-gradient(135deg, rgba(14,165,181,0.06) 0%, rgba(37,99,235,0.08) 100%);
-    border: 0.5px solid #93c5fd;
-    border-left: 3px solid #2563eb;
-    border-radius: 12px;
-    padding: 1.3rem 1.6rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1.5rem;
-    margin-bottom: 1.5rem;
-">
-    <div style="display:flex;align-items:center;gap:1rem;flex:1">
-        <div style="
-            width:48px;height:48px;border-radius:10px;
-            background:rgba(37,99,235,0.1);
-            display:flex;align-items:center;justify-content:center;
-            flex-shrink:0;font-size:1.6rem;
-        ">🤖</div>
-        <div>
-            <div style="
-                display:inline-block;font-size:11px;font-weight:500;
-                background:rgba(37,99,235,0.1);color:#2563eb;
-                border-radius:4px;padding:2px 8px;margin-bottom:6px;
-                letter-spacing:0.03em;
-            ">AI · Powered by Llama 3.3 70B</div>
-            <p style="font-weight:600;font-size:1rem;color:#0c1521;margin:0 0 3px">
-                {tr("Ask the Project Assistant")}
-            </p>
-            <p style="font-size:0.82rem;color:#5b7185;margin:0;line-height:1.5">
-                {tr("Ask about air quality trends, GIS findings, forecast methodology, or station data — in any language.")}
-            </p>
+card_left, card_right = st.columns([5, 1.4], gap="medium")
+
+with card_left:
+    st.markdown(f"""
+    <div style="
+        background:linear-gradient(135deg,rgba(14,165,181,0.06) 0%,rgba(37,99,235,0.08) 100%);
+        border:0.5px solid #93c5fd;
+        border-left:3px solid #2563eb;
+        border-radius:12px;
+        padding:1.1rem 1.4rem;
+        height:100%;
+    ">
+        <div style="display:flex;align-items:center;gap:0.9rem">
+            <div style="width:44px;height:44px;border-radius:10px;background:rgba(37,99,235,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.5rem">🤖</div>
+            <div>
+                <div style="display:inline-block;font-size:11px;font-weight:500;background:rgba(37,99,235,0.1);color:#2563eb;border-radius:4px;padding:2px 8px;margin-bottom:5px;letter-spacing:.03em">
+                    AI · Powered by Llama 3.3 70B
+                </div>
+                <p style="font-weight:600;font-size:0.98rem;color:#0c1521;margin:0 0 2px">
+                    {tr("Ask the Project Assistant")}
+                </p>
+                <p style="font-size:0.81rem;color:#5b7185;margin:0;line-height:1.5">
+                    {tr("Ask about air quality trends, GIS findings, forecast methodology, or station data — in any language.")}
+                </p>
+            </div>
         </div>
     </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-if st.button(
-    "🤖 " + tr("Open Assistant →"),
-    type="primary",
-    key="home_assistant_cta",
-):
-    st.switch_page("pages/8_Project_Assistant.py")
+with card_right:
+    st.markdown("<div style='height:0.6rem'></div>", unsafe_allow_html=True)
+    if st.button(
+        tr("Open Assistant") + " →",
+        type="primary",
+        key="home_assistant_cta",
+        use_container_width=True,
+    ):
+        st.switch_page("pages/8_Project_Assistant.py")
 
 st.divider()
 # --------------------------------------------------
