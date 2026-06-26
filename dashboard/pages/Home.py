@@ -243,22 +243,24 @@ st.markdown("### " + tr("Latest readings across the network") + f" — {latest_d
 col_fav, col_snap = st.columns([2, 5], gap="large")
 
 with col_fav:
-    default_idx = (station_list.index(st.session_state.fav_station)
-                   if st.session_state.fav_station in station_list else 0)
-selected_fav = st.selectbox(
-    tr("Your default station"),
-    options=station_list,
-    index=default_idx,
-    help=tr("Remembered on this device for your next visit."),
-)
-if st.button(tr("Save as default"), type="primary", use_container_width=True):
-    st.session_state.fav_station = selected_fav
-    if _cookies is not None:
-        _cookies["fav_station"] = selected_fav
-        _cookies.save()
-        st.success(f"{selected_fav} {tr('saved')}.")
-    else:
-        st.info(tr("Saved for this session."))
+    default_idx = (
+        station_list.index(st.session_state.fav_station)
+        if st.session_state.fav_station in station_list else 0
+    )
+    selected_fav = st.selectbox(
+        tr("Your default station"),
+        options=station_list,
+        index=default_idx,
+        help=tr("Remembered on this device for your next visit."),
+    )
+    if st.button(tr("Save as default"), type="primary", use_container_width=True):
+        st.session_state.fav_station = selected_fav
+        if _cookies is not None:
+            _cookies["fav_station"] = selected_fav
+            _cookies.save()
+            st.success(f"{selected_fav} {tr('saved')}.")
+        else:
+            st.info(tr("Saved for this session."))
 
 with col_snap:
     latest_means = (
