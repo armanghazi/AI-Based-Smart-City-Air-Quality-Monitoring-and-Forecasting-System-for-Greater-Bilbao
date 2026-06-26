@@ -431,7 +431,7 @@ with col_right:
 
 st.caption(
     tr("Risk score = mean of (concentration ÷ WHO 2021 limit) across PM2.5, PM10, NO₂, ×100. "
-       "100 = exactly at the WHO guideline.")
+       "100 = exactly at the WHO guideline."))
 st.divider()
 
 # --------------------------------------------------
