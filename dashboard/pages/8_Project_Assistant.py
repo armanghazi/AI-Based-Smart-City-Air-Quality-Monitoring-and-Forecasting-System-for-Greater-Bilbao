@@ -28,8 +28,8 @@ import streamlit as st
 warnings.filterwarnings("ignore")
 
 # ── Streamlit Cloud: pages cannot use package-relative imports ──────────────
-from i18n_auto import tr  # noqa: E402
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from i18n_auto import tr  # noqa: E402
 from config import load_data, WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS, get_zone  # noqa: E402
 
 try:
