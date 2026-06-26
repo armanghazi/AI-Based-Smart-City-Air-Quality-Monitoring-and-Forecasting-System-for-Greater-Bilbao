@@ -38,8 +38,6 @@ weather    = st.Page("pages/4_Weather_Drivers.py",
                      title="Weather Drivers",             icon="💨")
 decision   = st.Page("pages/6_Smart_City_Decision_Support.py",
                      title="Smart City Decision Support", icon="🏙️")
-assistant  = st.Page("pages/8_Project_Assistant.py",
-                     title="Project Assistant",           icon="🤖")
 methods    = st.Page("pages/7_Scope_and_Limitations.py",
                      title="Methodology",                 icon="📖")
 operations = st.Page("pages/9_Smart_City_Operations.py",
@@ -55,7 +53,6 @@ pages: dict = {
     "Monitoring":             [monitoring, temporal],
     "Forecasting":            [forecast],
     "GeoAI Spatial Analysis": [spatial, weather, decision],
-    "Project assistant":                [assistant, methods],
 }
 
 
