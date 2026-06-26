@@ -113,14 +113,14 @@ WIND TRANSPORT (ERA5 single grid cell ~31km, regional only — not station-speci
 """.strip()
 
 EXAMPLES = [
-    tr("What is the latest air quality status across all stations?"),
-    tr("Why does MUSKIZ have low pollution despite being next to Petronor?"),
-    tr("Which station has the worst structural vulnerability index (SVI)?"),
-    tr("How does wind direction affect SO2 at MUSKIZ?"),
-    tr("Compare all stations by industrial land use"),
-    tr("Forecast NO2 at BARAKALDO for the latest date"),
-    tr("What is the yearly NO2 trend at MAZARREDO?"),
-    tr("Why is SO2 R² lower than the other models?"),
+    "What is the latest air quality status across all stations?",
+    "Why does MUSKIZ have low pollution despite being next to Petronor?",
+    "Which station has the worst structural vulnerability index (SVI)?",
+    "How does wind direction affect SO2 at MUSKIZ?",
+    "Compare all stations by industrial land use",
+    "Forecast NO2 at BARAKALDO for the latest date",
+    "What is the yearly NO2 trend at MAZARREDO?",
+    "Why is SO2 R² lower than the other models?",
 ]
 
 # ═══════════════════════════════════════════════════════════════════════════
