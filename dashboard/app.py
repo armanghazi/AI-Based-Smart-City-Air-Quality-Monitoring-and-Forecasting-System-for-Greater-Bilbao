@@ -5,6 +5,7 @@
 import streamlit as st
 from i18n_auto import language_selector, apply_lang_styles
 from pathlib import Path
+import base64
 
 # --------------------------------------------------
 # Global page config (applies to every page)
@@ -59,15 +60,16 @@ pages: dict = {
 
 
 
-_ASSETS = Path(__file__).parent / "assets"
-st.sidebar.markdown(
-    """
-    <div style="padding: 0.8rem 0.5rem 1.2rem 0.5rem;">
-      <img src="app/static/geoai_logo.svg" style="width:100%; max-width:200px; display:block;">
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+_logo = Path(__file__).parent / "static" / "geoai_logo.svg"
+if _logo.exists():
+    _svg = _logo.read_text(encoding="utf-8")
+    _b64 = base64.b64encode(_svg.encode()).decode()
+    st.sidebar.markdown(
+        f'<div style="padding:0.8rem 0.5rem 1.4rem;">'
+        f'<img src="data:image/svg+xml;base64,{_b64}" style="width:100%;max-width:190px;display:block;">'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
 # Admin cluster — pages absent from st.navigation cannot render at all,
 # so this IS real access control (not just UI hiding).
