@@ -1,0 +1,40 @@
+<svg width="240" height="56" viewBox="0 0 240 56" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GeoAI — Smart City Air Intelligence">
+  <defs>
+    <linearGradient id="gm" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0ea5b5"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="gw" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0ea5b5"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="gt" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0ea5b5"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- G arc: ~270 deg open ring -->
+  <path d="M 38 14 A 16 16 0 1 0 48 36"
+        fill="none" stroke="url(#gm)" stroke-width="3.2" stroke-linecap="round"/>
+  <!-- G crossbar -->
+  <path d="M 32 28 L 48 28 L 48 36"
+        fill="none" stroke="url(#gm)" stroke-width="3.2"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Wind tail 1 -->
+  <path d="M 48 28 C 57 28, 64 23, 70 17 C 76 11, 84 10, 90 14"
+        fill="none" stroke="url(#gw)" stroke-width="2.2" stroke-linecap="round" opacity="0.95"/>
+  <!-- Wind tail 2 -->
+  <path d="M 48 33 C 55 33, 61 30, 67 26 C 73 22, 80 22, 85 25"
+        fill="none" stroke="url(#gw)" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+  <!-- Wind tail 3 -->
+  <path d="M 48 37 C 54 37, 59 36, 64 34 C 69 32, 74 32, 78 34"
+        fill="none" stroke="url(#gw)" stroke-width="0.9" stroke-linecap="round" opacity="0.32"/>
+
+  <!-- Wordmark -->
+  <text x="104" y="37"
+        font-family="'IBM Plex Sans', system-ui, sans-serif"
+        font-size="22" font-weight="600" letter-spacing="-0.5"
+        fill="url(#gt)">GeoAI</text>
+</svg>

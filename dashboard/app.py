@@ -60,10 +60,13 @@ pages: dict = {
 
 
 _ASSETS = Path(__file__).parent / "assets"
-st.logo(
-    str(_ASSETS / "geoai_logo.svg"),      # full logo (expanded sidebar)
-    icon_image=str(_ASSETS / "geoai_icon.svg"),  # icon only (collapsed)
-    link="https://geoai-dashboard.streamlit.app",
+st.sidebar.markdown(
+    """
+    <div style="padding: 0.8rem 0.5rem 1.2rem 0.5rem;">
+      <img src="app/static/geoai_logo.svg" style="width:100%; max-width:200px; display:block;">
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
 # Admin cluster — pages absent from st.navigation cannot render at all,
