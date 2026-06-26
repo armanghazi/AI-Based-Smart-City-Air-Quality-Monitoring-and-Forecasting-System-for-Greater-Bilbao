@@ -702,8 +702,8 @@ st.set_page_config(page_title="Project Assistant", page_icon="🤖", layout="wid
 
 st.title("🤖 " + tr("Project Assistant"))
 st.caption(
-    "Ask about the air quality data, forecasts, GIS analysis, or the project methodology. "
-    "Data questions are answered from the live dataset — the assistant never guesses numbers."
+    tr("Ask about the air quality data, forecasts, GIS analysis, or the project methodology. "
+       "Data questions are answered from the live dataset — the assistant never guesses numbers.")
 )
 
 # Load data (once, cached)
