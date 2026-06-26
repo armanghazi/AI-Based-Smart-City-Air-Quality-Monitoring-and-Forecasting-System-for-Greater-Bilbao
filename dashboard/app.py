@@ -66,7 +66,7 @@ if _logo.exists():
     _b64 = base64.b64encode(_svg.encode()).decode()
     st.sidebar.markdown(
         f'<div style="padding:0.8rem 0.5rem 1.4rem;">'
-        f'<img src="data:image/svg+xml;base64,{_b64}" style="width:100%;max-width:190px;display:block;">'
+        f'<img src="data:image/svg+xml;base64,{_b64}" style="width:100%;max-width:3500px;display:block;">'
         f'</div>',
         unsafe_allow_html=True,
     )
