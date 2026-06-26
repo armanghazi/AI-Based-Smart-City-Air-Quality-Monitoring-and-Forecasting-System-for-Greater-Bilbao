@@ -195,15 +195,15 @@ forecast_str = (latest_date + timedelta(days=1)).strftime("%d %b %Y")
 st.markdown(f"""
 <div class="hero">
     <p class="hero-eyebrow">GeoAI Smart City Platform · Greater Bilbao · Bizkaia</p>
-    <h1 class="hero-title">Air Quality Intelligence for Greater Bilbao</h1>
+    <h1 class="hero-title">{tr("Air Quality Intelligence for Greater Bilbao")}</h1>
     <p class="hero-sub">
-        Monitoring and next-day forecasting across the region's air — seven stations, four pollutants, updated automatically every morning.
+        {tr("Monitoring and next-day forecasting across the region's air — seven stations, four pollutants, updated automatically every morning.")}
     </p>
     <div class="hero-meta">
-        <span><b>7</b> stations · <b>5</b> zones</span>
-        <span><b>{n_years}</b> years · {n_records:,} daily records</span>
-        <span><b>GeoAI spatial</b> · 4 notebooks · 35 features</span>
-        <span><b>Next-day</b> XGBoost forecast</span>
+        <span><b>7</b> {tr("stations")} · <b>5</b> {tr("zones")}</span>
+        <span><b>{n_years}</b> {tr("years")} · {n_records:,} {tr("daily records")}</span>
+        <span><b>GeoAI spatial</b> · 4 {tr("notebooks")} · 35 {tr("features")}</span>
+        <span><b>{tr("Next-day")}</b> XGBoost {tr("forecast")}</span>
         <span><b>WHO 2021</b> + EU Directive 2008/50/EC</span>
     </div>
 </div>
@@ -213,23 +213,22 @@ st.markdown(f"""
 if n_exc == 0:
     st.markdown(
         f'<div class="alert alert-good">✅ '
-        f'All stations within EU Directive limits — '
-        f'no legal exceedances forecast for {forecast_str}.</div>',
+        f'{tr("All stations within EU Directive limits — no legal exceedances forecast for")} {forecast_str}.</div>',
         unsafe_allow_html=True)
 elif n_exc <= 4:
     s_exc = list({e["station"].split("_")[0] for e in exceed})
     st.markdown(
         f'<div class="alert alert-warn">⚠️ '
-        f'{n_exc} EU Directive exceedance{"s" if n_exc>1 else ""} '
-        f'forecast for {forecast_str} · Stations: {", ".join(s_exc)} · '
-        f'<a href="/Daily_Briefing">Open the daily briefing →</a></div>',
+        f'{n_exc} {tr("EU Directive exceedance")}{"s" if n_exc>1 else ""} '
+        f'{tr("forecast for")} {forecast_str} · {tr("Stations")}: {", ".join(s_exc)} · '
+        f'<a href="/Daily_Briefing">{tr("Open the daily briefing")} →</a></div>',
         unsafe_allow_html=True)
 else:
     st.markdown(
         f'<div class="alert alert-bad">🚨 '
-        f'{n_exc} EU Directive exceedances forecast for {forecast_str} · '
-        f'multiple zones affected · '
-        f'<a href="/Daily_Briefing">Open the daily briefing →</a></div>',
+        f'{n_exc} {tr("EU Directive exceedances forecast for")} {forecast_str} · '
+        f'{tr("multiple zones affected")} · '
+        f'<a href="/Daily_Briefing">{tr("Open the daily briefing")} →</a></div>',
         unsafe_allow_html=True)
 
 st.write("")
@@ -238,7 +237,7 @@ st.write("")
 # --------------------------------------------------
 # Quick status
 # --------------------------------------------------
-st.markdown('<p class="eyebrow">Latest reading (D-1)</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="eyebrow">{tr("Latest reading (D-1)")}</p>', unsafe_allow_html=True)
 st.markdown("### " + tr("Latest readings across the network") + f" — {latest_date.strftime('%d %b %Y')}")
 
 col_fav, col_snap = st.columns([2, 5], gap="large")
@@ -246,20 +245,20 @@ col_fav, col_snap = st.columns([2, 5], gap="large")
 with col_fav:
     default_idx = (station_list.index(st.session_state.fav_station)
                    if st.session_state.fav_station in station_list else 0)
-    selected_fav = st.selectbox(
-        "Your default station",
-        options=station_list,
-        index=default_idx,
-        help="Remembered on this device for your next visit.",
-    )
-    if st.button("Save as default", type="primary", use_container_width=True):
-        st.session_state.fav_station = selected_fav
-        if _cookies is not None:
-            _cookies["fav_station"] = selected_fav
-            _cookies.save()
-            st.success(f"{selected_fav} saved.")
-        else:
-            st.info("Saved for this session.")
+selected_fav = st.selectbox(
+    tr("Your default station"),
+    options=station_list,
+    index=default_idx,
+    help=tr("Remembered on this device for your next visit."),
+)
+if st.button(tr("Save as default"), type="primary", use_container_width=True):
+    st.session_state.fav_station = selected_fav
+    if _cookies is not None:
+        _cookies["fav_station"] = selected_fav
+        _cookies.save()
+        st.success(f"{selected_fav} {tr('saved')}.")
+    else:
+        st.info(tr("Saved for this session."))
 
 with col_snap:
     latest_means = (
@@ -290,8 +289,8 @@ st.divider()
 st.markdown(f'<p class="eyebrow">{tr("The network, by character")}</p>', unsafe_allow_html=True)
 st.markdown("### " + tr("Five environmental zones"))
 st.caption(
-    "Each station sits in a zone defined by its dominant emission source — "
-    "traffic, industry, port, coast, or refinery. Latest-year averages shown."
+    tr("Each station sits in a zone defined by its dominant emission source — "
+       "traffic, industry, port, coast, or refinery. Latest-year averages shown.")
 )
 
 zone_summary = (
@@ -302,11 +301,11 @@ zone_summary = (
 
 # Spatial driver context from GIS analysis (notebooks 10a/10b/10c)
 ZONE_SPATIAL = {
-    "Urban":      "Road density 19,060 m/km² · 501 m from city centre → structural NO₂ source",
-    "Industrial": "354 m from AP-8 motorway · industrial land use 10–21% within 1 km",
-    "Port":       "784 m from Port of Bilbao · TRI 445 m provides terrain dispersion buffer",
-    "Coastal":    "Lowest road density (9,933 m/km²) · 2.6 km coast → NW sea breeze flushing",
-    "Refinery":   "2.4 km from Petronor · TRI 343 m + coastal position → dispersion advantage",
+    "Urban": tr("Road density 19,060 m/km² · 501 m from city centre → strong traffic-driven NO₂ pressure"),
+    "Industrial": tr("Near AP-8 corridor · elevated industrial land use within 1 km"),
+    "Port": tr("784 m from Port of Bilbao · TRI 445 m provides partial terrain-dispersion buffering"),
+    "Coastal": tr("Lowest road density (9,933 m/km²) · 2.6 km from coast → NW sea-breeze flushing"),
+    "Refinery": tr("2.4 km from Petronor · TRI 343 m plus coastal setting → dispersion advantage"),
 }
 
 
@@ -365,7 +364,7 @@ col_left, col_right = st.columns([3, 2], gap="large")
 latest_year = int(df["Year"].max())
 
 with col_left:
-    st.markdown("#### Annual mean concentration")
+    st.markdown("#### " + tr("Annual mean concentration"))
     annual = df.groupby("Year")[["PM2.5", "PM10", "NO2"]].mean().reset_index()
     annual_long = annual.melt(id_vars="Year", var_name="Pollutant", value_name="Concentration")
     fig_trend = px.line(
@@ -390,7 +389,7 @@ with col_left:
                     key="home_trend_chart")
 
 with col_right:
-    st.markdown("#### Station risk ranking")
+    st.markdown("#### " + tr("Station risk ranking"))
     station_latest = (
         df[df["Year"] == latest_year]
         .groupby(["station", "Zone"])[["PM2.5", "PM10", "NO2"]]
@@ -431,10 +430,8 @@ with col_right:
                     key="home_risk_chart")
 
 st.caption(
-    "Risk score = mean of (concentration ÷ WHO 2021 limit) across PM2.5, PM10, NO₂, ×100. "
-    "100 = exactly at the WHO guideline."
-)
-
+    tr("Risk score = mean of (concentration ÷ WHO 2021 limit) across PM2.5, PM10, NO₂, ×100. "
+       "100 = exactly at the WHO guideline.")
 st.divider()
 
 # --------------------------------------------------
