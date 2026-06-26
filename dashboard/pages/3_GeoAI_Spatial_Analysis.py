@@ -28,13 +28,7 @@ import streamlit as st
 from pathlib import Path
 
 from config import load_data, WHO_ANNUAL, ZONE_META
-from glossary import G
 from i18n_auto import language_selector, apply_lang_styles, tr
-
-from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
-
-plotly_touch_config()  
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PAGE CONFIG
@@ -158,15 +152,8 @@ if not spatial_ok:
 
 # Key finding strip
 f1, f2, f3, f4, f5 = st.columns(5)
-_KPI_HELP = {
-    "Road density → NO₂":      G["road_density"],
-    "Distance to city centre → NO₂": G["Pearson_r"],
-    "Green cover → PM10":       G["buffer"],
-    "Terrain Relief Index → PM10": G["TRI"],
-    "Distance to AP-8 → PM2.5": G["Haversine"],
-}
-for col, (feat, poll, r, label, explanation) in zip([f1, f2, f3, f4, f5], TOP_FINDINGS):
-    col.metric(label, r, help=_KPI_HELP.get(label, explanation))
+for col, (feat, poll, r, label, _) in zip([f1, f2, f3, f4, f5], TOP_FINDINGS):
+    col.metric(label, r, help=f"{feat} × {poll}")
 
 st.divider()
 
@@ -216,13 +203,6 @@ with tab_dna:
 
         with c1:
             st.markdown(f"**🏘️ Land Use** *(1 000 m buffer)*")
-            _LU_HELP = {
-                "green_pct_1000m":       G["buffer"],
-                "industrial_pct_1000m":  G["buffer"],
-                "residential_pct_1000m": G["buffer"],
-                "commercial_pct_1000m":  G["buffer"],
-                "road_density_1000m":    G["road_density"],
-            }
             for lbl, col, icon in [
                 ("Green %",       "green_pct_1000m",       "🌿"),
                 ("Industrial %",  "industrial_pct_1000m",  "🏭"),
@@ -233,12 +213,10 @@ with tab_dna:
                 val = sp_row.get(col)
                 if val is not None and not (isinstance(val, float) and np.isnan(val)):
                     unit = " m/km²" if "density" in col else "%"
-                    st.metric(f"{icon} {lbl}", f"{val:.1f}{unit}",
-                              help=_LU_HELP.get(col, ""))
+                    st.metric(f"{icon} {lbl}", f"{val:.1f}{unit}")
 
         with c2:
             st.markdown("**📍 Distances to Sources**")
-            _DIST_HELP = G["Haversine"]
             for lbl, col, icon in [
                 ("Port of Bilbao",  "dist_port_bilbao_m",   "⚓"),
                 ("Petronor",        "dist_petronor_m",      "🛢️"),
@@ -248,17 +226,10 @@ with tab_dna:
             ]:
                 val = sp_row.get(col)
                 if val is not None and not (isinstance(val, float) and np.isnan(val)):
-                    st.metric(f"{icon} {lbl}", f"{val/1000:.1f} km",
-                              help=_DIST_HELP)
+                    st.metric(f"{icon} {lbl}", f"{val/1000:.1f} km")
 
         with c3:
             st.markdown("**⛰️ Terrain** *(Copernicus GLO-30)*")
-            _TERR_HELP = {
-                "elev_point_m":   "Elevation above sea level at the station location.",
-                "slope_deg":      "How steep the ground is at the station, in degrees.",
-                "elev_tri_2000m": G["TRI"],
-                "elev_mean_1000m":"Average elevation of the area within 1 km of the station.",
-            }
             for lbl, col, icon in [
                 ("Elevation",   "elev_point_m",  "📏"),
                 ("Slope",       "slope_deg",      "📐"),
@@ -268,8 +239,7 @@ with tab_dna:
                 val = sp_row.get(col)
                 if val is not None and not (isinstance(val, float) and np.isnan(val)):
                     unit = "°" if col == "slope_deg" else " m"
-                    st.metric(f"{icon} {lbl}", f"{val:.1f}{unit}",
-                              help=_TERR_HELP.get(col, ""))
+                    st.metric(f"{icon} {lbl}", f"{val:.1f}{unit}")
 
         st.divider()
 
@@ -278,12 +248,6 @@ with tab_dna:
         net_mean = df_means.set_index("station")[POLLUTANTS].mean()
         station_vals = df_means[df_means["station"] == selected].iloc[0]
 
-        _POLL_HELP = {
-            "PM2.5": G["PM25"],
-            "PM10":  G["PM10"],
-            "NO2":   G["NO2"],
-            "SO2":   G["SO2"],
-        }
         poll_cols = st.columns(4)
         for col, poll in zip(poll_cols, POLLUTANTS):
             val  = station_vals[poll]
@@ -294,7 +258,6 @@ with tab_dna:
                 f"{val:.1f} µg/m³",
                 delta=f"{diff:+.1f} vs network",
                 delta_color="inverse",
-                help=_POLL_HELP.get(poll, ""),
             )
 
         st.divider()
@@ -320,13 +283,13 @@ with tab_dna:
             if who_lim:
                 fig.add_vline(x=who_lim, line_dash="dot", line_color="#e74c3c",
                               annotation_text="WHO", annotation_font_size=9)
-            fig.update_layout(dragmode=False, 
+            fig.update_layout(
                 height=280, margin=dict(t=30, b=10, l=10, r=50),
                 title=f"Mean {poll} — selected station highlighted",
                 xaxis_title=f"µg/m³",
                 yaxis=dict(autorange="reversed"),
             )
-            col.plotly_chart(fig, width="stretch", config=PLOTLY_CONFIG)
+            col.plotly_chart(fig, width="stretch")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — SPATIAL DRIVERS
@@ -394,12 +357,12 @@ with tab_drivers:
                 textfont=dict(size=11),
                 colorbar=dict(title="Pearson r"),
             ))
-            fig_hm.update_layout(dragmode=False, 
+            fig_hm.update_layout(
                 height=480,
                 margin=dict(t=20, b=10, l=160, r=20),
                 xaxis=dict(side="top"),
             )
-            st.plotly_chart(fig_hm, width="stretch", config=PLOTLY_CONFIG)
+            st.plotly_chart(fig_hm, width="stretch", key="fig_hm")
 
         st.divider()
 
@@ -443,17 +406,16 @@ with tab_drivers:
             )
             fig_sc.update_traces(textposition="top center",
                                  selector=dict(mode="markers+text"))
-            fig_sc.update_layout(dragmode=False, 
+            fig_sc.update_layout(
                 height=400, margin=dict(t=55, b=10),
                 legend=dict(orientation="h", y=-0.2),
             )
-            st.plotly_chart(fig_sc, width="stretch", config=PLOTLY_CONFIG)
+            st.plotly_chart(fig_sc, width="stretch", key="fig_sc")
 
             _badge = ("🟢 Strong" if abs(_r) >= 0.7
                       else "🟡 Moderate" if abs(_r) >= 0.4
                       else "⚪ Weak")
-            st.info(f"{_badge} signal  |  r = {_r:.2f}  — "
-                    + G["Pearson_r"])
+            st.info(f"{_badge} signal  |  r = {_r:.2f}")
 
         st.divider()
 
@@ -496,9 +458,9 @@ with tab_terrain:
                 text=df_e["elev_point_m"].round(0).astype(int).astype(str) + " m",
                 textposition="outside",
             ))
-            fig_e.update_layout(dragmode=False, height=300, margin=dict(t=30,b=10,l=10,r=60),
+            fig_e.update_layout(height=300, margin=dict(t=30,b=10,l=10,r=60),
                                 title="Station elevation (m)")
-            st.plotly_chart(fig_e, width="stretch", config=PLOTLY_CONFIG)
+            st.plotly_chart(fig_e, width="stretch", key="fig_e")
 
         with t2:
             if "elev_tri_2000m" in df_ter.columns:
@@ -511,9 +473,9 @@ with tab_terrain:
                     text=df_tri["elev_tri_2000m"].round(0).astype(int).astype(str) + " m",
                     textposition="outside",
                 ))
-                fig_tri.update_layout(dragmode=False, height=300, margin=dict(t=30,b=10,l=10,r=60),
+                fig_tri.update_layout(height=300, margin=dict(t=30,b=10,l=10,r=60),
                                       title="TRI — 2km buffer (m)")
-                st.plotly_chart(fig_tri, width="stretch", config=PLOTLY_CONFIG)
+                st.plotly_chart(fig_tri, width="stretch", key="fig_tri")
 
         with t3:
             if "slope_deg" in df_ter.columns:
@@ -526,9 +488,9 @@ with tab_terrain:
                     text=df_sl["slope_deg"].round(1).astype(str) + "°",
                     textposition="outside",
                 ))
-                fig_sl.update_layout(dragmode=False, height=300, margin=dict(t=30,b=10,l=10,r=60),
+                fig_sl.update_layout(height=300, margin=dict(t=30,b=10,l=10,r=60),
                                      title="Slope at station (°)")
-                st.plotly_chart(fig_sl, width="stretch", config=PLOTLY_CONFIG)
+                st.plotly_chart(fig_sl, width="stretch", key="fig_sl")
 
         st.divider()
 
@@ -548,9 +510,9 @@ with tab_terrain:
             )
             fig_tsc.update_traces(textposition="top center",
                                   selector=dict(mode="markers+text"))
-            fig_tsc.update_layout(dragmode=False, height=380, margin=dict(t=55,b=10),
+            fig_tsc.update_layout(height=380, margin=dict(t=55,b=10),
                                   showlegend=False)
-            st.plotly_chart(fig_tsc, width="stretch", config=PLOTLY_CONFIG)
+            st.plotly_chart(fig_tsc, width="stretch", key="fig_tsc")
 
         st.divider()
 
@@ -615,13 +577,13 @@ with tab_wind:
                 x=_ws_labels, y=vals, mode="lines+markers",
                 name=poll, line=dict(dash=dash),
             ))
-        fig_ws.update_layout(dragmode=False, 
+        fig_ws.update_layout(
             height=300, title="Mean concentration by wind speed (m/s)",
             margin=dict(t=45, b=10),
             xaxis_title="Wind speed", yaxis_title="µg/m³",
             legend=dict(orientation="h", y=-0.2),
         )
-        st.plotly_chart(fig_ws, width="stretch", config=PLOTLY_CONFIG)
+        st.plotly_chart(fig_ws, width="stretch", key="fig_ws")
 
     with _wa2:
         _pcts = {
@@ -669,12 +631,12 @@ with tab_wind:
         textfont=dict(size=10),
         colorbar=dict(title="µg/m³"),
     ))
-    fig_dir.update_layout(dragmode=False, 
+    fig_dir.update_layout(
         height=380,
         margin=dict(t=20, b=10, l=140, r=20),
         xaxis_title="Wind direction (FROM)",
     )
-    st.plotly_chart(fig_dir, width="stretch", config=PLOTLY_CONFIG)
+    st.plotly_chart(fig_dir, width="stretch", key="fig_dir")
 
     st.divider()
 
@@ -704,7 +666,7 @@ with tab_wind:
             yaxis="y2",
         )
         fig_m.add_trace(_ax2)
-        fig_m.update_layout(dragmode=False, 
+        fig_m.update_layout(
             height=320,
             title="MUSKIZ — SO₂ by wind direction (Petronor refinery)",
             yaxis=dict(title="Mean SO₂ (µg/m³)", color="#c0392b"),
@@ -714,7 +676,7 @@ with tab_wind:
             margin=dict(t=50, b=10),
             barmode="group",
         )
-        st.plotly_chart(fig_m, width="stretch", config=PLOTLY_CONFIG)
+        st.plotly_chart(fig_m, width="stretch", key="fig_m")
         st.caption(
             "NE wind → SO₂ = 7.32 µg/m³ (Petronor trapped against terrain, TRI = 343 m). "
             "S wind → SO₂ = 3.80 µg/m³ (sea breeze clears emissions). Ratio: **1.93×**."
@@ -733,7 +695,7 @@ with tab_wind:
             marker_color="#3498db", opacity=0.5,
             yaxis="y2",
         ))
-        fig_maz.update_layout(dragmode=False, 
+        fig_maz.update_layout(
             height=320,
             title="MAZARREDO — NO₂ by wind direction (Bilbao city centre)",
             yaxis=dict(title="Mean NO₂ (µg/m³)", color="#8e44ad"),
@@ -743,14 +705,11 @@ with tab_wind:
             margin=dict(t=50, b=10),
             barmode="group",
         )
-        st.plotly_chart(fig_maz, width="stretch", config=PLOTLY_CONFIG)
+        st.plotly_chart(fig_maz, width="stretch", key="fig_maz")
         st.caption(
             "SE wind → NO₂ = 35.3 µg/m³ (+70% above NW baseline). "
             "Nervión valley channels SE flow, trapping urban traffic emissions."
         )
-
-    # ...
-    st.plotly_chart(fig, config=PLOTLY_CONFIG)
 
     st.divider()
 

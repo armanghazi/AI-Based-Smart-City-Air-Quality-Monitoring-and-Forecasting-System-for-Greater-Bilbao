@@ -20,11 +20,6 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
-from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
-
-plotly_touch_config()  
-
-
 st.set_page_config(page_title="Temporal Trends", layout="wide")
 language_selector()
 apply_lang_styles()
@@ -302,10 +297,8 @@ if time_mode == "Day":
                 annotation_text=f"WHO {who_limit} µg/m³",
                 annotation_font_size=11
             )
-        fig_day.update_layout(dragmode=False, height=380)
-        st.plotly_chart(fig_day,  width="stretch", config=PLOTLY_CONFIG)
-        
-    st.plotly_chart(fig, config=PLOTLY_CONFIG)
+        fig_day.update_layout(height=380)
+        st.plotly_chart(fig_day,  width="stretch", key="fig_day")
 
     # ── Weather snapshot for this specific day ──────────────────────────
     st.subheader("🌦️ Weather conditions — this day")
@@ -427,8 +420,8 @@ else:
             annotation_position="top right",
             annotation_font_size=11
         )
-    fig_trend.update_layout(dragmode=False, height=380, hovermode="x unified")
-    st.plotly_chart(fig_trend,  width="stretch", config=PLOTLY_CONFIG)
+    fig_trend.update_layout(height=380, hovermode="x unified")
+    st.plotly_chart(fig_trend,  width="stretch", key="fig_trend")
 
     # Weather section — trend (only for Year/Month mode with enough data points)
     if time_mode == "Year" and selected_year == "All":
@@ -488,7 +481,7 @@ else:
                 marker_opacity=0.8,
                 name=pollutant
             ))
-            fig_monthly.update_layout(dragmode=False, 
+            fig_monthly.update_layout(
                 title=f"{pollutant} monthly mean ± std — {scope_label}",
                 xaxis_title="Month",
                 yaxis_title=f"{pollutant} (µg/m³)",
@@ -503,7 +496,7 @@ else:
                 annotation_font_size=11
             )
 
-        st.plotly_chart(fig_monthly,  width="stretch", config=PLOTLY_CONFIG)
+        st.plotly_chart(fig_monthly,  width="stretch", key="fig_monthly")
 
 # -----------------------
 # Station Comparison (ALL stations, Year mode only)
@@ -542,8 +535,8 @@ if filter_mode == "Station" and selected_station == "ALL" and time_mode == "Year
             annotation_position="bottom right",
             annotation_font_size=11
         )
-    fig_comp.update_layout(dragmode=False, height=420, hovermode="x unified")
-    st.plotly_chart(fig_comp,  width="stretch", config=PLOTLY_CONFIG)
+    fig_comp.update_layout(height=420, hovermode="x unified")
+    st.plotly_chart(fig_comp,  width="stretch", key="fig_comp")
 
 # -----------------------
 # COVID Impact (Year mode only, full dataset)
@@ -585,14 +578,14 @@ if time_mode == "Year":
             labels={"Mean": f"{pollutant} (µg/m³)"},
             category_orders={"Period": COVID_PERIODS}
         )
-        fig_covid.update_layout(dragmode=False, height=380)
+        fig_covid.update_layout(height=380)
         if show_who and who_limit:
             fig_covid.add_hline(
                 y=who_limit, line_dash="dash", line_color="red",
                 annotation_text=f"WHO {who_limit} µg/m³",
                 annotation_font_size=11
             )
-        st.plotly_chart(fig_covid,  width="stretch", config=PLOTLY_CONFIG)
+        st.plotly_chart(fig_covid,  width="stretch", key="fig_covid_1")
 
     else:
         covid_stats = (
@@ -643,7 +636,7 @@ if time_mode == "Year":
                 labels={"Mean": f"{pollutant} (µg/m³)"},
                 error_y="Std"
             )
-            fig_covid.update_layout(dragmode=False, 
+            fig_covid.update_layout(
                 annotations=annotations,
                 showlegend=False,
                 height=360
@@ -654,7 +647,7 @@ if time_mode == "Year":
                     annotation_text=f"WHO {who_limit} µg/m³",
                     annotation_font_size=11
                 )
-            st.plotly_chart(fig_covid,  width="stretch", config=PLOTLY_CONFIG)
+            st.plotly_chart(fig_covid,  width="stretch", key="fig_covid_2")
 
         with col_table:
             st.markdown(f"**{tr('Statistics by period')}**")
@@ -720,12 +713,12 @@ with st.expander("📊 " + tr("Finding 1 — The traffic signal (temporal + spat
                            line_color="#2ecc71",
                            annotation_text=tr("weekend avg"), annotation_font_size=9,
                            annotation_position="bottom right")
-        _fig_dow.update_layout(dragmode=False, 
+        _fig_dow.update_layout(
             height=300, title=tr("Mean NO₂ by day of week — 2015–2026"),
             yaxis_title="Mean NO₂ (µg/m³)", margin=dict(t=45,b=10,l=10,r=20),
             showlegend=False,
         )
-        st.plotly_chart(_fig_dow, width="stretch", config=PLOTLY_CONFIG)
+        st.plotly_chart(_fig_dow, width="stretch", key="fig_dow")
     with _gai2:
         st.metric(tr("Weekday mean NO₂"), "20.29 µg/m³", delta_color="off")
         st.metric(tr("Weekend mean NO₂"), "15.32 µg/m³", delta_color="off")
@@ -774,14 +767,14 @@ with st.expander("❄️ " + tr("Finding 3 — Winter paradox: highest NO₂ wit
             x=_seasons, y=_season_ws, name=tr("Wind speed (m/s)"),
             mode="lines+markers", line=dict(color="#2c3e50", dash="dash"), yaxis="y2",
         ))
-        _fig_sea.update_layout(dragmode=False, 
+        _fig_sea.update_layout(
             height=280, title=tr("Seasonal NO₂ vs wind speed"),
             yaxis=dict(title="Mean NO₂ (µg/m³)"),
             yaxis2=dict(title=tr("Wind speed (m/s)"), overlaying="y", side="right"),
             legend=dict(orientation="h", y=-0.3), margin=dict(t=45,b=10),
             barmode="group",
         )
-        st.plotly_chart(_fig_sea, width="stretch", config=PLOTLY_CONFIG)
+        st.plotly_chart(_fig_sea, width="stretch", key="fig_sea")
     with _ss2:
         st.markdown(
             "**" + tr("Winter paradox") + "**\n"
@@ -807,12 +800,12 @@ with st.expander("📉 " + tr("Finding 4 — Long-term NO₂ decline: structural
                        annotation_position="top left", annotation_font_size=10)
     _fig_ann.add_hline(y=10, line_dash="dot", line_color="#e74c3c", opacity=0.5,
                        annotation_text="WHO 10 µg/m³", annotation_font_size=9)
-    _fig_ann.update_layout(dragmode=False, 
+    _fig_ann.update_layout(
         height=260, title=tr("Annual mean NO₂ — all stations"),
         yaxis_title="Mean NO₂ (µg/m³)", margin=dict(t=45,b=10,l=10,r=20),
         showlegend=False,
     )
-    st.plotly_chart(_fig_ann, width="stretch", config=PLOTLY_CONFIG)
+    st.plotly_chart(_fig_ann, width="stretch", key="fig_ann")
     st.markdown(
         tr("NO₂ fell from 25.0 µg/m³ (2015) to 14.7 µg/m³ (2026) — a 41% reduction. "
            "All years remain above the WHO 2021 guideline (10 µg/m³).  \n\n"

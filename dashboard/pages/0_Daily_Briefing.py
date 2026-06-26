@@ -28,7 +28,6 @@ from config import (
 from pdf_report import generate_daily_report
 
 from i18n_auto import language_selector, apply_lang_styles, tr
-from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -42,7 +41,6 @@ st.set_page_config(
 language_selector()
 apply_lang_styles()
 center_tables()
-plotly_touch_config()
 
 # --------------------------------------------------
 # CUSTOM CSS — clean, modern look
@@ -295,7 +293,7 @@ for col, p in zip(cols, POLLUTANTS):
     color        = POLLUTANT_COLOR.get(p, "#888")
 
     delta_val  = tomorrow_val - today_val
-    delta_str  = f"{delta_val:+.1f} µg/m³ vs D-1"
+    delta_str  = f"{delta_val:+.1f} µg/m³ vs today"
 
     with col:
         st.markdown(
@@ -311,7 +309,7 @@ for col, p in zip(cols, POLLUTANTS):
                     color:#888;font-weight:400">µg/m³</span>
                 </div>
                 <div style="font-size:0.75rem;color:#888">
-                    Latest (D-1): {today_val:.1f} µg/m³
+                    Today: {today_val:.1f} µg/m³
                 </div>
                 <div style="font-size:0.75rem;
                     color:{'#e74c3c' if delta_val > 0 else '#27ae60'};
@@ -358,13 +356,12 @@ if not fc_df.empty:
             tickvals=[0, 1, 2],
             ticktext=["0×", "1× (WHO)", "2×"],
         ),
-        dragmode=False,
     )
     fig_hm.add_shape(   # WHO threshold line indicator
         type="line", x0=-0.5, x1=3.5, y0=0, y1=0,
         line=dict(color="red", width=0),
     )
-    st.plotly_chart(fig_hm, width="stretch", config=PLOTLY_CONFIG)
+    st.plotly_chart(fig_hm,  width="stretch", key="fig_hm")
 
 # --------------------------------------------------
 # SECTION 4 — EXCEEDANCE DETAIL TABLE
@@ -454,9 +451,8 @@ fig_spark.update_layout(
     hovermode="x unified",
     legend=dict(orientation="h", y=1.1),
     xaxis=dict(tickformat="%d %b"),
-    dragmode=False,
 )
-st.plotly_chart(fig_spark, width="stretch", config=PLOTLY_CONFIG)
+st.plotly_chart(fig_spark,  width="stretch", key="fig_spark")
 
 st.divider()
 
