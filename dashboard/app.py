@@ -4,6 +4,7 @@
 
 import streamlit as st
 from i18n_auto import language_selector, apply_lang_styles
+from pathlib import Path
 
 # --------------------------------------------------
 # Global page config (applies to every page)
@@ -55,6 +56,15 @@ pages: dict = {
     "GeoAI Spatial Analysis": [spatial, weather, decision],
     "Project":                [assistant, methods],
 }
+
+
+
+_ASSETS = Path(__file__).parent / "assets"
+st.logo(
+    str(_ASSETS / "geoai_logo.svg"),      # full logo (expanded sidebar)
+    icon_image=str(_ASSETS / "geoai_icon.svg"),  # icon only (collapsed)
+    link="https://geoai-dashboard.streamlit.app",
+)
 
 # Admin cluster — pages absent from st.navigation cannot render at all,
 # so this IS real access control (not just UI hiding).

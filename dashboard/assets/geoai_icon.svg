@@ -1,0 +1,26 @@
+<svg width="48" height="48" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GeoAI">
+  <defs>
+    <linearGradient id="im" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0ea5b5"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="iw" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0ea5b5"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- G arc -->
+  <path d="M 26 12 A 16 16 0 1 0 36 34"
+        fill="none" stroke="url(#im)" stroke-width="3.4" stroke-linecap="round"/>
+  <!-- G crossbar -->
+  <path d="M 20 26 L 36 26 L 36 34"
+        fill="none" stroke="url(#im)" stroke-width="3.4"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Wind tails -->
+  <path d="M 36 26 C 42 26, 46 22, 50 18"
+        fill="none" stroke="url(#iw)" stroke-width="2.4" stroke-linecap="round" opacity="0.95"/>
+  <path d="M 36 31 C 41 31, 45 28, 49 25"
+        fill="none" stroke="url(#iw)" stroke-width="1.6" stroke-linecap="round" opacity="0.6"/>
+</svg>
