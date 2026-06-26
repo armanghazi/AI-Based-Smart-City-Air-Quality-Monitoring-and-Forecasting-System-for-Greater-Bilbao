@@ -286,6 +286,29 @@ with col_snap:
 st.divider()
 
 # --------------------------------------------------
+# Agent
+# --------------------------------------------------
+st.divider()
+
+col_mid = st.columns([1, 2, 1])[1]  # center column
+with col_mid:
+    st.markdown(
+        f"<div style='text-align:center;padding:1.2rem 0 0.4rem'>"
+        f"<p style='color:var(--mist,#5b7185);font-size:0.9rem;margin-bottom:0.8rem'>"
+        f"{tr('Have a question about the data, methodology, or forecasts?')}</p>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+    if st.button(
+        "🤖 " + tr("Ask the Project Assistant"),
+        use_container_width=True,
+        type="primary",
+        key="home_assistant_btn",
+    ):
+        st.switch_page("pages/8_Project_Assistant.py")
+
+st.divider()
+# --------------------------------------------------
 # Environmental zones
 # --------------------------------------------------
 st.markdown(f'<p class="eyebrow">{tr("The network, by character")}</p>', unsafe_allow_html=True)
@@ -464,9 +487,6 @@ NAV = [
     {"icon": "🏙️", "title": "Smart City Decision Support",
      "desc": "GeoAI spatial intelligence · wind transport · structural risk index",
      "page": "pages/6_Smart_City_Decision_Support.py"},
-    {"icon": "🤖", "title": "Project Assistant",
-     "desc": "Ask questions about the platform, data, and methodology",
-     "page": "pages/8_Project_Assistant.py"},
     {"icon": "📖", "title": "Methodology",
      "desc": "Coverage, model accuracy, known gaps, honest limitations",
      "page": "pages/7_Scope_and_Limitations.py"},
