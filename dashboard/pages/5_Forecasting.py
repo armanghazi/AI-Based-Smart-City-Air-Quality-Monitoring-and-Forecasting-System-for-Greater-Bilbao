@@ -11,9 +11,11 @@ import plotly.express as px
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import (
-    load_data, POLLUTANT_COLOR, WHO_ANNUAL,
+    load_data, POLLUTANT_COLOR, WHO_ANNUAL, EU_ANNUAL,
     ZONE_META, get_zone,get_fav_station, center_tables
 )
+
+from aqi import AQI_THRESHOLDS
 
 from i18n_auto import tr
 
@@ -154,6 +156,21 @@ with st.sidebar:
     else:
         st.error(f"{tr('Model for')} {sel_pollutant} {tr('not found in')} {MODELS_DIR}")
 
+    st.divider()
+    st.markdown("### " + tr("Reference lines"))
+    show_who  = st.toggle(tr("Show WHO guideline"),      value=True)
+    show_eu   = st.toggle(tr("Show EU Directive limit"), value=False)
+    show_eaqi = st.toggle(tr("Show EAQI Good ceiling"),  value=False)
+    _who_lim  = WHO_ANNUAL.get(sel_pollutant)
+    _eu_lim   = EU_ANNUAL.get(sel_pollutant)
+    _aqi_good = AQI_THRESHOLDS.get(sel_pollutant, [None])[0]
+    if _who_lim:
+        st.markdown(f"🔴 WHO: {_who_lim} µg/m³")
+    if _eu_lim:
+        st.markdown(f"🟢 EU: {_eu_lim} µg/m³")
+    if _aqi_good:
+        st.markdown(f"🩵 EAQI Good: ≤{_aqi_good} µg/m³")
+
 # --------------------------------------------------
 # GUARD
 # --------------------------------------------------
@@ -167,6 +184,28 @@ if bundle is None:
 
 model    = bundle["model"]
 features = bundle["features"]
+
+
+def _add_ref_lines(fig) -> None:
+    """Add WHO (red), EU (green), EAQI Good (teal) lines based on toggles."""
+    if show_who and _who_lim:
+        fig.add_hline(
+            y=_who_lim, line_dash="dash", line_color="#e74c3c", opacity=0.7,
+            annotation_text=f"WHO {_who_lim} µg/m³",
+            annotation_font_size=9, annotation_position="top right",
+        )
+    if show_eu and _eu_lim:
+        fig.add_hline(
+            y=_eu_lim, line_dash="dot", line_color="#27ae60", opacity=0.7,
+            annotation_text=f"EU {_eu_lim} µg/m³",
+            annotation_font_size=9, annotation_position="bottom right",
+        )
+    if show_eaqi and _aqi_good:
+        fig.add_hline(
+            y=_aqi_good, line_dash="longdash", line_color="#50ccaa", opacity=0.6,
+            annotation_text=f"EAQI Good ≤{_aqi_good}",
+            annotation_font_size=9, annotation_position="top left",
+        )
 
 # Filter to selected station
 station_df = df[df["station"] == sel_station].sort_values("Date").copy()
@@ -228,12 +267,7 @@ with tab1:
             line=dict(color=POLLUTANT_COLOR.get(sel_pollutant, "#e74c3c"),
                       width=1.5, dash="dot"),
         ))
-        if WHO_ANNUAL.get(sel_pollutant):
-            fig.add_hline(
-                y=WHO_ANNUAL[sel_pollutant], line_dash="dash",
-                line_color="red",
-                annotation_text=f"WHO {sel_pollutant}",
-            )
+        _add_ref_lines(fig)
         fig.update_layout(
             height=450, hovermode="x unified",
             xaxis_title="Date", yaxis_title=f"{sel_pollutant} (µg/m³)",
@@ -243,11 +277,49 @@ with tab1:
 
         # Accuracy on this station
         from sklearn.metrics import mean_absolute_error, r2_score
+        from aqi import compute_aqi_category
         mae = mean_absolute_error(plot_df["actual"], plot_df["prediction"])
         r2  = r2_score(plot_df["actual"], plot_df["prediction"])
         c1, c2 = st.columns(2)
         c1.metric(tr("Station MAE"), f"{mae:.2f} µg/m³")
         c2.metric(tr("Station R²"),  f"{r2:.3f}")
+
+        # ── Next forecast value (latest row prediction) ──────────────────
+        st.divider()
+        latest_pred = float(test_period["prediction"].iloc[-1])
+        latest_d1   = test_period["Date"].iloc[-1]
+        next_date   = latest_d1 + pd.Timedelta(days=1)
+        cat         = compute_aqi_category(sel_pollutant, latest_pred)
+        aqi_color   = cat["color"] if cat else "#95a5a6"
+        aqi_label   = cat["label"] if cat else "—"
+
+        st.markdown(
+            f"""
+            <div style="border-radius:12px;padding:16px 20px;
+                        background:linear-gradient(135deg,{aqi_color}22,{aqi_color}08);
+                        border:2px solid {aqi_color};margin-top:4px">
+                <div style="font-size:0.8rem;color:#888;font-weight:600;
+                            text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">
+                    {tr('Forecast for')} {next_date.strftime('%d %b %Y')} · {sel_station}
+                </div>
+                <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+                    <div style="font-size:2rem;font-weight:700;color:#0c1521;
+                                font-family:'IBM Plex Mono',monospace">
+                        {latest_pred:.1f}
+                        <span style="font-size:1rem;font-weight:400;color:#888">µg/m³</span>
+                    </div>
+                    <div style="background:{aqi_color};color:white;border-radius:10px;
+                                padding:6px 16px;font-weight:700;font-size:1rem">
+                        EAQI {aqi_label}
+                    </div>
+                    <div style="font-size:0.8rem;color:#666">
+                        {tr('Based on D-1 reading:')} {latest_d1.strftime('%d %b %Y')}
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 # ==================== TAB 2: RECURSIVE MULTI-DAY ====================
 with tab2:
@@ -294,12 +366,7 @@ with tab2:
                       width=2, dash="dot"),
             marker=dict(size=7),
         ))
-        if WHO_ANNUAL.get(sel_pollutant):
-            fig2.add_hline(
-                y=WHO_ANNUAL[sel_pollutant], line_dash="dash",
-                line_color="red",
-                annotation_text=f"WHO {sel_pollutant}",
-            )
+        _add_ref_lines(fig2)
         fig2.update_layout(
             height=450, hovermode="x unified",
             xaxis_title="Date", yaxis_title=f"{sel_pollutant} (µg/m³)",
@@ -314,12 +381,27 @@ with tab2:
         show["prediction"] = show["prediction"].round(1)
         show.columns = ["Date", f"{sel_pollutant} (µg/m³)"]
 
-        # Flag WHO exceedances
-        limit = WHO_ANNUAL.get(sel_pollutant)
-        if limit:
-            show[tr("WHO status")] = fc["prediction"].apply(
-                lambda v: tr("⚠️ Above") if v > limit else tr("✅ Below")
+        # WHO status
+        who_lim = WHO_ANNUAL.get(sel_pollutant)
+        if who_lim:
+            show[tr("WHO")] = fc["prediction"].apply(
+                lambda v: tr("⚠️ Above") if v > who_lim else tr("✅ Below")
             )
+
+        # EU Directive status
+        eu_lim = EU_ANNUAL.get(sel_pollutant)
+        if eu_lim:
+            show[tr("EU Directive")] = fc["prediction"].apply(
+                lambda v: tr("⚠️ Above") if v > eu_lim else tr("✅ Below")
+            )
+
+        # EAQI level
+        from aqi import compute_aqi_category
+        def _eaqi_label(v: float) -> str:
+            cat = compute_aqi_category(sel_pollutant, v)
+            return cat["label"] if cat else "—"
+        show[tr("EAQI")] = fc["prediction"].apply(_eaqi_label)
+
         st.dataframe(show, width="stretch", hide_index=True)
 
 
