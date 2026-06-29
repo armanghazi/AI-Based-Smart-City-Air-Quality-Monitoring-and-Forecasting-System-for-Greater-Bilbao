@@ -32,7 +32,6 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import (
-    ALERT_LIMITS,
     EU_ANNUAL,
     POLLUTANT_COLOR,
     WHO_ANNUAL,
@@ -157,8 +156,10 @@ if "fav_station" not in st.session_state:
     st.session_state.fav_station = saved if saved in station_list else station_list[0]
 
 # --------------------------------------------------
-# FORECAST — alert banner only (EU thresholds)
+# FORECAST — alert banner (EAQI level ≥ 4 = Poor)
 # --------------------------------------------------
+
+from aqi import overall_aqi, compute_aqi_category
 
 @st.cache_resource
 def _load_bundle(pollutant: str):
@@ -169,7 +170,12 @@ def _load_bundle(pollutant: str):
 
 @st.cache_data(ttl=3600)
 def _get_forecast_exceedances() -> list[dict]:
-    """Return EU Directive exceedances for the forecast date across all stations."""
+    """Return EAQI Poor+ (level ≥ 4) forecasts across all stations.
+
+    Uses compute_aqi_category from aqi.py — consistent with the rest of the
+    dashboard. An exceedance here means the model predicts Poor, Very poor,
+    or Extremely poor for at least one pollutant at that station.
+    """
     results = []
     for station in station_list:
         sdf = df[df["station"] == station].sort_values("Date")
@@ -181,14 +187,16 @@ def _get_forecast_exceedances() -> list[dict]:
             prep  = prepare_features(sdf, feats, station_codes=STATION_CODES).dropna(subset=feats)
             if prep.empty:
                 continue
-            pred  = max(float(bundle["model"].predict(prep[feats].iloc[[-1]])[0]), 0.0)
-            limit = ALERT_LIMITS.get(pollutant)
-            if limit and pred > limit:
+            pred = max(float(bundle["model"].predict(prep[feats].iloc[[-1]])[0]), 0.0)
+            cat  = compute_aqi_category(pollutant, pred)
+            if cat and cat["level"] >= 4:   # Poor / Very poor / Extremely poor
                 results.append({
                     "station":   station,
                     "pollutant": pollutant,
                     "forecast":  pred,
-                    "ratio":     pred / limit,
+                    "level":     cat["level"],
+                    "label":     cat["label"],
+                    "color":     cat["color"],
                 })
     return results
 
@@ -224,25 +232,28 @@ st.markdown(f"""
 if n_exc == 0:
     st.markdown(
         f'<div class="alert alert-good">✅ '
-        f'{tr("All stations within EU Directive limits (AQI) — no exceedances forecast for")} '
+        f'{tr("All stations forecast Good or Fairly good (EAQI) for")} '
         f'<b>{forecast_date.strftime("%d %b %Y")}</b>.</div>',
         unsafe_allow_html=True,
     )
 elif n_exc <= 4:
     s_exc = sorted({e["station"].split("_")[0] for e in exceed})
+    # Show worst label among exceedances
+    worst_label = max(exceed, key=lambda e: e["level"])["label"]
     st.markdown(
         f'<div class="alert alert-warn">⚠️ '
-        f'{n_exc} {tr("EU Directive exceedance")}{"s" if n_exc > 1 else ""} '
+        f'{n_exc} {tr("EAQI")} <b>{worst_label}</b> '
         f'{tr("forecast for")} <b>{forecast_date.strftime("%d %b %Y")}</b> · '
         f'{tr("Stations")}: {", ".join(s_exc)} · '
         f'<a href="/Daily_Briefing">{tr("Open the daily briefing")} →</a></div>',
         unsafe_allow_html=True,
     )
 else:
+    worst_label = max(exceed, key=lambda e: e["level"])["label"]
     st.markdown(
         f'<div class="alert alert-bad">🚨 '
-        f'{n_exc} {tr("EU Directive exceedances forecast for")} '
-        f'<b>{forecast_date.strftime("%d %b %Y")}</b> · '
+        f'{n_exc} {tr("EAQI")} <b>{worst_label}</b> '
+        f'{tr("forecasts for")} <b>{forecast_date.strftime("%d %b %Y")}</b> · '
         f'{tr("multiple zones affected")} · '
         f'<a href="/Daily_Briefing">{tr("Open the daily briefing")} →</a></div>',
         unsafe_allow_html=True,
@@ -368,7 +379,8 @@ st.markdown("### " + tr("Five environmental zones"))
 st.caption(
     tr("Each station sits in a zone defined by its dominant emission source — "
        "traffic, industry, port, coast, or refinery. ") +
-    f"{tr('Averages shown for')} {latest_year}."
+    f"{tr('Concentration averages shown for')} {latest_year} · " +
+    f"{tr('EAQI badge from latest reading')} ({latest_date.strftime('%d %b %Y')})."
 )
 
 zone_summary = (
@@ -387,6 +399,23 @@ ZONE_SPATIAL: dict[str, str] = {
 }
 
 
+# Pre-compute D-1 AQI per zone (latest_date readings, averaged across zone stations)
+_d1 = df[df["Date"] == latest_date]
+ZONE_AQI: dict[str, dict] = {}
+for _zn in ZONE_META:
+    _zdf = _d1[_d1["Zone"] == _zn]
+    if _zdf.empty:
+        continue
+    _vals = {
+        p: float(_zdf[p].mean())
+        for p in ["PM2.5", "PM10", "NO2", "SO2"]
+        if p in _zdf.columns and not pd.isna(_zdf[p].mean())
+    }
+    _res = overall_aqi(_vals)
+    if _res:
+        ZONE_AQI[_zn] = _res
+
+
 def _render_zone_card(zone_name: str, meta: dict) -> None:
     z           = zone_summary.loc[zone_name] if zone_name in zone_summary.index else None
     stations_in = df[df["Zone"] == zone_name]["station"].unique().tolist()
@@ -400,6 +429,20 @@ def _render_zone_card(zone_name: str, meta: dict) -> None:
     else:
         vs = "—"
         pm25 = pm10 = no2 = so2 = 0.0
+
+    # AQI badge — D-1 latest reading
+    aqi_info = ZONE_AQI.get(zone_name)
+    if aqi_info:
+        aqi_badge = (
+            f"<div style='margin-top:8px;padding:5px 8px;border-radius:8px;"
+            f"background:{aqi_info['color']};color:white;text-align:center;"
+            f"font-size:0.78rem;font-weight:700;'>"
+            f"EAQI {aqi_info['label']}"
+            f"<span style='font-weight:400;font-size:0.72rem;'>"
+            f" · {aqi_info['driver']} {aqi_info['value']} µg/m³</span></div>"
+        )
+    else:
+        aqi_badge = ""
 
     st.markdown(f"""
     <div class="zone-card" style="border-top:3px solid {meta['color']}">
@@ -415,6 +458,7 @@ def _render_zone_card(zone_name: str, meta: dict) -> None:
             <span class="k">{tr('Key')} ({key_poll}) vs WHO</span>
             <span class="v" style="color:{meta['color']}">{vs}</span>
         </div>
+        {aqi_badge}
     </div>
     """, unsafe_allow_html=True)
 
@@ -468,7 +512,11 @@ with col_left:
                     key="home_trend_chart")
 
 with col_right:
-    st.markdown("#### " + tr("Station risk ranking"))
+    tab_risk, tab_aqi = st.tabs([
+        tr("📊 Risk ranking"),
+        tr("🌈 AQI ranking"),
+    ])
+
     station_latest = (
         df[df["Year"] == latest_year]
         .groupby(["station", "Zone"])[["PM2.5", "PM10", "NO2"]]
@@ -487,32 +535,89 @@ with col_right:
     station_latest            = station_latest.sort_values("Score", ascending=False)
     station_latest["Station"] = station_latest["station"].str.split("_").str[0]
 
-    fig_status = px.bar(
-        station_latest, x="Score", y="Station",
-        color="Zone",
-        color_discrete_map={z: m["color"] for z, m in ZONE_META.items()},
-        orientation="h", text="Score",
-    )
-    fig_status.update_traces(texttemplate="%{text:.0f}", textposition="outside")
-    fig_status.add_vline(x=100, line_dash="dash", line_color="#94a3b8", opacity=0.7,
-                         annotation_text="WHO", annotation_font_size=9)
-    fig_status.update_layout(
-        dragmode=False, height=360, margin=dict(t=40, b=10, l=10, r=30),
-        showlegend=True,
-        legend=dict(orientation="h", y=1.22, x=0, font=dict(size=9)),
-        yaxis=dict(autorange="reversed"),
-        xaxis_range=[0, max(station_latest["Score"].max() * 1.25, 250)],
-        font=dict(family="IBM Plex Sans"),
-        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-    )
-    st.plotly_chart(fig_status, width="stretch",
-                    config={"scrollZoom": False, "displayModeBar": False},
-                    key="home_risk_chart")
+    with tab_risk:
+        st.caption(
+            tr("Annual mean") + f" {latest_year} · " +
+            tr("Risk score = mean of (concentration ÷ WHO limit) across PM2.5, PM10, NO₂ ×100.")
+        )
+        fig_status = px.bar(
+            station_latest, x="Score", y="Station",
+            color="Zone",
+            color_discrete_map={z: m["color"] for z, m in ZONE_META.items()},
+            orientation="h", text="Score",
+        )
+        fig_status.update_traces(texttemplate="%{text:.0f}", textposition="outside")
+        fig_status.add_vline(x=100, line_dash="dash", line_color="#94a3b8", opacity=0.7,
+                             annotation_text="WHO", annotation_font_size=9)
+        fig_status.update_layout(
+            dragmode=False, height=340, margin=dict(t=10, b=10, l=10, r=30),
+            showlegend=True,
+            legend=dict(orientation="h", y=1.12, x=0, font=dict(size=9)),
+            yaxis=dict(autorange="reversed"),
+            xaxis_range=[0, max(station_latest["Score"].max() * 1.25, 250)],
+            font=dict(family="IBM Plex Sans"),
+            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        )
+        st.plotly_chart(fig_status, width="stretch",
+                        config={"scrollZoom": False, "displayModeBar": False},
+                        key="home_risk_chart")
 
-st.caption(
-    tr("Risk score = mean of (concentration ÷ WHO 2021 limit) across PM2.5, PM10, NO₂, ×100. "
-       "100 = exactly at the WHO guideline.")
-)
+    with tab_aqi:
+        # AQI ranking — latest available day (D-1), all stations
+        latest_day_df = df[df["Date"] == latest_date]
+        aqi_rows = []
+        for stn, g in latest_day_df.groupby("station"):
+            vals = {
+                p: float(g[p].mean())
+                for p in ["PM2.5", "PM10", "NO2", "SO2"]
+                if p in g.columns and not pd.isna(g[p].mean())
+            }
+            res = overall_aqi(vals)
+            if res:
+                aqi_rows.append({
+                    "Station": stn.split("_")[0],
+                    "level":   res["level"],
+                    "label":   res["label"],
+                    "color":   res["color"],
+                    "driver":  res["driver"],
+                    "value":   res["value"],
+                    "Zone":    df[df["station"] == stn]["Zone"].iloc[0],
+                })
+
+        aqi_rows.sort(key=lambda r: r["level"], reverse=True)
+
+        for r in aqi_rows:
+            zone_color = ZONE_META.get(r["Zone"], {}).get("color", "#888")
+            st.markdown(
+                f"""
+                <div style="display:flex;align-items:center;gap:10px;
+                            padding:7px 10px;margin-bottom:5px;
+                            border-radius:10px;border:1px solid #e3e8ee;
+                            background:white;">
+                    <div style="width:10px;height:38px;border-radius:4px;
+                                background:{zone_color};flex-shrink:0"></div>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-weight:600;font-size:0.85rem;
+                                    color:#0c1521;">{r['Station']}</div>
+                        <div style="font-size:0.72rem;color:#888;">
+                            {r['driver']} · {r['value']} µg/m³</div>
+                    </div>
+                    <div style="background:{r['color']};color:white;
+                                border-radius:8px;padding:3px 10px;
+                                font-size:0.78rem;font-weight:700;
+                                white-space:nowrap;">
+                        {r['label']}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        st.caption(
+            tr("EAQI/ICA · Latest reading:") +
+            f" {latest_date.strftime('%d %b %Y')} · " +
+            tr("Overall = worst pollutant. Bar colour = zone.")
+        )
+
 st.divider()
 
 # --------------------------------------------------

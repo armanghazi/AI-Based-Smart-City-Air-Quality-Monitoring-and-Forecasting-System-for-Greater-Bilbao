@@ -3,7 +3,6 @@ deep-translator
 fpdf2
 folium
 geopandas
-google-genai>=2.10.0
 joblib
 numpy
 openai>=1.0.0
@@ -17,5 +16,5 @@ shapely
 statsmodels
 streamlit>=1.42,<2
 streamlit-cookies-manager
-streamlit-folium
+streamlit-folium>=0.27.2
 xgboost

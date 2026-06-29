@@ -25,6 +25,7 @@ from streamlit_folium import st_folium
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from aqi import AQI_CATEGORIES, AQI_THRESHOLDS, compute_aqi_category
+from aqi_components import render_station_aqi_cards
 from config import (
     MONTH_NAMES,
     POLLUTANT_COLOR,
@@ -527,6 +528,18 @@ st_folium(
     returned_objects=[],
     key=f"map_{pollutant}_{time_mode}_{period_label}",
 )
+
+# --------------------------------------------------
+# AQI STATION CARDS
+# --------------------------------------------------
+
+st.markdown("---")
+st.subheader(f"🌈 {tr('Air Quality Index by station')} — {period_label}")
+st.caption(
+    tr("European Air Quality Index (EAQI/ICA) — overall level = worst pollutant. "
+       "Based on the latest reading in the selected period.")
+)
+render_station_aqi_cards(filtered, n_cols=4)
 
 # --------------------------------------------------
 # STATION RANKING TABLE
