@@ -220,7 +220,7 @@ st.markdown(f"""
         <span><b>{n_years}</b> {tr("years")} · {n_records:,} {tr("daily records")}</span>
         <span><b>GeoAI spatial</b> · 13 {tr("notebooks")} · 35 {tr("features")}</span>
         <span><b>XGBoost</b> {tr("forecast")} · {forecast_date.strftime("%d %b %Y")}</span>
-        <span><b>WHO 2021</b> + EU Directive 2008/50/EC</span>
+        <span><b>EAQI/ICA</b> · WHO 2021 · EU Directive 2008/50/EC</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
