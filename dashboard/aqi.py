@@ -18,6 +18,7 @@ pollutants — this is the official ICA/EAQI rule, not an average.
 """
 
 from __future__ import annotations
+import math
 
 # ------------------------------------------------------------------
 # CATEGORIES (1 = best, 6 = worst)
@@ -69,7 +70,7 @@ def compute_aqi_category(pollutant: str, value: float) -> dict:
     plus the pollutant and value. Returns None if pollutant unknown or
     value missing.
     """
-    if pollutant not in AQI_THRESHOLDS or value is None:
+    if pollutant not in AQI_THRESHOLDS or value is None or math.isnan(value):
         return None
 
     bounds = AQI_THRESHOLDS[pollutant]

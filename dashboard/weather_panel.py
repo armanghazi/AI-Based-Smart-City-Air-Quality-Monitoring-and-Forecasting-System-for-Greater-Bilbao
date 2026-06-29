@@ -102,7 +102,7 @@ def weather_snapshot(
     c3.metric(tr("🌧️ Precipitation"), f"{precip} mm" if precip is not None else "—")
     c4.metric(tr("💨 Wind speed"),    f"{wind} km/h" if wind   is not None else "—")
     c5.metric(tr("🧭 Wind direction"),
-              f"{_cardinal(wdir)} ({int(wdir)}°)" if wdir is not None else "—")
+            f"{_cardinal(wdir)} ({round(wdir)}°)")
 
     verdict, color = _interpret(wind, precip)
     st.markdown(

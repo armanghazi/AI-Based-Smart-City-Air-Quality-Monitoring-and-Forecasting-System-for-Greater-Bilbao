@@ -60,7 +60,7 @@ pages: dict = {
 
 
 
-_logo = Path(__file__).parent / "static" / "geoai_logo.svg"
+_logo = Path(__file__).parent / "dashboard"/"assets" / "geoai_logo.svg"
 if _logo.exists():
     _svg = _logo.read_text(encoding="utf-8")
     _b64 = base64.b64encode(_svg.encode()).decode()
