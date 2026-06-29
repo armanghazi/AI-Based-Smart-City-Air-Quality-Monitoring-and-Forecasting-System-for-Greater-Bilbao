@@ -37,11 +37,7 @@ plotly_touch_config()
 # PAGE CONFIG
 # ──────────────────────────────────────────────────────────────────────────────
 
-st.set_page_config(
-    page_title="GeoAI Methodology",
-    page_icon="📋",
-    layout="wide",
-)
+# NOTE: st.set_page_config is intentionally absent — called once in app.py router.
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CONSTANTS — all key numbers hardcoded from verified project sources
@@ -543,6 +539,6 @@ with tc4:
         "**Infrastructure**  \n"
         "GitHub Actions (CI/CD)  \n"
         "Google OAuth OIDC  \n"
-        "Groq/Llama 3.3 70B  \n"
+        "OpenRouter/Llama 3.3 70B  \n"
         "pytest (11 tests)"
     )

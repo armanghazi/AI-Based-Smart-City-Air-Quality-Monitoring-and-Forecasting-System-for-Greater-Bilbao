@@ -86,7 +86,7 @@ FORECASTING (XGBoost, one model per pollutant, 62 features, time-based split):
 - NO2 R2=0.560 | PM2.5 R2=0.479 | PM10 R2=0.460 | SO2 R2=0.390 (held-out test 2024-2026)
 - SO2 lower R2 is EXPECTED (episodic source), not a bug.
 - Row-based split once gave fake R2=0.84 (leakage) — fixed to honest 0.479.
-- Today's pollutant value is VALID as feature (available at prediction time).
+- Latest available (D-1) pollutant value is VALID as feature (available at prediction time).
 - SHAP: wind speed/precipitation push DOWN (dispersion). NO2: day-of-week = traffic signal.
 - Models FROZEN: live daily data improves predictions without retraining.
 
@@ -606,7 +606,7 @@ def build_system_prompt(digest: str, stations: list[str]) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# GROQ CALL
+# OPENROUTER CALL
 # ═══════════════════════════════════════════════════════════════════════════
 
 def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, stations: list) -> tuple[bool, str]:
@@ -642,7 +642,7 @@ def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, s
                     tool_choice="auto",
                 )
             except Exception:
-                # Retry without tools (handles Groq 400 on bad tool-call generation)
+                # Retry without tools (handles 400 on bad tool-call generation)
                 resp = client.chat.completions.create(
                     model=MODEL,
                     messages=messages,
@@ -698,7 +698,7 @@ def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, s
 # STREAMLIT UI
 # ═══════════════════════════════════════════════════════════════════════════
 
-st.set_page_config(page_title="Project Assistant", page_icon="🤖", layout="wide")
+# NOTE: st.set_page_config is intentionally absent — called once in app.py router.
 
 st.title("🤖 " + tr("Project Assistant"))
 st.caption(
@@ -782,4 +782,4 @@ if prompt:
 if st.session_state.assistant_msgs:
     if st.button("🗑️ " + tr("Clear conversation")):
         st.session_state.assistant_msgs = []
-        st.rer
+        st.rerun()

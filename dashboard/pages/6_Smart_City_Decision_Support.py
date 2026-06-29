@@ -27,9 +27,6 @@ from aqi_components import (
     render_aqi_donut, render_station_aqi_cards, render_aqi_calendar,
 )
 
-from pdf_report import generate_monthly_report
-from config import EU_ANNUAL
-
 from pdf_report import generate_daily_report, generate_monthly_report
 
 from i18n_auto import tr
@@ -43,11 +40,7 @@ plotly_touch_config()
 # 1. PAGE CONFIG
 # ==================================================
 
-st.set_page_config(
-    page_title="Smart City Decision Support",
-    page_icon="🏛️",
-    layout="wide",
-)
+# NOTE: st.set_page_config is intentionally absent — called once in app.py router.
 center_tables()
 # ==================================================
 # 2. CONSTANTS
@@ -234,6 +227,26 @@ zone_means = (
     recent.groupby("Zone")[POLLUTANTS].mean().round(1)
     .reindex([z for z in ZONE_META if z in recent["Zone"].unique()])
 )
+
+# ── Module-level helpers (used in tab_forecast wind section) ──────────────────
+
+def _cardinal(d: float) -> str:
+    dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    return dirs[int((float(d) + 22.5) / 45) % 8]
+
+
+def _dispersion_verdict(ws: float) -> tuple[str, str]:
+    if ws < 10:  return tr("⚠️ Calm — poor dispersion, elevated pollution likely"), "warning"
+    if ws < 15:  return tr("🟡 Light wind — moderate dispersion"), "warning"
+    if ws < 20:  return tr("🟢 Moderate wind — good dispersion"), "success"
+    return tr("✅ Strong wind — excellent dispersion"), "success"
+
+
+def _svi_color(v: float) -> str:
+    if v >= 70: return "#e74c3c"
+    if v >= 40: return "#f39c12"
+    return "#2ecc71"
+
 
 # ==================================================
 # 7. TABS
@@ -661,7 +674,7 @@ with tab_forecast:
         st.caption(
             tr(
                 "Regional wind conditions (ERA5 single grid cell, ~31 km resolution) "
-                "that influence today's forecast. "
+                "that influence the latest available forecast. "
                 "Wind speed controls atmospheric dispersion; wind direction determines "
                 "which emission sources are upwind of each station."
             )
@@ -671,16 +684,6 @@ with tab_forecast:
         _latest_wind = df[df["Date"] == latest_date][["WindSpeed","WindDirection","wind_u","wind_v"]].mean()
         _ws   = float(_latest_wind["WindSpeed"])
         _wd   = float(_latest_wind["WindDirection"])
-
-        def _cardinal(d):
-            dirs = ["N","NE","E","SE","S","SW","W","NW"]
-            return dirs[int((d+22.5)/45)%8]
-
-        def _dispersion_verdict(ws):
-            if ws < 10:  return tr("⚠️ Calm — poor dispersion, elevated pollution likely"), "warning"
-            if ws < 15:  return tr("🟡 Light wind — moderate dispersion"), "warning"
-            if ws < 20:  return tr("🟢 Moderate wind — good dispersion"), "success"
-            return tr("✅ Strong wind — excellent dispersion"), "success"
 
         _verdict, _vcol = _dispersion_verdict(_ws)
 
@@ -928,7 +931,7 @@ with tab_action:
     if sim_mode == "Model-based counterfactual":
         st.info(
             tr("🟢 **Honest what-if:** perturbs features the model actually uses "
-               "(weather + today's levels), then re-runs `model.predict()`. "
+               "(weather + latest available levels (D-1)), then re-runs `model.predict()`. "
                "This is a real model output.")
         )
 
@@ -1183,7 +1186,7 @@ city-wide is **{worst_pollutant}** at
         if not alerts_df.empty:
             csv_alerts = alerts_df.to_csv(index=False).encode("utf-8")
             st.download_button(
-                tr("⬇️ Tomorrow's forecast alerts (CSV)"),
+                tr(f"⬇️ Forecast alerts — {forecast_date.strftime('%d %b %Y')} (CSV)"),
                 data=csv_alerts,
                 file_name=f"forecast_alerts_{latest_date.strftime('%Y%m%d')}.csv",
                 mime="text/csv",
@@ -1223,7 +1226,7 @@ city-wide is **{worst_pollutant}** at
     with e4:
         st.caption(
             tr("3-page report: executive summary, station risk ranking, "
-               "WHO vs EU comparison, tomorrow's forecast alerts, "
+               "WHO vs EU comparison, forecast alerts for the next day, "
                "and zone-level recommended actions.")
         )
 
@@ -1527,11 +1530,6 @@ with tab_spatial:
         svi_col1, svi_col2 = st.columns([3, 2])
 
         with svi_col1:
-            def _svi_color(v):
-                if v >= 70: return "#e74c3c"
-                if v >= 40: return "#f39c12"
-                return "#2ecc71"
-
             fig_svi_bar = go.Figure(go.Bar(
                 x=_df_svi["SVI"],
                 y=_df_svi["station"],

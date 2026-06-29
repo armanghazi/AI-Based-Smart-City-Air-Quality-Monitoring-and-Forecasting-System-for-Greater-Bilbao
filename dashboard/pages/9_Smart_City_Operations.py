@@ -23,6 +23,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import glob
+import joblib
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -37,11 +39,7 @@ from i18n_auto import tr  # noqa: E402
 # --------------------------------------------------
 # PAGE CONFIG
 # --------------------------------------------------
-st.set_page_config(
-    page_title="Smart City Operations",
-    page_icon="🛰️",
-    layout="wide",
-)
+# NOTE: st.set_page_config is intentionally absent — called once in app.py router.
 
 # Auth gate — must come before any content
 user = require_auth(role="admin")
@@ -194,9 +192,7 @@ for stn, sg in df.groupby("station"):
 # --------------------------------------------------
 # FORECAST RELIABILITY (from model bundle metrics)
 # --------------------------------------------------
-import joblib, glob
-
-MODEL_DIR = Path(__file__).parent.parent / "models"
+MODEL_DIR = Path(__file__).parent.parent.parent / "models"   # repo_root/models/
 model_metrics: list[dict] = []
 for path in sorted(glob.glob(str(MODEL_DIR / "*.joblib"))):
     try:
@@ -220,6 +216,11 @@ forecast_label = f"{avg_r2}% avg R²" if avg_r2 else tr("N/A (models not loaded)
 st.title(f"🛰️ {tr('Smart City Operations Dashboard')}")
 st.caption(tr("Operational intelligence for environmental data pipelines, sensors, and AI forecasts."))
 st.divider()
+
+def cov_cell(f: float) -> str:
+    """Format coverage fraction for the coverage matrix table."""
+    return tr("not monitored") if f < NO_SENSOR_THRESHOLD else f"{100*f:.1f}%"
+
 
 # ==================================================
 # 🔵 SECTION 1 — SYSTEM OVERVIEW
@@ -420,8 +421,6 @@ with st.expander(f"🛠 {tr('Detailed diagnostics')}", expanded=False):
     # ── Coverage Matrix ──
     with tab_cov:
         st.caption(tr("All-time completeness per pollutant. Under 10% = not monitored at this station."))
-        def cov_cell(f):
-            return tr("not monitored") if f < NO_SENSOR_THRESHOLD else f"{100*f:.1f}%"
         cov_disp = cov_all.map(cov_cell)
         cov_disp.insert(0, "Zone", g["Zone"].first())
         st.dataframe(cov_disp, width="stretch")
