@@ -5,12 +5,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import (
     load_data,
     WHO_ANNUAL, WHO_SO2_DAILY, CORE_POLLUTANTS,
+    EU_ANNUAL,
     POLLUTANT_COLOR, MONTH_NAMES, RISK_COLORS, RISK_ORDER,
     ZONE_MAP, ZONE_META, get_zone,
     classify_core_risk, risk_color, short_term_flag,
     who_ratio_label, who_delta, get_fav_station, center_tables
 )
 from i18n_auto import tr
+from aqi import AQI_THRESHOLDS
 
 from weather_panel import weather_trend
 
@@ -112,13 +114,21 @@ with st.sidebar:
             format_func=lambda d: pd.Timestamp(d).strftime("%d %b %Y")
         )
 
-    show_who = st.toggle(tr("Show WHO guideline"), value=True)
+    show_who  = st.toggle(tr("Show WHO guideline"), value=True)
+    show_eu   = st.toggle(tr("Show EU Directive limit"), value=False)
+    show_eaqi = st.toggle(tr("Show EAQI Good ceiling"), value=False)
 
     st.divider()
     if pollutant in WHO_ANNUAL:
-        st.markdown(f"**{tr('WHO annual limit')} ({pollutant}):** {WHO_ANNUAL[pollutant]} µg/m³")
+        st.markdown(f"🔴 **WHO** ({pollutant}): {WHO_ANNUAL[pollutant]} µg/m³")
     else:
         st.markdown(tr("SO₂: evaluated on 24h exceedance, no annual WHO limit"))
+    eu_lim = EU_ANNUAL.get(pollutant)
+    if eu_lim:
+        st.markdown(f"🟢 **EU Directive** ({pollutant}): {eu_lim} µg/m³")
+    aqi_good_val = AQI_THRESHOLDS.get(pollutant, [None])[0]
+    if aqi_good_val:
+        st.markdown(f"🩵 **EAQI Good** ({pollutant}): ≤ {aqi_good_val} µg/m³")
 
     # Zone legend
     st.divider()
@@ -170,7 +180,35 @@ df_filtered = df_filtered.copy()
 
 unit       = "µg/m³"
 who_limit  = WHO_ANNUAL.get(pollutant)
+eu_limit   = EU_ANNUAL.get(pollutant)
 main_color = POLLUTANT_COLOR[pollutant]
+
+
+def _add_ref_lines(fig, poll: str) -> None:
+    """Add WHO (red), EU (green) and EAQI Good (teal) reference lines."""
+    if show_who and who_limit:
+        fig.add_hline(
+            y=who_limit, line_dash="dash", line_color="#e74c3c", opacity=0.7,
+            annotation_text=f"WHO {who_limit} µg/m³",
+            annotation_font_size=9,
+            annotation_position="top right",
+        )
+    if show_eu and eu_limit:
+        fig.add_hline(
+            y=eu_limit, line_dash="dot", line_color="#27ae60", opacity=0.7,
+            annotation_text=f"EU {eu_limit} µg/m³",
+            annotation_font_size=9,
+            annotation_position="bottom right",
+        )
+    # EAQI Good ceiling — top of level 1
+    aqi_good = AQI_THRESHOLDS.get(poll, [None])[0]
+    if show_eaqi and aqi_good is not None:
+        fig.add_hline(
+            y=aqi_good, line_dash="longdash", line_color="#50ccaa", opacity=0.6,
+            annotation_text=f"EAQI Good ≤{aqi_good}",
+            annotation_font_size=9,
+            annotation_position="top left",
+        )
 
 if df_filtered.empty:
     st.warning(tr("No data available for the selected filters."))
@@ -289,12 +327,7 @@ if time_mode == "Day":
             title=f"{pollutant} by station — {period_label}",
             labels={pollutant: f"{pollutant} (µg/m³)"},
         )
-        if show_who and who_limit:
-            fig_day.add_hline(
-                y=who_limit, line_dash="dash", line_color="red",
-                annotation_text=f"WHO {who_limit} µg/m³",
-                annotation_font_size=11
-            )
+        _add_ref_lines(fig_day, pollutant)
         fig_day.update_layout(height=380)
         st.plotly_chart(fig_day,  width="stretch", key="fig_day")
 
@@ -371,13 +404,7 @@ else:
             color_discrete_sequence=[main_color]
         )
 
-    if show_who and who_limit:
-        fig_trend.add_hline(
-            y=who_limit, line_dash="dash", line_color="red",
-            annotation_text=f"WHO limit {who_limit} µg/m³",
-            annotation_position="top right",
-            annotation_font_size=11
-        )
+    _add_ref_lines(fig_trend, pollutant)
     fig_trend.update_layout(height=380, hovermode="x unified")
     st.plotly_chart(fig_trend,  width="stretch", key="fig_trend")
 
@@ -447,12 +474,7 @@ else:
                 showlegend=False
             )
 
-        if show_who and who_limit:
-            fig_monthly.add_hline(
-                y=who_limit, line_dash="dash", line_color="red",
-                annotation_text=f"WHO {who_limit} µg/m³",
-                annotation_font_size=11
-            )
+        _add_ref_lines(fig_monthly, pollutant)
 
         st.plotly_chart(fig_monthly,  width="stretch", key="fig_monthly")
 
@@ -486,13 +508,7 @@ if filter_mode == "Station" and selected_station == "ALL" and time_mode == "Year
             for s in comparison["station"].unique()
         }
     )
-    if show_who and who_limit:
-        fig_comp.add_hline(
-            y=who_limit, line_dash="dash", line_color="red",
-            annotation_text=f"WHO limit {who_limit} µg/m³",
-            annotation_position="bottom right",
-            annotation_font_size=11
-        )
+    _add_ref_lines(fig_comp, pollutant)
     fig_comp.update_layout(height=420, hovermode="x unified")
     st.plotly_chart(fig_comp,  width="stretch", key="fig_comp")
 
@@ -537,12 +553,7 @@ if time_mode == "Year":
             category_orders={"Period": COVID_PERIODS}
         )
         fig_covid.update_layout(height=380)
-        if show_who and who_limit:
-            fig_covid.add_hline(
-                y=who_limit, line_dash="dash", line_color="red",
-                annotation_text=f"WHO {who_limit} µg/m³",
-                annotation_font_size=11
-            )
+        _add_ref_lines(fig_covid, pollutant)
         st.plotly_chart(fig_covid,  width="stretch", key="fig_covid_1")
 
     else:
@@ -599,12 +610,7 @@ if time_mode == "Year":
                 showlegend=False,
                 height=360
             )
-            if show_who and who_limit:
-                fig_covid.add_hline(
-                    y=who_limit, line_dash="dash", line_color="red",
-                    annotation_text=f"WHO {who_limit} µg/m³",
-                    annotation_font_size=11
-                )
+            _add_ref_lines(fig_covid, pollutant)
             st.plotly_chart(fig_covid,  width="stretch", key="fig_covid_2")
 
         with col_table:
