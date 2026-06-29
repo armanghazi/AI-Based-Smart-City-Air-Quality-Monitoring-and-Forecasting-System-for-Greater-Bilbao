@@ -13,7 +13,6 @@ pyarrow
 rasterio
 rasterstats 
 scikit-learn
-shap
 shapely
 statsmodels
 streamlit>=1.42,<2
