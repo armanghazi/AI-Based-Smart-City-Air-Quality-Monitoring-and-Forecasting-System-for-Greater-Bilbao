@@ -16,7 +16,7 @@ from config import (
     ZONE_META, get_zone,get_fav_station, center_tables
 )
 
-from i18n_auto import language_selector, apply_lang_styles, tr
+from i18n_auto import tr
 
 from forecast_utils import plotly_touch_config, PLOTLY_CONFIG
 
@@ -27,11 +27,7 @@ plotly_touch_config()
 # PAGE CONFIG
 # --------------------------------------------------
 
-st.set_page_config(
-    page_title="Weather Drivers & Air Pollution Dynamics",
-    page_icon="🌦️",
-    layout="wide"
-)
+# NOTE: st.set_page_config is intentionally absent — called once in app.py router.
 center_tables()
 
 # --------------------------------------------------
@@ -589,7 +585,7 @@ with tab3:
 with tab4:
     st.markdown("### ⏳ " + tr("Lag Correlation Analysis"))
     st.caption(
-        tr("How well does today's pollution predict future pollution? "
+        tr("How well does the latest available reading (D-1) predict future pollution? "
            "High lag correlation = persistent pollution events.")
     )
 
@@ -852,7 +848,7 @@ with _wa1:
     _clrs = ["#e74c3c", "#e67e22", "#f39c12", "#2ecc71", "#27ae60"]
 
     # Highlight current D-1 wind speed bin
-    _cur_ws = float(df[df["Date"] == df["Date"].max()]["WindSpeed"].mean())
+    _cur_ws = float(base[base["Date"] == base["Date"].max()]["WindSpeed"].mean())
     _cur_bin = 0
     for _i, (_lo, _hi) in enumerate(zip([0,10,15,20,25],[10,15,20,25,100])):
         if _lo <= _cur_ws < _hi:
@@ -1054,4 +1050,3 @@ st.info(
         "Source: Open-Meteo ERA5 archive (CC BY 4.0) · Notebook 10d."
     )
 )
-

@@ -213,14 +213,10 @@ if filtered.empty:
     st.stop()
 
 # --------------------------------------------------
-# WEATHER SNAPSHOT — always D-1 (latest complete day)
+# WEATHER SNAPSHOT — latest day in selected period
 # --------------------------------------------------
 
-st.caption(
-    tr("⚠️ Weather snapshot always reflects the latest available day (D-1), "
-       "independent of the period selected below.")
-)
-weather_snapshot(df, show_per_station=True)
+weather_snapshot(filtered, show_per_station=True)
 
 st.markdown("---")
 

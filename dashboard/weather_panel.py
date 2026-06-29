@@ -72,8 +72,15 @@ def _interpret(wind: float | None, precip: float | None) -> tuple[str, str]:
 def weather_snapshot(
     df: pd.DataFrame,
     show_per_station: bool = False,
+    d1_mode: bool = False,
 ) -> None:
-    """Snapshot of the latest available weather reading (D-1)."""
+    """Snapshot of the latest weather reading in the provided dataframe.
+
+    Args:
+        df:               DataFrame to read from (can be full df or filtered subset).
+        show_per_station: Whether to show per-station breakdown expander.
+        d1_mode:          If True, caption indicates this is the D-1 pipeline reading.
+    """
     if df.empty or "Date" not in df.columns:
         return
 
@@ -81,10 +88,16 @@ def weather_snapshot(
     latest = df[df["Date"] == latest_date]
 
     st.subheader(tr("🌦️ Weather conditions"))
-    st.caption(
-        tr("Latest available reading:") + f" **{latest_date.strftime('%d %b %Y')}** "
-        + tr("(D-1 — pipeline rejects the current incomplete day). Averaged across the selected stations.")
-    )
+    if d1_mode:
+        st.caption(
+            tr("Latest available reading (D-1):") + f" **{latest_date.strftime('%d %b %Y')}** · "
+            + tr("Pipeline rejects the current incomplete day. Averaged across the selected stations.")
+        )
+    else:
+        st.caption(
+            tr("Latest reading in selected period:") + f" **{latest_date.strftime('%d %b %Y')}** · "
+            + tr("Averaged across the selected stations.")
+        )
 
     c1, c2, c3, c4, c5 = st.columns(5)
     def _v(col):
@@ -102,7 +115,7 @@ def weather_snapshot(
     c3.metric(tr("🌧️ Precipitation"), f"{precip} mm" if precip is not None else "—")
     c4.metric(tr("💨 Wind speed"),    f"{wind} km/h" if wind   is not None else "—")
     c5.metric(tr("🧭 Wind direction"),
-            f"{_cardinal(wdir)} ({round(wdir)}°)")
+              f"{_cardinal(wdir)} ({int(wdir)}°)" if wdir is not None else "—")
 
     verdict, color = _interpret(wind, precip)
     st.markdown(

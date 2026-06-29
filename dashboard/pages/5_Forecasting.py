@@ -21,11 +21,7 @@ from i18n_auto import tr
 # PAGE CONFIG
 # --------------------------------------------------
 
-st.set_page_config(
-    page_title="Air Quality Forecasting",
-    page_icon="🔮",
-    layout="wide",
-)
+# NOTE: st.set_page_config is intentionally absent — called once in app.py router.
 center_tables()
 
 # --------------------------------------------------
@@ -193,7 +189,7 @@ tab1, tab2, tab3 = st.tabs([
 with tab1:
     st.markdown(f"### {tr('Next-Day Forecast vs Actual')} — {sel_pollutant} {tr('at')} {sel_station}")
     st.caption(
-        tr("The model predicts the next day's value using today's data. "
+        tr("The model predicts the next day's value using the latest available reading (D-1). "
            "Shown on the held-out test period (2024+) for honest evaluation.")
     )
 
@@ -359,7 +355,7 @@ with tab3:
         st.markdown("#### " + tr("Key physical insights"))
         st.markdown(
             """
-- **Today's pollutant level** is the strongest predictor — pollution
+- **Latest pollutant level (D-1)** is the strongest predictor — pollution
   persists day-to-day (atmospheric inertia).
 - **Higher wind speed** pushes forecasts **down** → dispersion.
 - **Precipitation** pushes forecasts **down** → wet deposition (washout).
