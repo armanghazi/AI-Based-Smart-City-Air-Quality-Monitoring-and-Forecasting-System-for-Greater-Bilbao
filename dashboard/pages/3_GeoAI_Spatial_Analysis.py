@@ -62,27 +62,27 @@ STATION_ZONES = {
 
 # Structural driver sentences (from GIS analysis findings)
 STATION_DRIVER = {
-    "BARAKALDO":      "Highest road density in network (21,267 m/km²) + 354 m from AP-8 interchange → structural driver of elevated PM2.5 and NO₂.",
-    "MAZARREDO":      "77% residential land use yet highest NO₂ (25.8 µg/m³): road density 19,060 m/km² + urban canyon + 501 m from city centre.",
-    "BASAURI":        "Industrial land use 32% within 500 m (drops to 21% at 1 km) — emission sources concentrated immediately around the sensor.",
-    "ERANDIO":        "1,264 m from AP-8 + 18,631 m/km² road density — traffic corridor exposure without the urban canyon attenuation.",
-    "MUSKIZ":         "34.6% industrial land use (Petronor) yet lowest PM2.5 (6.5 µg/m³): TRI 343 m + coastal NW sea breeze override emission proximity.",
-    "SANTURCE":       "784 m from Port of Bilbao + elevation 93 m + TRI 445 m — port proximity drives SO₂ episodes; terrain aids dispersion of other pollutants.",
-    "ALGORTA_BBIZI2": "Lowest road density (9,933 m/km²) + 2.6 km from Cantabrian coast → consistent NW sea breeze flushing → structurally cleanest station.",
+    "BARAKALDO":      tr("Highest road density in network (21,267 m/km²) + 354 m from AP-8 interchange → structural driver of elevated PM2.5 and NO₂."),
+    "MAZARREDO":      tr("77% residential land use yet highest NO₂ (25.8 µg/m³): road density 19,060 m/km² + urban canyon + 501 m from city centre."),
+    "BASAURI":        tr("Industrial land use 32% within 500 m (drops to 21% at 1 km) — emission sources concentrated immediately around the sensor."),
+    "ERANDIO":        tr("1,264 m from AP-8 + 18,631 m/km² road density — traffic corridor exposure without the urban canyon attenuation."),
+    "MUSKIZ":         tr("34.6% industrial land use (Petronor) yet lowest PM2.5 (6.5 µg/m³): TRI 343 m + coastal NW sea breeze override emission proximity."),
+    "SANTURCE":       tr("784 m from Port of Bilbao + elevation 93 m + TRI 445 m — port proximity drives SO₂ episodes; terrain aids dispersion of other pollutants."),
+    "ALGORTA_BBIZI2": tr("Lowest road density (9,933 m/km²) + 2.6 km from Cantabrian coast → consistent NW sea breeze flushing → structurally cleanest station."),
 }
 
 # Top spatial findings for display
 TOP_FINDINGS = [
-    ("road_density_1000m", "NO2",  "+0.83", "Road density → NO₂",
-     "Strongest spatial predictor. Traffic infrastructure is the primary structural driver of NO₂."),
-    ("dist_bilbao_centre_m", "NO2", "−0.77", "Distance to city centre → NO₂",
-     "Closer to city centre = higher NO₂. Confirms urban canyon + traffic concentration effect."),
-    ("vegetation_proxy_1000m", "PM10", "−0.66", "Green cover → PM10",
-     "More vegetation within 1 km = lower PM10. Dry deposition + lower impervious surface."),
-    ("elev_tri_2000m", "PM10", "−0.63", "Terrain Relief Index → PM10",
-     "More complex terrain = stronger turbulent mixing = lower PM10. MUSKIZ TRI = 343 m."),
-    ("dist_ap8_barakaldo_m", "PM2.5", "−0.54", "Distance to AP-8 motorway → PM2.5",
-     "BARAKALDO (354 m from AP-8) records the highest PM2.5. Road traffic proximity confirmed."),
+    ("road_density_1000m", "NO2",  "+0.83", tr("Road density → NO₂"),
+     tr("Strongest spatial predictor. Traffic infrastructure is the primary structural driver of NO₂.")),
+    ("dist_bilbao_centre_m", "NO2", "−0.77", tr("Distance to city centre → NO₂"),
+     tr("Closer to city centre = higher NO₂. Confirms urban canyon + traffic concentration effect.")),
+    ("vegetation_proxy_1000m", "PM10", "−0.66", tr("Green cover → PM10"),
+     tr("More vegetation within 1 km = lower PM10. Dry deposition + lower impervious surface.")),
+    ("elev_tri_2000m", "PM10", "−0.63", tr("Terrain Relief Index → PM10"),
+     tr("More complex terrain = stronger turbulent mixing = lower PM10. MUSKIZ TRI = 343 m.")),
+    ("dist_ap8_barakaldo_m", "PM2.5", "−0.54", tr("Distance to AP-8 motorway → PM2.5"),
+     tr("BARAKALDO (354 m from AP-8) records the highest PM2.5. Road traffic proximity confirmed.")),
 ]
 
 DIR8_ORDER = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
@@ -136,10 +136,10 @@ spatial_ok = not df_sp.empty
 
 st.markdown("## " + tr("🌍 GeoAI Spatial Analysis"))
 st.markdown(
-    "Structural spatial context for the Greater Bilbao air quality monitoring network.  \n"
-    "**Sources:** OSM buffer analysis (notebook 10a) · Haversine distances (10b) · "
-    "Copernicus GLO-30 DEM (10c) · ERA5 wind transport (10d).  \n"
-    "n = 7 stations — all correlations are exploratory and indicative only."
+    tr("Structural spatial context for the Greater Bilbao air quality monitoring network.") + "  \n"
+    "**" + tr("Sources") + ":** " + tr("OSM buffer analysis (notebook 10a) · Haversine distances (10b) · "
+    "Copernicus GLO-30 DEM (10c) · ERA5 wind transport (10d).") + "  \n"
+    + tr("n = 7 stations — all correlations are exploratory and indicative only.")
 )
 
 if not spatial_ok:
@@ -201,13 +201,13 @@ with tab_dna:
         c1, c2, c3 = st.columns(3)
 
         with c1:
-            st.markdown(f"**🏘️ Land Use** *(1 000 m buffer)*")
+            st.markdown(f"**🏘️ {tr('Land Use')}** *({tr('1 000 m buffer')})*")
             for lbl, col, icon in [
-                ("Green %",       "green_pct_1000m",       "🌿"),
-                ("Industrial %",  "industrial_pct_1000m",  "🏭"),
-                ("Residential %", "residential_pct_1000m", "🏘️"),
-                ("Commercial %",  "commercial_pct_1000m",  "🏪"),
-                ("Road density",  "road_density_1000m",    "🛣️"),
+                (tr("Green %"),       "green_pct_1000m",       "🌿"),
+                (tr("Industrial %"),  "industrial_pct_1000m",  "🏭"),
+                (tr("Residential %"), "residential_pct_1000m", "🏘️"),
+                (tr("Commercial %"),  "commercial_pct_1000m",  "🏪"),
+                (tr("Road density"),  "road_density_1000m",    "🛣️"),
             ]:
                 val = sp_row.get(col)
                 if val is not None and not (isinstance(val, float) and np.isnan(val)):
@@ -215,25 +215,25 @@ with tab_dna:
                     st.metric(f"{icon} {lbl}", f"{val:.1f}{unit}")
 
         with c2:
-            st.markdown("**📍 Distances to Sources**")
+            st.markdown(f"**📍 {tr('Distances to Sources')}**")
             for lbl, col, icon in [
-                ("Port of Bilbao",  "dist_port_bilbao_m",   "⚓"),
-                ("Petronor",        "dist_petronor_m",      "🛢️"),
-                ("AP-8 Motorway",   "dist_ap8_barakaldo_m", "🚗"),
-                ("City Centre",     "dist_bilbao_centre_m", "🏙️"),
-                ("Coastline",       "dist_coast_getxo_m",   "🌊"),
+                (tr("Port of Bilbao"),  "dist_port_bilbao_m",   "⚓"),
+                (tr("Petronor"),        "dist_petronor_m",      "🛢️"),
+                (tr("AP-8 Motorway"),   "dist_ap8_barakaldo_m", "🚗"),
+                (tr("City Centre"),     "dist_bilbao_centre_m", "🏙️"),
+                (tr("Coastline"),       "dist_coast_getxo_m",   "🌊"),
             ]:
                 val = sp_row.get(col)
                 if val is not None and not (isinstance(val, float) and np.isnan(val)):
                     st.metric(f"{icon} {lbl}", f"{val/1000:.1f} km")
 
         with c3:
-            st.markdown("**⛰️ Terrain** *(Copernicus GLO-30)*")
+            st.markdown(f"**⛰️ {tr('Terrain')}** *(Copernicus GLO-30)*")
             for lbl, col, icon in [
-                ("Elevation",   "elev_point_m",  "📏"),
-                ("Slope",       "slope_deg",      "📐"),
-                ("TRI 2km",     "elev_tri_2000m", "🏔️"),
-                ("Mean elev 1km","elev_mean_1000m","📊"),
+                (tr("Elevation"),    "elev_point_m",   "📏"),
+                (tr("Slope"),        "slope_deg",       "📐"),
+                (tr("TRI 2km"),      "elev_tri_2000m",  "🏔️"),
+                (tr("Mean elev 1km"),"elev_mean_1000m", "📊"),
             ]:
                 val = sp_row.get(col)
                 if val is not None and not (isinstance(val, float) and np.isnan(val)):
@@ -243,7 +243,7 @@ with tab_dna:
         st.divider()
 
         # Pollutant profile vs network mean
-        st.markdown("**📈 Observed pollution vs network mean**")
+        st.markdown(f"**📈 {tr('Observed pollution vs network mean')}**")
         net_mean = df_means.set_index("station")[POLLUTANTS].mean()
         station_vals = df_means[df_means["station"] == selected].iloc[0]
 
@@ -262,7 +262,7 @@ with tab_dna:
         st.divider()
 
         # Network comparison bar chart
-        st.markdown("**📊 Network comparison — mean pollutants**")
+        st.markdown(f"**📊 {tr('Network comparison — mean pollutants')}**")
         nc1, nc2 = st.columns(2)
         for col, poll in zip([nc1, nc2], ["NO2", "PM2.5"]):
             df_bar = df_means.sort_values(poll, ascending=True).copy()
@@ -297,8 +297,8 @@ with tab_dna:
 with tab_drivers:
     st.markdown("### " + tr("Spatial Driver Analysis"))
     st.caption(
-        "Pearson r between spatial features and long-term mean pollutant concentrations. "
-        "n = 7 stations — correlations are exploratory and indicative only."
+        tr("Pearson r between spatial features and long-term mean pollutant concentrations. "
+           "n = 7 stations — correlations are exploratory and indicative only.")
     )
 
     if not spatial_ok:
@@ -525,14 +525,14 @@ with tab_terrain:
         _mc3.metric("TRI 2km", "343 m", "2nd highest — orographic ventilation",
                     delta_color="off")
         st.success(
-            "Three independent GIS methods confirm the MUSKIZ paradox: "
-            "coastal location (notebook 10a) + farthest from city centre (10b) + "
-            "high TRI from terrain ridge (10c) together override Petronor emission proximity."
+            tr("Three independent GIS methods confirm the MUSKIZ paradox: "
+               "coastal location (notebook 10a) + farthest from city centre (10b) + "
+               "high TRI from terrain ridge (10c) together override Petronor emission proximity.")
         )
 
         st.info(
-            "**DEM source:** Copernicus GLO-30, 30 m resolution · EPSG:25830 · "
-            "Tiles: N43_W003 + N43_W004. Full analysis: notebook 10c."
+            tr("**DEM source:** Copernicus GLO-30, 30 m resolution · EPSG:25830 · "
+               "Tiles: N43_W003 + N43_W004. Full analysis: notebook 10c.")
         )
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -675,28 +675,28 @@ with tab_wind:
         )
         st.plotly_chart(fig_m, width="stretch", key="fig_m")
         st.caption(
-            "NE wind → SO₂ = 7.32 µg/m³ (Petronor trapped against terrain, TRI = 343 m). "
-            "S wind → SO₂ = 3.80 µg/m³ (sea breeze clears emissions). Ratio: **1.93×**."
+            tr("NE wind → SO₂ = 7.32 µg/m³ (Petronor trapped against terrain, TRI = 343 m). "
+               "S wind → SO₂ = 3.80 µg/m³ (sea breeze clears emissions). Ratio: **1.93×**.")
         )
 
     with _wc2:
         fig_maz = go.Figure()
         fig_maz.add_trace(go.Bar(
             x=DIR8_ORDER, y=_maz_no2,
-            name="Mean NO₂ (µg/m³)",
+            name=tr("Mean NO₂ (µg/m³)"),
             marker_color="#8e44ad", opacity=0.85,
         ))
         fig_maz.add_trace(go.Bar(
             x=DIR8_ORDER, y=_daily_freq.values,
-            name="Wind frequency (%)",
+            name=tr("Wind frequency (%)"),
             marker_color="#3498db", opacity=0.5,
             yaxis="y2",
         ))
         fig_maz.update_layout(
             height=320,
-            title="MAZARREDO — NO₂ by wind direction (Bilbao city centre)",
-            yaxis=dict(title="Mean NO₂ (µg/m³)", color="#8e44ad"),
-            yaxis2=dict(title="Wind freq (%)", overlaying="y", side="right",
+            title=tr("MAZARREDO — NO₂ by wind direction (Bilbao city centre)"),
+            yaxis=dict(title=tr("Mean NO₂ (µg/m³)"), color="#8e44ad"),
+            yaxis2=dict(title=tr("Wind freq (%)"), overlaying="y", side="right",
                         color="#3498db"),
             legend=dict(orientation="h", y=-0.25),
             margin=dict(t=50, b=10),
@@ -704,8 +704,8 @@ with tab_wind:
         )
         st.plotly_chart(fig_maz, width="stretch", key="fig_maz")
         st.caption(
-            "SE wind → NO₂ = 35.3 µg/m³ (+70% above NW baseline). "
-            "Nervión valley channels SE flow, trapping urban traffic emissions."
+            tr("SE wind → NO₂ = 35.3 µg/m³ (+70% above NW baseline). "
+               "Nervión valley channels SE flow, trapping urban traffic emissions.")
         )
 
     st.divider()
@@ -714,22 +714,22 @@ with tab_wind:
     st.markdown("#### " + tr("D — Two dominant regimes"))
     _r1, _r2 = st.columns(2)
     _r1.success(
-        "**NW/W regime (37.2% of days) — Bay of Biscay sea air**  \n"
-        "Network-wide mean NO₂ = 16.3 µg/m³  \n"
-        "MUSKIZ cleanest — Petronor emissions blown inland  \n"
-        "MAZARREDO lower — valley ventilated"
+        tr("**NW/W regime (37.2% of days) — Bay of Biscay sea air**") + "  \n"
+        + tr("Network-wide mean NO₂ = 16.3 µg/m³") + "  \n"
+        + tr("MUSKIZ cleanest — Petronor emissions blown inland") + "  \n"
+        + tr("MAZARREDO lower — valley ventilated")
     )
     _r2.warning(
-        "**S/SW regime (32.0% of days) — inland recirculation**  \n"
-        "Network-wide mean NO₂ = 21.4 µg/m³ (+31%)  \n"
-        "MAZARREDO worst — Nervión valley trapping  \n"
-        "BARAKALDO elevated — industrial corridor stagnation"
+        tr("**S/SW regime (32.0% of days) — inland recirculation**") + "  \n"
+        + tr("Network-wide mean NO₂ = 21.4 µg/m³ (+31%)") + "  \n"
+        + tr("MAZARREDO worst — Nervión valley trapping") + "  \n"
+        + tr("BARAKALDO elevated — industrial corridor stagnation")
     )
 
     st.info(
-        "⚠️ **ERA5 note:** Single regional grid cell (~31 km) — "
-        "all stations share the same wind time series. "
-        "Direction signatures represent synoptic-scale patterns, "
-        "not station-level micrometeorology. "
-        "Source: Open-Meteo ERA5 archive (CC BY 4.0) · Notebook 10d."
+        tr("⚠️ **ERA5 note:** Single regional grid cell (~31 km) — "
+           "all stations share the same wind time series. "
+           "Direction signatures represent synoptic-scale patterns, "
+           "not station-level micrometeorology. "
+           "Source: Open-Meteo ERA5 archive (CC BY 4.0) · Notebook 10d.")
     )
