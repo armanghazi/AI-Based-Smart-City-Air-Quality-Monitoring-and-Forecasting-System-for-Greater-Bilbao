@@ -224,7 +224,7 @@ st.markdown(f"""
 if n_exc == 0:
     st.markdown(
         f'<div class="alert alert-good">✅ '
-        f'{tr("All stations within EU Directive limits — no exceedances forecast for")} '
+        f'{tr("All stations within EU Directive limits (AQI) — no exceedances forecast for")} '
         f'<b>{forecast_date.strftime("%d %b %Y")}</b>.</div>',
         unsafe_allow_html=True,
     )
