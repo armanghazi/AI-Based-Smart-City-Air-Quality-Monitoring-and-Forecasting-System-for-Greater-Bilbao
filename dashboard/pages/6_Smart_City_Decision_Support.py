@@ -22,7 +22,7 @@ from config import (
 )
 from forecast_utils import prepare_features
 from gauge_component import render_gauge_row
-from aqi import overall_aqi, compute_aqi_category, AQI_POLLUTANTS, AQI_CATEGORIES
+from aqi import overall_aqi, compute_aqi_category, AQI_POLLUTANTS, AQI_CATEGORIES, AQI_THRESHOLDS
 from aqi_components import (
     render_aqi_donut, render_station_aqi_cards, render_aqi_calendar,
 )
@@ -136,6 +136,12 @@ with st.sidebar:
     }[window_label]
 
     st.divider()
+    st.markdown("### 📏 " + tr("Reference lines"))
+    show_who_risk  = st.toggle(tr("Show WHO limit"),          value=True,  key="risk_who")
+    show_eu_risk   = st.toggle(tr("Show EU Directive limit"), value=False, key="risk_eu")
+    show_eaqi_risk = st.toggle(tr("Show EAQI Good ceiling"),  value=False, key="risk_eaqi")
+
+    st.divider()
     st.markdown("### 🗺️ " + tr("Zone Legend"))
     for z, meta in ZONE_META.items():
         st.markdown(f"{meta['icon']} **{z}**")
@@ -183,6 +189,23 @@ display = display[["Rank", "station", "Zone", "PM2.5", "PM10",
                    "NO2", "SO2", "RiskScore", "RiskLevel"]]
 display[POLLUTANTS]  = display[POLLUTANTS].round(1)
 display["RiskScore"] = display["RiskScore"].round(0).astype(int)
+
+# EU Directive status — any core pollutant above EU annual limit?
+def _eu_status(row) -> str:
+    for p in CORE_POLLUTANTS:
+        eu_lim = EU_ANNUAL.get(p)
+        if eu_lim and row[p] > eu_lim:
+            return f"⚠️ {p}"
+    return "✅ OK"
+
+# EAQI overall — based on period mean values
+def _eaqi_status(row) -> str:
+    vals = {p: row[p] for p in ["PM2.5", "PM10", "NO2", "SO2"] if not pd.isna(row[p])}
+    res = overall_aqi(vals)
+    return res["label"] if res else "—"
+
+display["EU Directive"] = display.apply(_eu_status, axis=1)
+display["EAQI"]         = display.apply(_eaqi_status, axis=1)
 
 # 6d. Load all 4 models once (used in tab_forecast and tab_action)
 bundles       = {p: load_model(p) for p in POLLUTANTS}
@@ -353,13 +376,15 @@ the European index as an internationally familiar reference point.
     st.markdown(f"## 📊 {tr('Station Risk Prioritization')} — {window_label}")
     st.caption(
         tr("Composite risk = mean of (concentration ÷ WHO limit) across PM2.5, "
-           "PM10, NO₂ · ×100. Below 100 = within guidelines.")
+           "PM10, NO₂ · ×100. Below 100 = within WHO guidelines.")
     )
 
     col_t, col_c = st.columns([3, 2])
     with col_t:
         st.dataframe(
-            display,
+            display[["Rank", "station", "Zone", "PM2.5", "PM10",
+                      "NO2", "SO2", "RiskScore", "RiskLevel",
+                      "EU Directive", "EAQI"]],
             width="stretch", hide_index=True,
             column_config={
                 "RiskScore": st.column_config.ProgressColumn(
@@ -376,12 +401,42 @@ the European index as an internationally familiar reference point.
             text=station_means["RiskScore"].round(0).astype(int),
             textposition="outside",
         ))
-        fig_rank.add_vline(
-            x=100, line_dash="dash", line_color="#555", annotation_text="WHO"
-        )
+        # WHO reference line (score = 100 means exactly at WHO limit)
+        if show_who_risk:
+            fig_rank.add_vline(
+                x=100, line_dash="dash", line_color="#e74c3c", opacity=0.7,
+                annotation_text="WHO = 100",
+                annotation_font_size=9,
+            )
+        # EU Directive — ratio EU/WHO × 100 averaged across PM2.5, PM10, NO2
+        if show_eu_risk:
+            _eu_scores = [
+                EU_ANNUAL.get(p, WHO_ANNUAL[p]) / WHO_ANNUAL[p] * 100
+                for p in CORE_POLLUTANTS
+            ]
+            _eu_line = sum(_eu_scores) / len(_eu_scores)
+            fig_rank.add_vline(
+                x=_eu_line, line_dash="dot", line_color="#27ae60", opacity=0.7,
+                annotation_text=f"EU ≈ {_eu_line:.0f}",
+                annotation_font_size=9,
+            )
+        # EAQI Good — ratio EAQI_Good/WHO × 100 averaged across PM2.5, PM10, NO2
+        if show_eaqi_risk:
+            _eaqi_scores = []
+            for p in CORE_POLLUTANTS:
+                _good = AQI_THRESHOLDS.get(p, [None])[0]
+                if _good and WHO_ANNUAL.get(p):
+                    _eaqi_scores.append(_good / WHO_ANNUAL[p] * 100)
+            if _eaqi_scores:
+                _eaqi_line = sum(_eaqi_scores) / len(_eaqi_scores)
+                fig_rank.add_vline(
+                    x=_eaqi_line, line_dash="longdash", line_color="#50ccaa", opacity=0.6,
+                    annotation_text=f"EAQI Good ≈ {_eaqi_line:.0f}",
+                    annotation_font_size=9,
+                )
         fig_rank.update_layout(
-            height=340, margin=dict(l=10, r=40, t=30, b=10),
-            xaxis_title=tr("Composite risk score"),
+            height=340, margin=dict(l=10, r=60, t=30, b=10),
+            xaxis_title=tr("Composite risk score (100 = WHO limit)"),
             yaxis=dict(autorange="reversed"),
             title=tr("Priority ranking"),
             dragmode=False,

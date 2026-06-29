@@ -554,11 +554,16 @@ with tab2:
 
         col_r1, col_r2 = st.columns(2)
 
+        # Compute shared color range for both roses
+        _poll_min = float(wd_grp["AvgPollution"].min())
+        _poll_max = float(wd_grp["AvgPollution"].max())
+
         with col_r1:
             fig_rose = px.bar_polar(
                 wd_grp, r="Days", theta="Label",
                 color="AvgPollution",
                 color_continuous_scale="YlOrRd",
+                range_color=[_poll_min, _poll_max],
                 title=f"Wind frequency · color = avg {wr_poll}",
                 labels={
                     "Days":         "Days",
@@ -566,14 +571,18 @@ with tab2:
                     "Label":        "Direction"
                 }
             )
-            fig_rose.update_layout(dragmode=False, height=420)
-            st.plotly_chart(fig_rose,  width="stretch", config=PLOTLY_CONFIG)
+            fig_rose.update_layout(
+                dragmode=False, height=420,
+                coloraxis_showscale=False,
+            )
+            st.plotly_chart(fig_rose, width="stretch", config=PLOTLY_CONFIG)
 
         with col_r2:
             fig_speed_rose = px.bar_polar(
                 wd_grp, r="AvgSpeed", theta="Label",
                 color="AvgPollution",
-                color_continuous_scale="Blues",
+                color_continuous_scale="YlOrRd",
+                range_color=[_poll_min, _poll_max],
                 title=f"Avg wind speed by direction · color = avg {wr_poll}",
                 labels={
                     "AvgSpeed":     "Avg Speed (km/h)",
@@ -581,8 +590,21 @@ with tab2:
                     "Label":        "Direction"
                 }
             )
-            fig_speed_rose.update_layout(dragmode=False, height=420)
-            st.plotly_chart(fig_speed_rose,  width="stretch", config=PLOTLY_CONFIG)
+            fig_speed_rose.update_layout(
+                dragmode=False, height=420,
+                coloraxis_colorbar=dict(
+                    title=f"Avg {wr_poll}<br>(µg/m³)",
+                    thickness=14,
+                    len=0.7,
+                ),
+            )
+            st.plotly_chart(fig_speed_rose, width="stretch", config=PLOTLY_CONFIG)
+
+        st.caption(
+            f"🎨 {tr('Color scale (both charts)')}: "
+            f"{_poll_min:.1f} → {_poll_max:.1f} µg/m³ avg {wr_poll} · "
+            f"{tr('Same scale — left = frequency, right = speed')}"
+        )
 
     # --------------------------------------------------
     # Wind Components (Wind_X / Wind_Y) vs Pollution
@@ -838,24 +860,33 @@ with tab5:
     st.markdown("### 🤖 " + tr("Feature Ranking for Forecasting"))
     st.caption(
         tr("Pearson correlation of all candidate features with target_PM25. "
-           "High absolute correlation = potentially useful predictor.")
+           "High absolute correlation = potentially useful predictor. "
+           "Computed on the full dataset — independent of sidebar filters.")
+    )
+    st.info(
+        "💡 " + tr("This tab always uses the full dataset (2015–2026) "
+                   "to reflect what the model was actually trained on. "
+                   "Sidebar filters do not apply here.")
     )
 
-    if "target_PM25" not in base.columns:
+    # Use full df — not base — correlations must reflect training data
+    _feat_df = df.copy()
+
+    if "target_PM25" not in _feat_df.columns:
         st.warning(tr("target_PM25 column not found in dataset."))
         st.stop()
 
     candidate_features = (
-        [v for v in WEATHER_VARS if v in base.columns] +
-        [c for c in base.columns if
+        [v for v in WEATHER_VARS if v in _feat_df.columns] +
+        [c for c in _feat_df.columns if
          any(c.startswith(f"{pfx}_lag_") for pfx in _POLL_PREFIXES)] +
-        [c for c in base.columns if
+        [c for c in _feat_df.columns if
          any(c.startswith(f"{pfx}_roll_mean_") for pfx in _POLL_PREFIXES)]
     )
-    candidate_features = [f for f in candidate_features if f in base.columns]
+    candidate_features = [f for f in candidate_features if f in _feat_df.columns]
 
     corr_target = (
-        base[candidate_features + ["target_PM25"]]
+        _feat_df[candidate_features + ["target_PM25"]]
         .corr()["target_PM25"]
         .drop("target_PM25")
         .reset_index()
