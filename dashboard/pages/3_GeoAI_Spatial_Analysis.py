@@ -34,11 +34,7 @@ from i18n_auto import tr
 # PAGE CONFIG
 # ──────────────────────────────────────────────────────────────────────────────
 
-st.set_page_config(
-    page_title="GeoAI Spatial Analysis",
-    page_icon="🌍",
-    layout="wide",
-)
+# NOTE: st.set_page_config is intentionally absent — called once in app.py router.
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
@@ -90,6 +86,11 @@ TOP_FINDINGS = [
 ]
 
 DIR8_ORDER = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+
+
+def dir8(wd: float) -> str:
+    """Map wind direction (degrees) to 8-point compass label."""
+    return DIR8_ORDER[int((float(wd) + 22.5) / 45) % 8]
 
 # ──────────────────────────────────────────────────────────────────────────────
 # DATA LOADING
@@ -545,11 +546,9 @@ with tab_wind:
         "Direction = sector wind is coming FROM. All 7 stations share the same ERA5 time series."
     )
 
-    def dir8(wd):
-        dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-        return dirs[int((float(wd) + 22.5) / 45) % 8]
-
-    df["dir8"] = df["WindDirection"].apply(dir8)
+    # Work on a copy — never mutate the cached df
+    df_wind = df.copy()
+    df_wind["dir8"] = df_wind["WindDirection"].apply(dir8)
 
     # ── Section A: Wind speed × dispersion ────────────────────────────────────
     st.markdown("#### " + tr("A — Wind speed reduces pollution monotonically"))
@@ -609,7 +608,7 @@ with tab_wind:
     _poll_wind = st.selectbox(tr("Pollutant"), POLLUTANTS, index=2, key="wind_poll")
 
     _pivot = (
-        df.groupby(["dir8", "station"])[_poll_wind]
+        df_wind.groupby(["dir8", "station"])[_poll_wind]
         .mean()
         .unstack("station")
         .reindex(DIR8_ORDER)
@@ -648,7 +647,7 @@ with tab_wind:
 
     with _wc1:
         _daily_freq = (
-            df.drop_duplicates("Date")["dir8"]
+            df_wind.drop_duplicates("Date")["dir8"]
             .value_counts(normalize=True).reindex(DIR8_ORDER).fillna(0) * 100
         )
         fig_m = go.Figure()
