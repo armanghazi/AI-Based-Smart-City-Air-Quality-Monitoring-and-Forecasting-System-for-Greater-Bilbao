@@ -702,9 +702,9 @@ with st.sidebar:
         <b style="color:#0c1521">Arman Ghaziaskari Naeini</b><br>
         GIS &amp; Spatial Data Science<br><br>
         <a href="https://armanghazi.github.io/portfolio"
-           style="color:#0ea5b5;text-decoration:none">Portfolio</a>&nbsp;&nbsp;
+           style="color:#0ea5b5;text-decoration:none">🔗 Portfolio</a><br>
         <a href="https://github.com/armanghazi"
-           style="color:#0ea5b5;text-decoration:none">GitHub</a>
+           style="color:#0ea5b5;text-decoration:none">🐙 GitHub</a>
         </div>
         """,
         unsafe_allow_html=True,
