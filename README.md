@@ -1,4 +1,4 @@
-﻿# 🌍 GeoAI Smart City Platform — Air Quality Intelligence for Greater Bilbao
+# 🌍 GeoAI Smart City Platform — Air Quality Intelligence for Greater Bilbao
 
 <p align="center">
   <img src="dashboard/static/geoai_logo.svg" alt="GeoAI Logo" width="380"/>
@@ -47,15 +47,15 @@ The platform integrates Environmental Data Science, GIS, Machine Learning, and I
 
 ### Environmental Zone Classification
 
-| Station   | Zone          | Signature                                                                       |
-| --------- | ------------- | ------------------------------------------------------------------------------- |
-| Mazarredo | 🏙️ Urban      | Highest NO₂ — traffic, urban canyon, 501 m from city centre                     |
-| Erandio   | 🏙️ Urban      | Traffic influence, 1.3 km from AP-8 motorway                                    |
-| Basauri   | 🏭 Industrial | High PM2.5/PM10 — industrial land use 32% within 500 m                          |
-| Barakaldo | 🏭 Industrial | High PM, elevated NO₂ — 354 m from AP-8, highest road density in network        |
-| Santurtzi | ⚓ Port       | Marine + traffic, elevated SO₂ — 784 m from Port of Bilbao                      |
-| Algorta   | 🌊 Coastal    | Best dispersion — lowest road density, 2.6 km coast, NW sea breeze              |
-| Muskiz    | 🛢️ Refinery   | Petronor petrochemical profile — paradoxically low PM due to coastal dispersion |
+| Station   | Zone            | Signature                                                                       |
+| --------- | --------------- | ------------------------------------------------------------------------------- |
+| Mazarredo | 🏙️ Urban        | Highest NO₂ — traffic, urban canyon, 501 m from city centre                     |
+| Erandio   | 🏙️ Urban        | Traffic influence, 1.3 km from AP-8 motorway                                    |
+| Basauri   | 🏭 Industrial   | High PM2.5/PM10 — industrial land use 32% within 500 m                          |
+| Barakaldo | 🏭 Industrial   | High PM, elevated NO₂ — 354 m from AP-8, highest road density in network        |
+| Santurtzi | ⚓ Port         | Marine + traffic, elevated SO₂ — 784 m from Port of Bilbao                      |
+| Algorta   | 🌊 Coastal      | Best dispersion — lowest road density, 2.6 km coast, NW sea breeze              |
+| Muskiz    | 🛢️ Refinery     | Petronor petrochemical profile — paradoxically low PM due to coastal dispersion |
 
 > Muskiz was initially classed as Coastal; GIS analysis revealed its refinery-driven emission profile warranted a separate zone. Despite having the highest industrial land use (34.6%), it records the network's lowest PM2.5 (6.5 µg/m³) due to coastal position and terrain complexity — the **MUSKIZ dispersion paradox**, confirmed by three independent GIS methods.
 
@@ -65,11 +65,11 @@ The platform integrates Environmental Data Science, GIS, Machine Learning, and I
 
 The platform uses three complementary standards, each answering a different question:
 
-| Standard                    | Question                                         | Values (NO₂)          | Use in platform                                        |
-| --------------------------- | ------------------------------------------------ | --------------------- | ------------------------------------------------------ |
-| **EAQI / ICA**              | Is the air safe to go outside today?             | Good ≤ 40 µg/m³       | Public UI, alert banners, station cards, zone badges   |
-| **WHO 2021**                | How far are we from the long-term health target? | Annual limit 10 µg/m³ | Risk Score, reference lines in charts, health analysis |
-| **EU Directive 2008/50/EC** | Is the legal limit being broken?                 | Annual limit 40 µg/m³ | Daily Briefing alerts, Decision Support, PDF reports   |
+| Standard | Question | Values (NO₂) | Use in platform |
+|----------|----------|--------------|-----------------|
+| **EAQI / ICA** | Is the air safe to go outside today? | Good ≤ 40 µg/m³ | Public UI, alert banners, station cards, zone badges |
+| **WHO 2021** | How far are we from the long-term health target? | Annual limit 10 µg/m³ | Risk Score, reference lines in charts, health analysis |
+| **EU Directive 2008/50/EC** | Is the legal limit being broken? | Annual limit 40 µg/m³ | Daily Briefing alerts, Decision Support, PDF reports |
 
 > EAQI is for public communication. WHO is for health science. EU Directive is for legal compliance. All three appear in the dashboard but in their appropriate context.
 
@@ -202,18 +202,18 @@ SVI = rescale( mean( z_road_density, −z_dist_centre, −z_TRI ) ) → 0–100
 
 ## Interactive Dashboard (10 pages)
 
-| Page                                         | Contents                                                                                                                                                                                                                    |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **0 · Daily Briefing**                       | Automated daily summary, D-1 air quality across all stations, EAQI badges per station, PDF export                                                                                                                           |
-| **1 · Air Quality Monitoring**               | Interactive Folium GIS map with AQI/SVI toggle, EAQI station cards, zone comparison, station ranking                                                                                                                        |
-| **2 · Temporal Trends**                      | Long-term & seasonal trends, COVID-19 impact, GeoAI Pattern Discovery; WHO/EU/EAQI toggleable reference lines on all charts                                                                                                 |
-| **3 · GeoAI Spatial Analysis**               | 4 tabs: Station DNA profiles · Spatial driver correlation matrix (12 features × 4 pollutants) · Terrain & dispersion (Copernicus DEM) · Wind transport analysis (Sections A–D)                                              |
-| **4 · Weather Drivers**                      | Correlation matrix (with Wind Transport Sections A–D integrated in Tab 1), wind roses (shared color scale), lag analysis, rolling mean features, forecast feature ranking (full dataset)                                    |
-| **5 · Forecasting**                          | Next-day backtest with EAQI forecast box, recursive multi-day forecast, WHO/EU/EAQI reference line toggles, multi-day table with WHO/EU/EAQI columns, SHAP explainability                                                   |
-| **6 · Smart City Decision Support**          | 4 tabs: Current Status · Forecast & Map · Decisions & Actions (model-based + policy elasticity simulation) · Spatial Intelligence; Risk chart with WHO/EU/EAQI toggle lines; station table with EU Directive + EAQI columns |
-| **7 · GeoAI Methodology**                    | Full methodology reference: platform overview, GIS findings, ML architecture, benchmark comparison, 6 honest scientific caveats                                                                                             |
-| **8 · Project Assistant**                    | Conversational AI (OpenRouter / Llama 3.3 70B) — answers data AND methodology questions; parametric query tool (no SQL injection)                                                                                           |
-| **9 · Smart City Operations** _(admin-only)_ | Enterprise-grade operational dashboard — DQS (4 components), active alerts, sensor health, >3σ outlier detection                                                                                                            |
+| Page | Contents |
+|------|----------|
+| **0 · Daily Briefing** | Automated daily summary, D-1 air quality across all stations, EAQI badges per station, PDF export |
+| **1 · Air Quality Monitoring** | Interactive Folium GIS map with AQI/SVI toggle, EAQI station cards, zone comparison, station ranking |
+| **2 · Temporal Trends** | Long-term & seasonal trends, COVID-19 impact, GeoAI Pattern Discovery; WHO/EU/EAQI toggleable reference lines on all charts |
+| **3 · GeoAI Spatial Analysis** | 4 tabs: Station DNA profiles · Spatial driver correlation matrix (12 features × 4 pollutants) · Terrain & dispersion (Copernicus DEM) · Wind transport analysis (Sections A–D) |
+| **4 · Weather Drivers** | Correlation matrix (with Wind Transport Sections A–D integrated in Tab 1), wind roses (shared color scale), lag analysis, rolling mean features, forecast feature ranking (full dataset) |
+| **5 · Forecasting** | Next-day backtest with EAQI forecast box, recursive multi-day forecast, WHO/EU/EAQI reference line toggles, multi-day table with WHO/EU/EAQI columns, SHAP explainability |
+| **6 · Smart City Decision Support** | 4 tabs: Current Status · Forecast & Map · Decisions & Actions (model-based + policy elasticity simulation) · Spatial Intelligence; Risk chart with WHO/EU/EAQI toggle lines; station table with EU Directive + EAQI columns |
+| **7 · GeoAI Methodology** | Full methodology reference: platform overview, GIS findings, ML architecture, benchmark comparison, 6 honest scientific caveats |
+| **8 · Project Assistant** | Conversational AI (OpenRouter / Llama 3.3 70B) — answers data AND methodology questions; parametric query tool (no SQL injection) |
+| **9 · Smart City Operations** _(admin-only)_ | Enterprise-grade operational dashboard — DQS (4 components), active alerts, sensor health, >3σ outlier detection |
 
 **Cross-cutting features:** EAQI/ICA + EPA dual AQI display, gauge indicators, calendar heatmaps, WHO + EU + EAQI reference lines with toggles, PDF export, favourite-station selector, bilingual interface (EN/ES), admin authentication (Google OAuth OIDC).
 
@@ -284,18 +284,29 @@ Outlier detection uses **>3σ rule** — explicitly labelled as a statistical me
 project/
 │
 ├── data/
-│   ├── raw/                                 # original CSVs per station per year
+│   ├── raw/                                 # gitignored — original CSVs per station/year,
+│   │                                         # fetched via Open Data Euskadi API (notebook 00)
 │   └── processed/
 │       ├── air_quality_weather.parquet       # dashboard source — live, pipeline appends daily
 │       ├── forecasting_dataset.parquet       # ML-ready snapshot (62 features) — FROZEN
 │       ├── station_spatial_features_v3.csv   # 7 stations × ~35 spatial features (GIS Phase C)
-│       └── weather_data.csv
+│       ├── weather_data.csv
+│       └── archive/                          # superseded intermediate files, kept for history
+│           ├── air_quality_bilbao_2012_2026.csv
+│           ├── cleaned_air_quality_bilbao_2015_2026.csv
+│           ├── final_air_quality.parquet
+│           ├── station_spatial_features_v2.csv
+│           └── station_spatial_features_long.csv
+│
+├── met/                                     # gitignored — raw per-station weather pulls
+│                                             # (Open-Meteo ERA5), merged into the processed
+│                                             # parquet above; see met/openmeteo.ipynb locally
 │
 ├── notebooks/
 │   ├── 00_api_exploration.ipynb
 │   ├── 01_data_loading.ipynb
 │   ├── 02_data_cleaning.ipynb               # MICE imputation (training snapshot only)
-│   ├── 03_eda.ipynb
+│   ├── 03_EDA.ipynb
 │   ├── 04_gis_spatial_analysis.ipynb        # zone classification
 │   ├── 05_weather_data.ipynb
 │   ├── 06_feature_engineering.ipynb
@@ -325,6 +336,11 @@ project/
 │   ├── dem_N43_W004.tif                     # Copernicus GLO-30 tile (30m)
 │   └── dem_bilbao_utm30n.tif                # merged + reprojected to EPSG:25830
 │
+├── maps/                                    # static PNG exports from GIS notebooks
+│                                             # (correlation charts, wind roses, station maps)
+│
+├── reports/                                 # markdown write-ups from EDA / spatial analysis
+│
 ├── dashboard/
 │   ├── app.py                               # st.navigation router — clustered layout
 │   ├── config.py                            # shared loader, zones, WHO + EU + EAQI limits
@@ -340,6 +356,7 @@ project/
 │   ├── spatial_utils.py                     # IDW + comarca boundary mask (EPSG:25830)
 │   ├── weather_panel.py                     # weather_snapshot + weather_trend components
 │   ├── assets/                              # pre-computed SHAP plots (PNG)
+│   ├── static/                              # logo + branding assets
 │   ├── .streamlit/                          # config.toml · secrets.toml (gitignored)
 │   └── pages/
 │       ├── 0_Daily_Briefing.py              # D-1 status snapshot, EAQI badges, PDF export
@@ -355,8 +372,11 @@ project/
 │
 ├── tests/                                   # pytest suite (11 tests)
 ├── requirements.txt                         # streamlit-folium≥0.27.2, plotly≤5.22.0
+├── LICENSE
 └── README.md
 ```
+
+> **Note:** `data/raw/` and `met/` are gitignored — they hold large per-station-per-year raw pulls that are fully reproducible from the public APIs (notebooks `00`–`01` and `met/openmeteo.ipynb`). Only processed, analysis-ready outputs are version-controlled.
 
 ---
 
