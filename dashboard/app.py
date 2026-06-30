@@ -17,6 +17,21 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# --------------------------------------------------
+# Auto-redirect admin to Operations Dashboard once per session after login.
+# Runs BEFORE st.navigation/pg.run() so it fires before Home ever renders.
+# "_admin_welcomed" guards against redirect-looping on every rerun.
+# --------------------------------------------------
+try:
+    if st.user.is_logged_in:
+        from auth import current_role
+        role = current_role()
+        if role == "admin" and not st.session_state.get("_admin_welcomed"):
+            st.session_state["_admin_welcomed"] = True
+            st.switch_page("pages/9_Smart_City_Operations.py")
+except Exception:
+    pass
+
 # Shared i18n state — called here so language persists across pages
 language_selector()
 apply_lang_styles()
@@ -78,45 +93,6 @@ if _logo.exists():
 pages["Admin"] = [operations]
 
 pg = st.navigation(pages)
-
-# --------------------------------------------------
-# Post-login redirect-back — return the user to the page that
-# triggered st.login() instead of always landing on Home.
-# Streamlit's docs confirm st.login() always redirects to the app's
-# homepage in a brand-new session — session_state and query_params are
-# both wiped in that round-trip. A real browser cookie (set in
-# auth._login_and_remember(), same EncryptedCookieManager pattern used
-# for the favourite-station cookie) is the only state that survives it.
-# --------------------------------------------------
-if st.user.is_logged_in and not st.session_state.get("_login_redirect_done"):
-    st.session_state["_login_redirect_done"] = True
-    try:
-        from streamlit_cookies_manager import EncryptedCookieManager
-        _cookies = EncryptedCookieManager(
-            prefix="smart_city_air",
-            password=st.secrets.get("cookie_password", "local-dev-only-change-me"),
-        )
-        if _cookies.ready():
-            _target = _cookies.get("login_redirect_target")
-            if _target:
-                del _cookies["login_redirect_target"]
-                _cookies.save()
-                _page_map = {
-                    "Smart_City_Operations":        operations,
-                    "Air_Quality_Monitoring":        monitoring,
-                    "Temporal_Trends":               temporal,
-                    "Forecasting":                    forecast,
-                    "GeoAI_Spatial_Analysis":         spatial,
-                    "Weather_Drivers":                weather,
-                    "Smart_City_Decision_Support":    decision,
-                    "Project_Assistant":              assistant,
-                    "Scope_and_Limitations":          methods,
-                }
-                _matched = _page_map.get(_target)
-                if _matched:
-                    st.switch_page(_matched)
-    except ImportError:
-        pass
 
 st.markdown("""
 <style>

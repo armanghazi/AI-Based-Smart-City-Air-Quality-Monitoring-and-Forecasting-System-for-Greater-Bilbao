@@ -17,8 +17,6 @@ Requirements:
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import streamlit as st
 
 
@@ -52,54 +50,18 @@ def current_role() -> str | None:
 # --------------------------------------------------
 # UI helpers
 # --------------------------------------------------
-def _get_cookies():
-    """Lazy cookie manager — reuses the same prefix/password as Home.py's
-    favourite-station cookie. A real browser cookie is the only state that
-    survives st.login()'s full-page OIDC redirect (session_state and
-    query_params are both wiped — Streamlit documents that st.login always
-    lands the user back on the app's homepage in a brand-new session)."""
-    try:
-        from streamlit_cookies_manager import EncryptedCookieManager
-        cookies = EncryptedCookieManager(
-            prefix="smart_city_air",
-            password=st.secrets.get("cookie_password", "local-dev-only-change-me"),
-        )
-        if not cookies.ready():
-            st.stop()
-        return cookies
-    except ImportError:
-        return None
-
-
 def _login_screen() -> None:
     st.title("🔒 This area is private")
     st.write("Please sign in with your Google account to continue.")
 
-    # Identify the current page (filename without extension) so app.py can
-    # switch back to it once the OIDC round-trip completes.
-    try:
-        current_page = Path(st.context.url).stem
-    except Exception:
-        current_page = ""
+    def _login_and_remember():
+        # Remember which page triggered the login so app.py can route back
+        # to it after st.login's OIDC redirect — otherwise Streamlit always
+        # lands on the default page (Home).
+        st.session_state["_login_redirect_target"] = st.context.url
+        st.login()
 
-    cookies = _get_cookies()
-
-    # EncryptedCookieManager writes the cookie via a JS component that only
-    # actually persists on the NEXT rerun — calling st.login() immediately
-    # after cookies.save() in the same callback navigates away before the
-    # browser commits the cookie. So this is split into two clicks:
-    #   1) "Continue" stages the cookie and reruns the script normally.
-    #   2) Once cookies.ready() confirms the write, the real login button
-    #      appears and only THEN do we call st.login().
-    staged = cookies is not None and cookies.get("login_redirect_target") == current_page
-
-    if cookies is not None and current_page and not staged:
-        if st.button("Continue", type="primary"):
-            cookies["login_redirect_target"] = current_page
-            cookies.save()
-            st.rerun()
-    else:
-        st.button("Log in with Google", type="primary", on_click=st.login)
+    st.button("Log in with Google", type="primary", on_click=_login_and_remember)
 
 
 def logout_button(location=st.sidebar) -> None:
