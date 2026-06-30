@@ -87,23 +87,51 @@ def freshness_score(days: int) -> float:
     return max(0.0, 100 - 20 * days)
 
 
-def completeness_score(df_: pd.DataFrame) -> float:
-    """100 × (1 − missing_ratio) across measured pollutant columns. Weight 0.30."""
-    measured = [
-        p for p in POLLUTANTS
-        if p in df_.columns and df_.groupby("station")[p].apply(lambda s: s.notna().mean()).mean() >= NO_SENSOR_THRESHOLD
-    ]
-    if not measured:
+def completeness_score(df_: pd.DataFrame, window_days: int = 30) -> float:
+    """100 × (1 − missing_ratio) across measured pollutant columns,
+    computed on the last `window_days` only — reflects current operational
+    health, not diluted by 12 years of history. Weight 0.30.
+
+    A pollutant column counts as 'measured' for a station only if its
+    long-term (full-history) coverage clears NO_SENSOR_THRESHOLD — this
+    keeps stations with genuinely no sensor (e.g. no SO₂ unit) from being
+    penalised, while still catching real recent gaps.
+    """
+    cutoff = latest - pd.Timedelta(days=window_days)
+    recent = df_[df_["Date"] >= cutoff]
+    if recent.empty:
         return 100.0
-    total = len(df_) * len(measured)
-    missing = int(df_[measured].isna().sum().sum())
-    return round(100 * (1 - missing / total), 1)
+
+    total_missing = 0
+    total_cells   = 0
+    for stn, sg_full in df_.groupby("station"):
+        sg_recent = recent[recent["station"] == stn]
+        if sg_recent.empty:
+            continue
+        for p in POLLUTANTS:
+            if p not in sg_full.columns:
+                continue
+            long_term_coverage = sg_full[p].notna().mean()
+            if long_term_coverage < NO_SENSOR_THRESHOLD:
+                continue  # genuinely no sensor — excluded, not penalised
+            total_cells   += len(sg_recent)
+            total_missing += int(sg_recent[p].isna().sum())
+
+    if total_cells == 0:
+        return 100.0
+    return round(100 * (1 - total_missing / total_cells), 1)
 
 
-def integrity_score(df_: pd.DataFrame) -> float:
-    """100 − 5 × duplicates − 10 × invalid rows. Weight 0.20."""
-    dups = int(df_.duplicated(subset=["Date", "station"]).sum())
-    invalids = int((df_[POLLUTANTS].lt(0)).any(axis=1).sum())
+def integrity_score(df_: pd.DataFrame, window_days: int = 30) -> float:
+    """100 − 5 × duplicates − 10 × invalid rows, computed on the last
+    `window_days` only — same rationale as completeness_score. Weight 0.20.
+    """
+    cutoff = latest - pd.Timedelta(days=window_days)
+    recent = df_[df_["Date"] >= cutoff]
+    if recent.empty:
+        return 100.0
+    dups = int(recent.duplicated(subset=["Date", "station"]).sum())
+    invalids = int((recent[POLLUTANTS].lt(0)).any(axis=1).sum())
     return max(0.0, 100 - 5 * dups - 10 * invalids)
 
 
@@ -269,12 +297,14 @@ with st.expander(f"ℹ️ {tr('How is the Data Quality Score calculated?')}"):
     st.markdown(f"""
 **DQS = 0.35 F + 0.30 C + 0.20 I + 0.15 A**
 
-| {tr('Component')} | {tr('Formula')} | {tr('Weight')} |
-|---|---|---|
-| **{tr('Freshness')}** | `100 − 20 × days_behind` | 0.35 |
-| **{tr('Completeness')}** | `100 × (1 − missing_ratio)` | 0.30 |
-| **{tr('Integrity')}** | `100 − 5 × duplicates − 10 × invalid_rows` | 0.20 |
-| **{tr('Stability')}** | `100 − 2 × outliers_last_7d (>3σ)` | 0.15 |
+| {tr('Component')} | {tr('Formula')} | {tr('Window')} | {tr('Weight')} |
+|---|---|---|---|
+| **{tr('Freshness')}** | `100 − 20 × days_behind` | {tr('Latest day')} | 0.35 |
+| **{tr('Completeness')}** | `100 × (1 − missing_ratio)` | {tr('Last 30 days')} | 0.30 |
+| **{tr('Integrity')}** | `100 − 5 × duplicates − 10 × invalid_rows` | {tr('Last 30 days')} | 0.20 |
+| **{tr('Stability')}** | `100 − 2 × outliers_last_7d (>3σ)` | {tr('Last 7 days')} | 0.15 |
+
+{tr('Completeness and Integrity are computed on the last 30 days only — recent gaps stay visible instead of being diluted by 12 years of history.')}
 
 | {tr('Score')} | {tr('Meaning')} |
 |---|---|
