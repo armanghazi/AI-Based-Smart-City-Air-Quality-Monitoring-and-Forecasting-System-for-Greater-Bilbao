@@ -179,6 +179,9 @@ for _col in _EXPECTED_COLS:
     if _col not in fc_df.columns:
         fc_df[_col] = None
 
+# Alias for pdf_report.py compatibility — expects "Exceeds" not "EU_exceeds"
+fc_df["Exceeds"] = fc_df["EU_exceeds"]
+
 # Summary for alert banner — EAQI Poor+ (level >= 4)
 poor_df = fc_df[fc_df["EAQI_level"].fillna(0) >= 4]
 n_poor  = len(poor_df)
