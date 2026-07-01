@@ -22,10 +22,13 @@ from config import (
 )
 from forecast_utils import prepare_features
 from gauge_component import render_gauge_row
-from aqi import overall_aqi, compute_aqi_category, AQI_POLLUTANTS, AQI_CATEGORIES, AQI_THRESHOLDS
+from aqi import overall_aqi, compute_aqi_category, AQI_POLLUTANTS, AQI_CATEGORIES
 from aqi_components import (
     render_aqi_donut, render_station_aqi_cards, render_aqi_calendar,
 )
+
+from pdf_report import generate_monthly_report
+from config import EU_ANNUAL
 
 from pdf_report import generate_daily_report, generate_monthly_report
 
@@ -40,7 +43,11 @@ plotly_touch_config()
 # 1. PAGE CONFIG
 # ==================================================
 
-# NOTE: st.set_page_config is intentionally absent — called once in app.py router.
+st.set_page_config(
+    page_title="Smart City Decision Support",
+    page_icon="🏛️",
+    layout="wide",
+)
 center_tables()
 # ==================================================
 # 2. CONSTANTS
@@ -136,12 +143,6 @@ with st.sidebar:
     }[window_label]
 
     st.divider()
-    st.markdown("### 📏 " + tr("Reference lines"))
-    show_who_risk  = st.toggle(tr("Show WHO limit"),          value=True,  key="risk_who")
-    show_eu_risk   = st.toggle(tr("Show EU Directive limit"), value=False, key="risk_eu")
-    show_eaqi_risk = st.toggle(tr("Show EAQI Good ceiling"),  value=False, key="risk_eaqi")
-
-    st.divider()
     st.markdown("### 🗺️ " + tr("Zone Legend"))
     for z, meta in ZONE_META.items():
         st.markdown(f"{meta['icon']} **{z}**")
@@ -190,23 +191,6 @@ display = display[["Rank", "station", "Zone", "PM2.5", "PM10",
 display[POLLUTANTS]  = display[POLLUTANTS].round(1)
 display["RiskScore"] = display["RiskScore"].round(0).astype(int)
 
-# EU Directive status — any core pollutant above EU annual limit?
-def _eu_status(row) -> str:
-    for p in CORE_POLLUTANTS:
-        eu_lim = EU_ANNUAL.get(p)
-        if eu_lim and row[p] > eu_lim:
-            return f"⚠️ {p}"
-    return "✅ OK"
-
-# EAQI overall — based on period mean values
-def _eaqi_status(row) -> str:
-    vals = {p: row[p] for p in ["PM2.5", "PM10", "NO2", "SO2"] if not pd.isna(row[p])}
-    res = overall_aqi(vals)
-    return res["label"] if res else "—"
-
-display["EU Directive"] = display.apply(_eu_status, axis=1)
-display["EAQI"]         = display.apply(_eaqi_status, axis=1)
-
 # 6d. Load all 4 models once (used in tab_forecast and tab_action)
 bundles       = {p: load_model(p) for p in POLLUTANTS}
 missing_models = [p for p, b in bundles.items() if b is None]
@@ -250,26 +234,6 @@ zone_means = (
     recent.groupby("Zone")[POLLUTANTS].mean().round(1)
     .reindex([z for z in ZONE_META if z in recent["Zone"].unique()])
 )
-
-# ── Module-level helpers (used in tab_forecast wind section) ──────────────────
-
-def _cardinal(d: float) -> str:
-    dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-    return dirs[int((float(d) + 22.5) / 45) % 8]
-
-
-def _dispersion_verdict(ws: float) -> tuple[str, str]:
-    if ws < 10:  return tr("⚠️ Calm — poor dispersion, elevated pollution likely"), "warning"
-    if ws < 15:  return tr("🟡 Light wind — moderate dispersion"), "warning"
-    if ws < 20:  return tr("🟢 Moderate wind — good dispersion"), "success"
-    return tr("✅ Strong wind — excellent dispersion"), "success"
-
-
-def _svi_color(v: float) -> str:
-    if v >= 70: return "#e74c3c"
-    if v >= 40: return "#f39c12"
-    return "#2ecc71"
-
 
 # ==================================================
 # 7. TABS
@@ -376,15 +340,13 @@ the European index as an internationally familiar reference point.
     st.markdown(f"## 📊 {tr('Station Risk Prioritization')} — {window_label}")
     st.caption(
         tr("Composite risk = mean of (concentration ÷ WHO limit) across PM2.5, "
-           "PM10, NO₂ · ×100. Below 100 = within WHO guidelines.")
+           "PM10, NO₂ · ×100. Below 100 = within guidelines.")
     )
 
     col_t, col_c = st.columns([3, 2])
     with col_t:
         st.dataframe(
-            display[["Rank", "station", "Zone", "PM2.5", "PM10",
-                      "NO2", "SO2", "RiskScore", "RiskLevel",
-                      "EU Directive", "EAQI"]],
+            display,
             width="stretch", hide_index=True,
             column_config={
                 "RiskScore": st.column_config.ProgressColumn(
@@ -401,42 +363,12 @@ the European index as an internationally familiar reference point.
             text=station_means["RiskScore"].round(0).astype(int),
             textposition="outside",
         ))
-        # WHO reference line (score = 100 means exactly at WHO limit)
-        if show_who_risk:
-            fig_rank.add_vline(
-                x=100, line_dash="dash", line_color="#e74c3c", opacity=0.7,
-                annotation_text="WHO = 100",
-                annotation_font_size=9,
-            )
-        # EU Directive — ratio EU/WHO × 100 averaged across PM2.5, PM10, NO2
-        if show_eu_risk:
-            _eu_scores = [
-                EU_ANNUAL.get(p, WHO_ANNUAL[p]) / WHO_ANNUAL[p] * 100
-                for p in CORE_POLLUTANTS
-            ]
-            _eu_line = sum(_eu_scores) / len(_eu_scores)
-            fig_rank.add_vline(
-                x=_eu_line, line_dash="dot", line_color="#27ae60", opacity=0.7,
-                annotation_text=f"EU ≈ {_eu_line:.0f}",
-                annotation_font_size=9,
-            )
-        # EAQI Good — ratio EAQI_Good/WHO × 100 averaged across PM2.5, PM10, NO2
-        if show_eaqi_risk:
-            _eaqi_scores = []
-            for p in CORE_POLLUTANTS:
-                _good = AQI_THRESHOLDS.get(p, [None])[0]
-                if _good and WHO_ANNUAL.get(p):
-                    _eaqi_scores.append(_good / WHO_ANNUAL[p] * 100)
-            if _eaqi_scores:
-                _eaqi_line = sum(_eaqi_scores) / len(_eaqi_scores)
-                fig_rank.add_vline(
-                    x=_eaqi_line, line_dash="longdash", line_color="#50ccaa", opacity=0.6,
-                    annotation_text=f"EAQI Good ≈ {_eaqi_line:.0f}",
-                    annotation_font_size=9,
-                )
+        fig_rank.add_vline(
+            x=100, line_dash="dash", line_color="#555", annotation_text="WHO"
+        )
         fig_rank.update_layout(
-            height=340, margin=dict(l=10, r=60, t=30, b=10),
-            xaxis_title=tr("Composite risk score (100 = WHO limit)"),
+            height=340, margin=dict(l=10, r=40, t=30, b=10),
+            xaxis_title=tr("Composite risk score"),
             yaxis=dict(autorange="reversed"),
             title=tr("Priority ranking"),
             dragmode=False,
@@ -729,7 +661,7 @@ with tab_forecast:
         st.caption(
             tr(
                 "Regional wind conditions (ERA5 single grid cell, ~31 km resolution) "
-                "that influence the latest available forecast. "
+                "that influence today's forecast. "
                 "Wind speed controls atmospheric dispersion; wind direction determines "
                 "which emission sources are upwind of each station."
             )
@@ -739,6 +671,16 @@ with tab_forecast:
         _latest_wind = df[df["Date"] == latest_date][["WindSpeed","WindDirection","wind_u","wind_v"]].mean()
         _ws   = float(_latest_wind["WindSpeed"])
         _wd   = float(_latest_wind["WindDirection"])
+
+        def _cardinal(d):
+            dirs = ["N","NE","E","SE","S","SW","W","NW"]
+            return dirs[int((d+22.5)/45)%8]
+
+        def _dispersion_verdict(ws):
+            if ws < 10:  return tr("⚠️ Calm — poor dispersion, elevated pollution likely"), "warning"
+            if ws < 15:  return tr("🟡 Light wind — moderate dispersion"), "warning"
+            if ws < 20:  return tr("🟢 Moderate wind — good dispersion"), "success"
+            return tr("✅ Strong wind — excellent dispersion"), "success"
 
         _verdict, _vcol = _dispersion_verdict(_ws)
 
@@ -986,7 +928,7 @@ with tab_action:
     if sim_mode == "Model-based counterfactual":
         st.info(
             tr("🟢 **Honest what-if:** perturbs features the model actually uses "
-               "(weather + latest available levels (D-1)), then re-runs `model.predict()`. "
+               "(weather + today's levels), then re-runs `model.predict()`. "
                "This is a real model output.")
         )
 
@@ -1241,7 +1183,7 @@ city-wide is **{worst_pollutant}** at
         if not alerts_df.empty:
             csv_alerts = alerts_df.to_csv(index=False).encode("utf-8")
             st.download_button(
-                tr(f"⬇️ Forecast alerts — {forecast_date.strftime('%d %b %Y')} (CSV)"),
+                tr("⬇️ Tomorrow's forecast alerts (CSV)"),
                 data=csv_alerts,
                 file_name=f"forecast_alerts_{latest_date.strftime('%Y%m%d')}.csv",
                 mime="text/csv",
@@ -1281,7 +1223,7 @@ city-wide is **{worst_pollutant}** at
     with e4:
         st.caption(
             tr("3-page report: executive summary, station risk ranking, "
-               "WHO vs EU comparison, forecast alerts for the next day, "
+               "WHO vs EU comparison, tomorrow's forecast alerts, "
                "and zone-level recommended actions.")
         )
 
@@ -1546,6 +1488,47 @@ with tab_spatial:
         )
     )
 
+    with st.expander(tr("ℹ️ How SVI, TRI and IDW are calculated")):
+        st.markdown(tr("""
+**SVI — Structural Vulnerability Index (0–100)**
+
+Composite z-score of the three strongest spatial predictors validated against the network:
+
+| Feature | Direction | Pearson r with NO₂ |
+|---|---|---|
+| Road density (1km buffer) | Higher = more exposed | +0.83 |
+| Distance to city centre | Closer = more exposed (inverted) | −0.77 |
+| Terrain Relief Index TRI (2km) | Higher TRI = better dispersion (inverted) | −0.63 |
+
+**Formula:**
+```
+SVI = rescale( mean( z_road_density, −z_dist_centre, −z_TRI ) )  →  0–100
+```
+0 = structurally cleanest · 100 = most exposed to structural pollution pressure.
+Validated: SVI correlates with observed mean NO₂ at r = 0.77 across the network.
+
+⚠️ **Limitation:** SVI captures traffic and terrain drivers only. It does not represent
+port emissions (SANTURCE) or industrial point sources (MUSKIZ) — which require
+wind direction analysis rather than static distance metrics.
+
+---
+
+**TRI — Terrain Relief Index**
+
+Standard deviation of elevation within a 2 km radius of the sensor.
+High TRI → complex, rugged terrain → stronger turbulent mixing → pollutants disperse faster.
+Computed from Copernicus GLO-30 DEM (30 m resolution, EPSG:25830, notebook 10c).
+
+---
+
+**IDW — Inverse Distance Weighting**
+
+Interpolation method that converts the 7 point measurements into a continuous surface.
+Each grid pixel gets a weighted average of all station values where weight = 1 / distance².
+Clipped to the Gran Bilbao comarca boundary (COMARCAS_5000_ETRS89.shp, EPSG:25830).
+**Visual approximation only** — terrain, road density, and local sources are not modelled.
+"""))
+
     # Compute SVI from available spatial features
     _svi_cols = {
         "road_density_1000m":   +1,   # higher road density = worse
@@ -1585,6 +1568,11 @@ with tab_spatial:
         svi_col1, svi_col2 = st.columns([3, 2])
 
         with svi_col1:
+            def _svi_color(v):
+                if v >= 70: return "#e74c3c"
+                if v >= 40: return "#f39c12"
+                return "#2ecc71"
+
             fig_svi_bar = go.Figure(go.Bar(
                 x=_df_svi["SVI"],
                 y=_df_svi["station"],
