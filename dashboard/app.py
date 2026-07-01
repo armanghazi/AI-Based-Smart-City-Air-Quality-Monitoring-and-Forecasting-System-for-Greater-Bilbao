@@ -17,21 +17,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --------------------------------------------------
-# Auto-redirect admin to Operations Dashboard once per session after login.
-# Runs BEFORE st.navigation/pg.run() so it fires before Home ever renders.
-# "_admin_welcomed" guards against redirect-looping on every rerun.
-# --------------------------------------------------
-try:
-    if st.user.is_logged_in:
-        from auth import current_role
-        role = current_role()
-        if role == "admin" and not st.session_state.get("_admin_welcomed"):
-            st.session_state["_admin_welcomed"] = True
-            st.switch_page("pages/9_Smart_City_Operations.py")
-except Exception:
-    pass
-
 # Shared i18n state — called here so language persists across pages
 language_selector()
 apply_lang_styles()
@@ -41,6 +26,8 @@ apply_lang_styles()
 # --------------------------------------------------
 home       = st.Page("pages/Home.py",
                      title="Home",                        icon="🌬️",  default=True)
+briefing   = st.Page("pages/0_Daily_Briefing.py",
+                     title="Daily Briefing",              icon="🌅")
 monitoring = st.Page("pages/1_Air_Quality_Monitoring.py",
                      title="Air Quality Monitoring",      icon="📡")
 temporal   = st.Page("pages/2_Temporal_Trends.py",
@@ -62,15 +49,13 @@ operations = st.Page("pages/9_Smart_City_Operations.py",
 
 # --------------------------------------------------
 # Navigation structure
-# "" = header-less group at the top (Home only)
-# Single-page sections (Forecasting) get a header but page title differs
 # --------------------------------------------------
 pages: dict = {
     "":                       [home],
-    "Monitoring":             [monitoring, temporal],
+    "Monitoring":             [briefing, monitoring, temporal],
     "Forecasting":            [forecast],
     "GeoAI Spatial Analysis": [spatial, weather, decision],
-    "Project":                [assistant, methods],  # assistant برمی‌گردد
+    "Project":                [assistant, methods],
 }
 
 
