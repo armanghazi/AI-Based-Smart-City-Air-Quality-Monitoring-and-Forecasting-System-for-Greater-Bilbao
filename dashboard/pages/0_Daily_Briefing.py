@@ -102,52 +102,28 @@ def _load_bundle(pollutant: str):
     return joblib.load(path) if path.exists() else None
 
 
-def _prepare_features(sdf: pd.DataFrame, feats: list) -> pd.DataFrame:
-    """Build all features the XGBoost models need."""
-    df2 = sdf.copy()
-    if "wind_u" not in df2.columns and "Wind_X" in df2.columns:
-        df2["wind_u"] = df2["Wind_X"]
-    if "wind_v" not in df2.columns and "Wind_Y" in df2.columns:
-        df2["wind_v"] = df2["Wind_Y"]
-    df2["year"]         = df2["Date"].dt.year
-    df2["month"]        = df2["Date"].dt.month
-    df2["day"]          = df2["Date"].dt.day
-    df2["day_of_year"]  = df2["Date"].dt.dayofyear
-    df2["week_of_year"] = df2["Date"].dt.isocalendar().week.astype(int)
-    df2["day_of_week"]  = df2["Date"].dt.dayofweek
-    df2["is_weekend"]   = (df2["Date"].dt.weekday >= 5).astype(int)
-    s2i  = {"Winter": 0, "Spring": 1, "Summer": 2, "Autumn": 3}
-    mapped = df2["season"].astype(str).str.capitalize().map(s2i)
-    msea   = df2["Date"].dt.month.map({12:0,1:0,2:0,3:1,4:1,5:1,6:2,7:2,8:2,9:3,10:3,11:3})
-    df2["season"]       = mapped.fillna(msea).fillna(0).astype(int)
-    df2["station_code"] = df2["station"].astype("category").cat.codes
-    for p in POLLUTANTS:
-        col = f"{p.replace('.','')}_roll_mean_14"
-        if col not in df2.columns:
-            df2[col] = df2.groupby("station")[p].transform(
-                lambda x: x.shift(1).rolling(14, min_periods=1).mean())
-    df2["wind_x_precip"] = df2["WindSpeed"] * df2["Precipitation"]
-    df2["temp_x_humid"]  = df2["Temperature"] * df2["Humidity"]
-    for f in feats:
-        if f not in df2.columns:
-            df2[f] = 0.0
-        if not pd.api.types.is_numeric_dtype(df2[f]):
-            df2[f] = pd.to_numeric(df2[f], errors="coerce").fillna(0)
-    return df2
+from forecast_utils import prepare_features as _prepare_features_util
+
+# Station codes computed after df is loaded — passed explicitly to _compute_forecasts
+STATION_CODES = {s: i for i, s in enumerate(sorted(df["station"].unique()))}
 
 
 @st.cache_data(ttl=3600)
-def _compute_forecasts() -> pd.DataFrame:
-    """Run all station×pollutant forecasts. Returns a DataFrame with EAQI info."""
+def _compute_forecasts(_df: pd.DataFrame) -> pd.DataFrame:
+    """Run all station×pollutant forecasts. Returns a DataFrame with EAQI info.
+    _df is passed explicitly so st.cache_data can hash it properly.
+    """
+    _stations = sorted(_df["station"].unique().tolist())
+    _sc = {s: i for i, s in enumerate(_stations)}
     rows = []
-    for station in all_stations:
-        sdf = df[df["station"] == station].sort_values("Date")
+    for station in _stations:
+        sdf = _df[_df["station"] == station].sort_values("Date")
         for pollutant in POLLUTANTS:
             bundle = _load_bundle(pollutant)
             if bundle is None:
                 continue
             feats = bundle["features"]
-            prep  = _prepare_features(sdf, feats).dropna(subset=feats)
+            prep  = _prepare_features_util(sdf, feats, station_codes=_sc).dropna(subset=feats)
             if prep.empty:
                 continue
             pred = max(float(bundle["model"].predict(prep[feats].iloc[[-1]])[0]), 0.0)
@@ -168,7 +144,7 @@ def _compute_forecasts() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-fc_df    = _compute_forecasts()
+fc_df    = _compute_forecasts(df)
 tomorrow = latest_date + timedelta(days=1)
 
 # Guard: if no models found, fc_df is empty — add expected columns to avoid KeyErrors
@@ -397,32 +373,53 @@ st.divider()
 # ==================================================
 # SECTION — TODAY vs TOMORROW KPIs
 # ==================================================
-st.markdown(f'<p class="section-title">{tr("📊 City-wide averages — D-1 vs next-day forecast")}</p>',
-            unsafe_allow_html=True)
+# SECTION — D-1 vs FORECAST KPIs
+# ==================================================
+st.markdown(
+    f'<p class="section-title">{tr("📊 City-wide averages")} — '
+    f'{latest_date.strftime("%d %b %Y")} (D-1) vs '
+    f'{tomorrow.strftime("%d %b %Y")} ({tr("forecast")})</p>',
+    unsafe_allow_html=True
+)
 
-today_means    = df[df["Date"] == latest_date].groupby("station")[POLLUTANTS].mean().mean()
-tomorrow_means = fc_df.groupby("Pollutant")["Forecast"].mean()
+d1_means  = df[df["Date"] == latest_date].groupby("station")[POLLUTANTS].mean().mean()
+fc_means  = fc_df.groupby("Pollutant")["Forecast"].mean() if not fc_df.empty else pd.Series(dtype=float)
 
 cols = st.columns(4)
 for col, p in zip(cols, POLLUTANTS):
-    today_val    = today_means.get(p, float("nan"))
-    tomorrow_val = tomorrow_means.get(p, float("nan"))
-    delta_val    = tomorrow_val - today_val
-    color        = POLLUTANT_COLOR.get(p, "#888")
-    who_ratio    = tomorrow_val / WHO_ANNUAL[p] if p in WHO_ANNUAL and not np.isnan(tomorrow_val) else None
+    d1_val  = d1_means.get(p, float("nan"))
+    fc_val  = fc_means.get(p, float("nan"))
+    color   = POLLUTANT_COLOR.get(p, "#888")
+
+    # D-1 card always shown; forecast only if models available
+    if not np.isnan(fc_val):
+        delta_val  = fc_val - d1_val
+        delta_str  = f"{delta_val:+.1f} µg/m³ {tr('vs D-1')}"
+        delta_color = "#e74c3c" if delta_val > 0 else "#27ae60"
+        who_ratio   = fc_val / WHO_ANNUAL[p] if p in WHO_ANNUAL else None
+        fc_str = f"{fc_val:.1f}"
+        who_str = f'<div style="font-size:0.75rem;color:#888;margin-top:3px">WHO: {who_ratio:.1f}×</div>' if who_ratio else ""
+    else:
+        delta_str   = tr("Forecast unavailable")
+        delta_color = "#aaa"
+        fc_str      = "—"
+        who_str     = ""
+
     with col:
         st.markdown(f"""
         <div style="border-left:4px solid {color};background:{color}0d;
                     border-radius:8px;padding:12px 14px;">
             <div style="font-size:0.8rem;color:#888;font-weight:600;letter-spacing:0.5px">{p}</div>
             <div style="font-size:1.5rem;font-weight:700;color:#2c3e50;margin:4px 0">
-                {tomorrow_val:.1f} <span style="font-size:0.75rem;color:#888;font-weight:400">µg/m³</span>
+                {fc_str} <span style="font-size:0.75rem;color:#888;font-weight:400">µg/m³</span>
             </div>
-            <div style="font-size:0.75rem;color:#888">{tr("Today")}: {today_val:.1f} µg/m³</div>
-            <div style="font-size:0.75rem;color:{'#e74c3c' if delta_val > 0 else '#27ae60'};font-weight:600">
-                {delta_val:+.1f} µg/m³ {tr("vs today")}
+            <div style="font-size:0.75rem;color:#888">
+                D-1 ({latest_date.strftime("%d %b")}): {d1_val:.1f} µg/m³
             </div>
-            {f'<div style="font-size:0.75rem;color:#888;margin-top:3px">WHO: {who_ratio:.1f}×</div>' if who_ratio else ''}
+            <div style="font-size:0.75rem;color:{delta_color};font-weight:600">
+                {delta_str}
+            </div>
+            {who_str}
         </div>
         """, unsafe_allow_html=True)
 
@@ -529,7 +526,7 @@ st.divider()
 # ==================================================
 # SECTION — RECOMMENDED ACTION
 # ==================================================
-st.markdown(f'<p class="section-title">{tr("🎯 Recommended action for today")}</p>',
+st.markdown(f'<p class="section-title">{tr("🎯 Recommended action")} — {latest_date.strftime("%d %b %Y")}</p>',
             unsafe_allow_html=True)
 
 ZONE_ACTIONS = {
@@ -614,8 +611,8 @@ with col_pdf1:
 
 with col_pdf2:
     st.caption(tr(
-        "One-page summary: today's city-wide averages, "
-        "tomorrow's EU Directive exceedances, "
+        "One-page summary: D-1 city-wide averages, "
+        "next-day EU Directive exceedances, "
         "and zone-level recommended action."
     ))
 
