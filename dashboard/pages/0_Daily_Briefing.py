@@ -84,28 +84,32 @@ hr { border-color: var(--line); }
 # ==================================================
 df          = load_data()
 latest_date = df["Date"].max()
-n_years     = df["Date"].dt.year.nunique()
-n_records   = len(df)
-all_stations = sorted(df["station"].unique().tolist())
 POLLUTANTS  = ["PM2.5", "PM10", "NO2", "SO2"]
 
 # ==================================================
 # FORECAST COMPUTATION (single source — EAQI-based)
 # ==================================================
-MODELS_DIR = Path(__file__).parent.parent.parent / "models"   # repo_root/models/
+# Candidate model locations — first existing one wins.
+# Covers both layouts seen in the wild: repo_root/models and dashboard/models.
+_MODEL_DIR_CANDIDATES = [
+    Path(__file__).parent.parent.parent / "models",   # repo_root/models
+    Path(__file__).parent.parent / "models",          # dashboard/models
+    Path.cwd() / "models",                            # working-dir fallback
+]
+MODELS_DIR = next((p for p in _MODEL_DIR_CANDIDATES if p.exists()),
+                  _MODEL_DIR_CANDIDATES[0])
 
 
 @st.cache_resource
-def _load_bundle(pollutant: str):
+def _load_bundle(pollutant: str, models_dir: str):
+    """models_dir is an explicit arg so it becomes part of the cache key —
+    otherwise a stale None (cached under an old wrong path) survives edits."""
     prefix = pollutant.replace(".", "").lower()
-    path   = MODELS_DIR / f"xgb_{prefix}_forecast.joblib"
+    path   = Path(models_dir) / f"xgb_{prefix}_forecast.joblib"
     return joblib.load(path) if path.exists() else None
 
 
 from forecast_utils import prepare_features as _prepare_features_util
-
-# Station codes computed after df is loaded — passed explicitly to _compute_forecasts
-STATION_CODES = {s: i for i, s in enumerate(sorted(df["station"].unique()))}
 
 
 @st.cache_data(ttl=3600)
@@ -119,7 +123,7 @@ def _compute_forecasts(_df: pd.DataFrame) -> pd.DataFrame:
     for station in _stations:
         sdf = _df[_df["station"] == station].sort_values("Date")
         for pollutant in POLLUTANTS:
-            bundle = _load_bundle(pollutant)
+            bundle = _load_bundle(pollutant, str(MODELS_DIR))
             if bundle is None:
                 continue
             feats = bundle["features"]
@@ -146,6 +150,20 @@ def _compute_forecasts(_df: pd.DataFrame) -> pd.DataFrame:
 
 fc_df    = _compute_forecasts(df)
 tomorrow = latest_date + timedelta(days=1)
+
+# Diagnostic — if nothing was forecast, say WHY instead of failing silently
+if fc_df.empty:
+    _missing = [p for p in POLLUTANTS if _load_bundle(p, str(MODELS_DIR)) is None]
+    if _missing:
+        st.warning(
+            f"⚠️ {tr('Forecast models not found for')}: {', '.join(_missing)} "
+            f"({tr('expected in')} `{MODELS_DIR}`)."
+        )
+    else:
+        st.warning(
+            "⚠️ " + tr("Models loaded but no forecast rows were produced — "
+                       "check that the latest data rows contain the model features.")
+        )
 
 # Guard: if no models found, fc_df is empty — add expected columns to avoid KeyErrors
 _EXPECTED_COLS = ["station", "Zone", "Pollutant", "Forecast",
