@@ -215,7 +215,7 @@ st.markdown(f"""
     <div class="hero-meta">
         <span><b>7</b> {tr("stations")} · <b>5</b> {tr("zones")}</span>
         <span><b>{n_years}</b> {tr("years")} · {n_records:,} {tr("daily records")}</span>
-        <span><b>GeoAI spatial</b> · 4 {tr("notebooks")} · 35 {tr("features")}</span>
+        <span><b>GeoAI spatial</b> · 10 {tr("notebooks")} · 35 {tr("features")}</span>
         <span><b>{tr("Next-day")}</b> XGBoost {tr("forecast")}</span>
         <span><b>WHO 2021</b> + EU Directive 2008/50/EC</span>
     </div>
