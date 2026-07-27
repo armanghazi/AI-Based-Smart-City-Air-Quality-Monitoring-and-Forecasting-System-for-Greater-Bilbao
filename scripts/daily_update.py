@@ -77,12 +77,25 @@ STATIONS = {
 }
 
 # REST API measurement name → parquet column name
-# Note: PM2.5 uses comma in API ("PM2,5") — matched after strip+upper
+# Note: PM2.5 uses comma in API ("PM2,5")
 EUSKADI_FIELD_MAP = {
     "NO2":   "NO2",
     "PM10":  "PM10",
     "PM2,5": "PM2.5",
     "SO2":   "SO2",
+}
+
+# Fallback: static JSON files (full year per station, newest-first)
+EUSKADI_STATIC_URL = (
+    "https://opendata.euskadi.eus/contenidos/ds_informes_estudios"
+    "/calidad_aire_{YEAR}/es_def/adjuntos/datos_diarios/{STATION}.json"
+)
+# Static JSON field name → parquet column name (values are strings with comma decimals)
+EUSKADI_STATIC_FIELD_MAP = {
+    "NO2gm3":  "NO2",
+    "PM10gm3": "PM10",
+    "PM25gm3": "PM2.5",
+    "SO2gm3":  "SO2",
 }
 
 # Required columns in the final parquet (must match existing schema exactly)
@@ -151,40 +164,50 @@ def fetch_air_quality(target_date: date) -> pd.DataFrame:
     for station, station_id in STATIONS.items():
         url = EUSKADI_API_URL.format(STATION_ID=station_id, DATE=date_str)
 
-        # Single attempt — no retry. Euskadi blocks GitHub Actions IPs
-        # intermittently; retrying wastes time and hits timeout limits.
+        # Try REST API first; fall back to static JSON if it times out.
+        # Both endpoints are throttled from GitHub Actions IPs — one usually
+        # succeeds on a given day even when the other does not.
+        row = None
+
+        # --- attempt 1: REST API ---
         try:
             r = requests.get(url, timeout=30)
             r.raise_for_status()
             records = r.json()
-
-            if not records:
-                log.warning(f"[AQ] {station}: empty response for {date_str}.")
-                continue
-
-            measurements = records[0].get("station", [{}])[0].get("measurements", [])
-            if not measurements:
-                log.warning(f"[AQ] {station}: no measurements for {date_str}.")
-                continue
-
-            meas_map = {m["name"]: m["value"] for m in measurements}
-
-            row = {
-                "station": station,
-                "Date":    pd.Timestamp(target_date),
-            }
-            for api_name, col_name in EUSKADI_FIELD_MAP.items():
-                row[col_name] = float(meas_map.get(api_name, float("nan")))
-
-            rows.append(row)
-            log.info(
-                f"[AQ] {station}: "
-                f"NO2={row['NO2']:.0f}  PM10={row['PM10']:.0f}  "
-                f"PM2.5={row['PM2.5']:.0f}  SO2={row['SO2']:.0f}"
-            )
-
+            if records:
+                measurements = records[0].get("station", [{}])[0].get("measurements", [])
+                if measurements:
+                    meas_map = {m["name"]: m["value"] for m in measurements}
+                    row = {"station": station, "Date": pd.Timestamp(target_date)}
+                    for api_name, col_name in EUSKADI_FIELD_MAP.items():
+                        row[col_name] = float(meas_map.get(api_name, float("nan")))
+                    log.info(f"[AQ] {station} (REST): NO2={row['NO2']:.0f}  PM10={row['PM10']:.0f}  PM2.5={row['PM2.5']:.0f}  SO2={row['SO2']:.0f}")
         except Exception as e:
-            log.warning(f"[AQ] {station} failed: {e}")
+            log.warning(f"[AQ] {station} REST failed: {e}. Trying static JSON fallback...")
+
+        # --- attempt 2: static JSON fallback ---
+        if row is None:
+            fallback_url = EUSKADI_STATIC_URL.format(YEAR=target_date.year, STATION=station)
+            date_key = target_date.strftime("%d/%m/%Y")
+            try:
+                r2 = requests.get(fallback_url, timeout=30)
+                r2.raise_for_status()
+                records2 = r2.json()
+                match = next((rec for rec in records2 if rec.get("Date") == date_key), None)
+                if match:
+                    row = {"station": station, "Date": pd.Timestamp(target_date)}
+                    for api_field, col_name in EUSKADI_STATIC_FIELD_MAP.items():
+                        row[col_name] = parse_value(match.get(api_field))
+                    log.info(f"[AQ] {station} (static): NO2={row['NO2']:.0f}  PM10={row['PM10']:.0f}  PM2.5={row['PM2.5']:.0f}  SO2={row['SO2']:.0f}")
+                else:
+                    log.warning(f"[AQ] {station} static JSON: no record for {date_key}.")
+            except Exception as e2:
+                log.warning(f"[AQ] {station} static JSON also failed: {e2}")
+
+        if row is not None:
+            rows.append(row)
+        else:
+            log.warning(f"[AQ] {station}: both endpoints failed — skipping station.")
 
     if not rows:
         log.warning(
