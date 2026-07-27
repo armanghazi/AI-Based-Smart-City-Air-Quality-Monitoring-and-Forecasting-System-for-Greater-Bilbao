@@ -57,31 +57,33 @@ log = logging.getLogger(__name__)
 # CONSTANTS — verified from real API responses (00_api_exploration)
 # ------------------------------------------------------------------
 
-# Euskadi daily JSON per station — {YEAR} and {STATION} are filled at runtime
-EUSKADI_DAILY_URL = (
-    "https://opendata.euskadi.eus/contenidos/ds_informes_estudios"
-    "/calidad_aire_{YEAR}/es_def/adjuntos/datos_diarios/{STATION}.json"
+# Euskadi REST API — daily measurements per station
+# Docs: https://opendata.euskadi.eus/api-air-quality/?api=air-quality
+EUSKADI_API_URL = (
+    "https://api.euskadi.eus/air-quality/measurements/daily"
+    "/stations/{STATION_ID}/from/{DATE}/to/{DATE}"
 )
 
-# Euskadi field name → parquet column name
-# Values are strings; decimals use comma (e.g. "0,23") → must replace before float()
-EUSKADI_FIELD_MAP = {
-    "NO2gm3":  "NO2",
-    "PM10gm3": "PM10",
-    "PM25gm3": "PM2.5",
-    "SO2gm3":  "SO2",
+# API station IDs (confirmed from https://api.euskadi.eus/air-quality/stations)
+# Parquet station name → API numeric ID
+STATIONS = {
+    "ALGORTA_BBIZI2": "90",
+    "SANTURCE":       "96",
+    "BASAURI":        "58",
+    "BARAKALDO":      "59",
+    "ERANDIO":        "56",
+    "MAZARREDO":      "60",
+    "MUSKIZ":         "63",
 }
 
-# Station names are identical in parquet and in the Euskadi URL — no mapping needed
-STATIONS = [
-    "ALGORTA_BBIZI2",
-    "SANTURCE",
-    "BASAURI",
-    "BARAKALDO",
-    "ERANDIO",
-    "MAZARREDO",
-    "MUSKIZ",
-]
+# REST API measurement name → parquet column name
+# Note: PM2.5 uses comma in API ("PM2,5") — matched after strip+upper
+EUSKADI_FIELD_MAP = {
+    "NO2":   "NO2",
+    "PM10":  "PM10",
+    "PM2,5": "PM2.5",
+    "SO2":   "SO2",
+}
 
 # Required columns in the final parquet (must match existing schema exactly)
 REQUIRED_COLUMNS = [
@@ -137,51 +139,44 @@ def decompose_wind(speed: float, direction_deg: float) -> tuple[float, float]:
 
 def fetch_air_quality(target_date: date) -> pd.DataFrame:
     """
-    Fetch daily air quality for all 7 stations from Euskadi open data.
-    Each station has its own JSON file; we filter to the target date.
-
-    Euskadi date format in JSON: DD/MM/YYYY
-    Values are strings; missing values are silently skipped (not filled).
+    Fetch daily air quality for all 7 stations from Euskadi REST API.
+    Endpoint: /air-quality/measurements/daily/stations/{id}/from/{date}/to/{date}
+    API date format: YYYY-MM-DD. Values are floats (no comma parsing needed).
 
     Returns DataFrame with columns: station, Date, NO2, PM10, PM2.5, SO2
     """
-    year      = target_date.year
-    date_key  = target_date.strftime("%d/%m/%Y")   # Euskadi date format
-    rows      = []
+    date_str = target_date.strftime("%Y-%m-%d")   # REST API date format
+    rows     = []
 
-    for station in STATIONS:
-        url = EUSKADI_DAILY_URL.format(YEAR=year, STATION=station)
+    for station, station_id in STATIONS.items():
+        url = EUSKADI_API_URL.format(STATION_ID=station_id, DATE=date_str)
 
-        # Retry up to 3 times with exponential backoff — Euskadi throttles
-        # GitHub Actions IPs intermittently; retrying usually succeeds.
+        # Retry up to 3 times with exponential backoff
         for attempt in range(3):
             try:
-                r = requests.get(url, timeout=60)  # increased from 30s
+                r = requests.get(url, timeout=60)
                 r.raise_for_status()
-                records = r.json()
+                records = r.json()  # list of {date, station: [{measurements:[]}]}
 
-                # Each file contains the full year sorted newest-first;
-                # find the record matching our target date
-                match = next(
-                    (rec for rec in records if rec.get("Date") == date_key),
-                    None,
-                )
+                if not records:
+                    log.warning(f"[AQ] {station}: empty response for {date_str}.")
+                    break  # no point retrying — data not published yet
 
-                if match is None:
-                    # Data not yet published for this date — skip, do not fill
-                    latest = records[0].get("Date", "?") if records else "?"
-                    log.warning(
-                        f"[AQ] {station}: no record for {date_key}. "
-                        f"Latest available: {latest}"
-                    )
-                    break  # no point retrying — data just isn't there yet
+                # records[0]["station"] is a list with one item
+                measurements = records[0].get("station", [{}])[0].get("measurements", [])
+                if not measurements:
+                    log.warning(f"[AQ] {station}: no measurements for {date_str}.")
+                    break
+
+                # Build a simple name→value lookup (API name field, e.g. "PM2,5")
+                meas_map = {m["name"]: m["value"] for m in measurements}
 
                 row = {
                     "station": station,
                     "Date":    pd.Timestamp(target_date),
                 }
-                for api_field, col_name in EUSKADI_FIELD_MAP.items():
-                    row[col_name] = parse_value(match.get(api_field))
+                for api_name, col_name in EUSKADI_FIELD_MAP.items():
+                    row[col_name] = float(meas_map.get(api_name, float("nan")))
 
                 rows.append(row)
                 log.info(
@@ -205,7 +200,7 @@ def fetch_air_quality(target_date: date) -> pd.DataFrame:
     if not rows:
         log.warning(
             f"[AQ] No air quality data retrieved for {target_date}. "
-            "Euskadi may be unreachable from GitHub Actions. Skipping gracefully."
+            "Euskadi API may be unreachable. Skipping gracefully."
         )
         sys.exit(0)  # exit 0 = not a failure; parquet unchanged; retry tomorrow
 
