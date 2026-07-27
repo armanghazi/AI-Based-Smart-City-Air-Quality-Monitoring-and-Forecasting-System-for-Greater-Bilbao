@@ -22,15 +22,19 @@ jobs:
       contents: write # needed to commit and push the updated parquet
 
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Use Python 3.11 in CI — not 3.14 (pyarrow string dtype quirks in 3.14)
+      - name: Show script version
+        run: head -5 scripts/daily_update.py && grep "api.euskadi.eus" scripts/daily_update.py
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
+          cache-dependency-path: "requirements.txt"
 
       - name: Install dependencies
         run: pip install -r requirements.txt
