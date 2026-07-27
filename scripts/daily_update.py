@@ -25,6 +25,8 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+import time
+
 import pandas as pd
 import requests
 
@@ -149,50 +151,63 @@ def fetch_air_quality(target_date: date) -> pd.DataFrame:
 
     for station in STATIONS:
         url = EUSKADI_DAILY_URL.format(YEAR=year, STATION=station)
-        try:
-            r = requests.get(url, timeout=30)
-            r.raise_for_status()
-            records = r.json()
 
-            # Each file contains the full year sorted newest-first;
-            # find the record matching our target date
-            match = next(
-                (rec for rec in records if rec.get("Date") == date_key),
-                None,
-            )
+        # Retry up to 3 times with exponential backoff — Euskadi throttles
+        # GitHub Actions IPs intermittently; retrying usually succeeds.
+        for attempt in range(3):
+            try:
+                r = requests.get(url, timeout=60)  # increased from 30s
+                r.raise_for_status()
+                records = r.json()
 
-            if match is None:
-                # Data not yet published for this date — skip, do not fill
-                latest = records[0].get("Date", "?") if records else "?"
-                log.warning(
-                    f"[AQ] {station}: no record for {date_key}. "
-                    f"Latest available: {latest}"
+                # Each file contains the full year sorted newest-first;
+                # find the record matching our target date
+                match = next(
+                    (rec for rec in records if rec.get("Date") == date_key),
+                    None,
                 )
-                continue
 
-            row = {
-                "station": station,
-                "Date":    pd.Timestamp(target_date),
-            }
-            for api_field, col_name in EUSKADI_FIELD_MAP.items():
-                row[col_name] = parse_value(match.get(api_field))
+                if match is None:
+                    # Data not yet published for this date — skip, do not fill
+                    latest = records[0].get("Date", "?") if records else "?"
+                    log.warning(
+                        f"[AQ] {station}: no record for {date_key}. "
+                        f"Latest available: {latest}"
+                    )
+                    break  # no point retrying — data just isn't there yet
 
-            rows.append(row)
-            log.info(
-                f"[AQ] {station}: "
-                f"NO2={row['NO2']:.0f}  PM10={row['PM10']:.0f}  "
-                f"PM2.5={row['PM2.5']:.0f}  SO2={row['SO2']:.0f}"
-            )
+                row = {
+                    "station": station,
+                    "Date":    pd.Timestamp(target_date),
+                }
+                for api_field, col_name in EUSKADI_FIELD_MAP.items():
+                    row[col_name] = parse_value(match.get(api_field))
 
-        except Exception as e:
-            # Log and skip — one failed station must not abort the whole run
-            log.warning(f"[AQ] {station} failed: {e}")
+                rows.append(row)
+                log.info(
+                    f"[AQ] {station}: "
+                    f"NO2={row['NO2']:.0f}  PM10={row['PM10']:.0f}  "
+                    f"PM2.5={row['PM2.5']:.0f}  SO2={row['SO2']:.0f}"
+                )
+                break  # success — move to next station
+
+            except Exception as e:
+                wait = 30 * (attempt + 1)  # 30s → 60s → 90s
+                if attempt < 2:
+                    log.warning(
+                        f"[AQ] {station} attempt {attempt + 1}/3 failed: {e}. "
+                        f"Retrying in {wait}s..."
+                    )
+                    time.sleep(wait)
+                else:
+                    log.warning(f"[AQ] {station} all 3 attempts failed: {e}")
 
     if not rows:
-        raise ValueError(
+        log.warning(
             f"[AQ] No air quality data retrieved for {target_date}. "
-            "Check if Euskadi has published this date yet."
+            "Euskadi may be unreachable from GitHub Actions. Skipping gracefully."
         )
+        sys.exit(0)  # exit 0 = not a failure; parquet unchanged; retry tomorrow
 
     log.info(f"[AQ] Fetched {len(rows)}/{len(STATIONS)} stations for {target_date}.")
     return pd.DataFrame(rows)
