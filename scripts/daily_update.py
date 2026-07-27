@@ -151,51 +151,40 @@ def fetch_air_quality(target_date: date) -> pd.DataFrame:
     for station, station_id in STATIONS.items():
         url = EUSKADI_API_URL.format(STATION_ID=station_id, DATE=date_str)
 
-        # Retry up to 3 times with exponential backoff
-        for attempt in range(3):
-            try:
-                r = requests.get(url, timeout=60)
-                r.raise_for_status()
-                records = r.json()  # list of {date, station: [{measurements:[]}]}
+        # Single attempt — no retry. Euskadi blocks GitHub Actions IPs
+        # intermittently; retrying wastes time and hits timeout limits.
+        try:
+            r = requests.get(url, timeout=30)
+            r.raise_for_status()
+            records = r.json()
 
-                if not records:
-                    log.warning(f"[AQ] {station}: empty response for {date_str}.")
-                    break  # no point retrying — data not published yet
+            if not records:
+                log.warning(f"[AQ] {station}: empty response for {date_str}.")
+                continue
 
-                # records[0]["station"] is a list with one item
-                measurements = records[0].get("station", [{}])[0].get("measurements", [])
-                if not measurements:
-                    log.warning(f"[AQ] {station}: no measurements for {date_str}.")
-                    break
+            measurements = records[0].get("station", [{}])[0].get("measurements", [])
+            if not measurements:
+                log.warning(f"[AQ] {station}: no measurements for {date_str}.")
+                continue
 
-                # Build a simple name→value lookup (API name field, e.g. "PM2,5")
-                meas_map = {m["name"]: m["value"] for m in measurements}
+            meas_map = {m["name"]: m["value"] for m in measurements}
 
-                row = {
-                    "station": station,
-                    "Date":    pd.Timestamp(target_date),
-                }
-                for api_name, col_name in EUSKADI_FIELD_MAP.items():
-                    row[col_name] = float(meas_map.get(api_name, float("nan")))
+            row = {
+                "station": station,
+                "Date":    pd.Timestamp(target_date),
+            }
+            for api_name, col_name in EUSKADI_FIELD_MAP.items():
+                row[col_name] = float(meas_map.get(api_name, float("nan")))
 
-                rows.append(row)
-                log.info(
-                    f"[AQ] {station}: "
-                    f"NO2={row['NO2']:.0f}  PM10={row['PM10']:.0f}  "
-                    f"PM2.5={row['PM2.5']:.0f}  SO2={row['SO2']:.0f}"
-                )
-                break  # success — move to next station
+            rows.append(row)
+            log.info(
+                f"[AQ] {station}: "
+                f"NO2={row['NO2']:.0f}  PM10={row['PM10']:.0f}  "
+                f"PM2.5={row['PM2.5']:.0f}  SO2={row['SO2']:.0f}"
+            )
 
-            except Exception as e:
-                wait = 30 * (attempt + 1)  # 30s → 60s → 90s
-                if attempt < 2:
-                    log.warning(
-                        f"[AQ] {station} attempt {attempt + 1}/3 failed: {e}. "
-                        f"Retrying in {wait}s..."
-                    )
-                    time.sleep(wait)
-                else:
-                    log.warning(f"[AQ] {station} all 3 attempts failed: {e}")
+        except Exception as e:
+            log.warning(f"[AQ] {station} failed: {e}")
 
     if not rows:
         log.warning(
