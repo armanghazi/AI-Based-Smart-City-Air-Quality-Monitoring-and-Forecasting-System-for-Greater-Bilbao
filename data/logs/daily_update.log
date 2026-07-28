@@ -901,3 +901,45 @@
 2026-06-16 08:39:45,178  INFO  [Met] SANTURCE: T=20.8°C  WS=11.4km/h  Dir=300°  wind_u=9.87  wind_v=-5.70
 2026-06-16 08:39:45,178  INFO  [Met] Fetched 7/7 stations for 2026-06-15.
 2026-06-16 08:39:45,407  INFO  [Parquet] Added 7 rows. Total rows now: 29,288.
+2026-07-28 17:10:57,965  INFO  =======================================================
+2026-07-28 17:10:57,966  INFO  Processing date: 2026-07-27
+2026-07-28 17:10:57,966  INFO  =======================================================
+2026-07-28 17:10:58,031  INFO  Loaded metadata for 7 stations.
+2026-07-28 17:10:58,357  INFO  [AQ] ALGORTA_BBIZI2 (REST): NO2=6  PM10=14  PM2.5=4  SO2=4
+2026-07-28 17:10:58,654  INFO  [AQ] SANTURCE (REST): NO2=12  PM10=12  PM2.5=5  SO2=3
+2026-07-28 17:10:58,949  INFO  [AQ] BASAURI (REST): NO2=17  PM10=15  PM2.5=7  SO2=4
+2026-07-28 17:10:59,258  INFO  [AQ] BARAKALDO (REST): NO2=13  PM10=17  PM2.5=7  SO2=7
+2026-07-28 17:10:59,557  INFO  [AQ] ERANDIO (REST): NO2=19  PM10=14  PM2.5=6  SO2=3
+2026-07-28 17:10:59,856  INFO  [AQ] MAZARREDO (REST): NO2=14  PM10=13  PM2.5=7  SO2=5
+2026-07-28 17:11:00,150  INFO  [AQ] MUSKIZ (REST): NO2=7  PM10=11  PM2.5=5  SO2=4
+2026-07-28 17:11:00,150  INFO  [AQ] Fetched 7/7 stations for 2026-07-27.
+2026-07-28 17:11:00,606  INFO  [Met] ALGORTA_BBIZI2: T=20.4°C  WS=7.5km/h  Dir=359°  wind_u=0.13  wind_v=-7.50
+2026-07-28 17:11:00,973  INFO  [Met] BARAKALDO: T=20.9°C  WS=7.5km/h  Dir=359°  wind_u=0.13  wind_v=-7.50
+2026-07-28 17:11:01,347  INFO  [Met] BASAURI: T=20.7°C  WS=5.7km/h  Dir=34°  wind_u=-3.19  wind_v=-4.73
+2026-07-28 17:11:01,704  INFO  [Met] ERANDIO: T=21.1°C  WS=7.5km/h  Dir=359°  wind_u=0.13  wind_v=-7.50
+2026-07-28 17:11:02,047  INFO  [Met] MAZARREDO: T=20.8°C  WS=5.8km/h  Dir=17°  wind_u=-1.70  wind_v=-5.55
+2026-07-28 17:11:02,422  INFO  [Met] MUSKIZ: T=20.7°C  WS=9.5km/h  Dir=357°  wind_u=0.50  wind_v=-9.49
+2026-07-28 17:11:02,792  INFO  [Met] SANTURCE: T=19.7°C  WS=9.5km/h  Dir=357°  wind_u=0.50  wind_v=-9.49
+2026-07-28 17:11:02,792  INFO  [Met] Fetched 7/7 stations for 2026-07-27.
+2026-07-28 17:11:02,957  INFO  [Parquet] Added 2 rows. Total rows now: 29,581.
+2026-07-28 17:11:41,696  INFO  =======================================================
+2026-07-28 17:11:41,696  INFO  Processing date: 2026-06-05
+2026-07-28 17:11:41,696  INFO  =======================================================
+2026-07-28 17:11:41,755  INFO  Loaded metadata for 7 stations.
+2026-07-28 17:11:42,072  INFO  [AQ] ALGORTA_BBIZI2 (REST): NO2=8  PM10=20  PM2.5=5  SO2=4
+2026-07-28 17:11:42,369  INFO  [AQ] SANTURCE (REST): NO2=13  PM10=nan  PM2.5=6  SO2=4
+2026-07-28 17:11:42,701  INFO  [AQ] BASAURI (REST): NO2=13  PM10=15  PM2.5=7  SO2=4
+2026-07-28 17:11:43,012  INFO  [AQ] BARAKALDO (REST): NO2=17  PM10=24  PM2.5=7  SO2=4
+2026-07-28 17:11:43,334  INFO  [AQ] ERANDIO (REST): NO2=19  PM10=14  PM2.5=7  SO2=4
+2026-07-28 17:11:43,652  INFO  [AQ] MAZARREDO (REST): NO2=0  PM10=13  PM2.5=7  SO2=5
+2026-07-28 17:11:43,969  INFO  [AQ] MUSKIZ (REST): NO2=7  PM10=2  PM2.5=0  SO2=5
+2026-07-28 17:11:43,969  INFO  [AQ] Fetched 7/7 stations for 2026-06-05.
+2026-07-28 17:11:44,816  INFO  [Met] ALGORTA_BBIZI2: T=15.6°C  WS=7.1km/h  Dir=46°  wind_u=-5.11  wind_v=-4.93
+2026-07-28 17:11:45,198  INFO  [Met] BARAKALDO: T=16.1°C  WS=7.1km/h  Dir=46°  wind_u=-5.11  wind_v=-4.93
+2026-07-28 17:11:45,582  INFO  [Met] BASAURI: T=15.7°C  WS=4.9km/h  Dir=103°  wind_u=-4.77  wind_v=1.10
+2026-07-28 17:11:45,968  INFO  [Met] ERANDIO: T=16.2°C  WS=7.1km/h  Dir=46°  wind_u=-5.11  wind_v=-4.93
+2026-07-28 17:11:46,340  INFO  [Met] MAZARREDO: T=16.3°C  WS=4.3km/h  Dir=94°  wind_u=-4.29  wind_v=0.30
+2026-07-28 17:11:46,714  INFO  [Met] MUSKIZ: T=15.9°C  WS=8.9km/h  Dir=27°  wind_u=-4.04  wind_v=-7.93
+2026-07-28 17:11:47,078  INFO  [Met] SANTURCE: T=14.9°C  WS=8.9km/h  Dir=27°  wind_u=-4.04  wind_v=-7.93
+2026-07-28 17:11:47,078  INFO  [Met] Fetched 7/7 stations for 2026-06-05.
+2026-07-28 17:11:47,144  INFO  [Parquet] Nothing to add — all rows already present (idempotent).
