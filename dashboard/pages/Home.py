@@ -98,21 +98,12 @@ n_years      = df["Year"].nunique()
 # --------------------------------------------------
 # Cookie manager — favourite station
 # --------------------------------------------------
-_cookies = None
-try:
-    from streamlit_cookies_manager import EncryptedCookieManager
-    _cookies = EncryptedCookieManager(
-        prefix="smart_city_air",
-        password=st.secrets.get("cookie_password", "local-dev-only-change-me"),
-    )
-    if not _cookies.ready():
-        st.stop()
-except ImportError:
-    _cookies = None
+# Streamlit Cloud / modern Streamlit compatible session state.
+# The previous streamlit_cookies_manager dependency used the removed
+# legacy @st.cache API and caused the app to fail during import.
 
 if "fav_station" not in st.session_state:
-    saved = _cookies.get("fav_station") if _cookies else None
-    st.session_state.fav_station = saved if saved in station_list else station_list[0]
+    st.session_state.fav_station = station_list[0]
 
 # --------------------------------------------------
 # Quick forecast — alert banner (EAQI level >= 4 = Poor)
@@ -270,12 +261,7 @@ with col_fav:
     )
     if st.button(tr("Save as default"), type="primary", use_container_width=True):
         st.session_state.fav_station = selected_fav
-        if _cookies is not None:
-            _cookies["fav_station"] = selected_fav
-            _cookies.save()
-            st.success(f"{selected_fav} {tr('saved')}.")
-        else:
-            st.info(tr("Saved for this session."))
+        st.success(f"{selected_fav} {tr('saved')}.")
 
 with col_snap:
     latest_means = (

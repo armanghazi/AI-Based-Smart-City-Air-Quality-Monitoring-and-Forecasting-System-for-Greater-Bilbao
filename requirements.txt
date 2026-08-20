@@ -15,6 +15,5 @@ scikit-learn
 shapely
 statsmodels
 streamlit>=1.42,<2
-streamlit-cookies-manager
 streamlit-folium>=0.27.2
 xgboost
