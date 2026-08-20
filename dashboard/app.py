@@ -75,7 +75,7 @@ if _logo.exists():
 # so this IS real access control (not just UI hiding).
 # is_admin() is a safe wrapper that returns False on any auth error.
 
-pages["Admin"] = [operations]َ
+pages["Admin"] = [operations]
 
 pg = st.navigation(pages)
 
