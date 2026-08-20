@@ -75,18 +75,8 @@ if _logo.exists():
 # so this IS real access control (not just UI hiding).
 # is_admin() is a safe wrapper that returns False on any auth error.
 
-pages["Admin"] = [operations]
+pages["Admin"] = [operations]َ
 
 pg = st.navigation(pages)
-
-st.markdown("""
-<style>
-/* hide Project Assistant from nav — accessible via Home button only */
-[data-testid="stSidebarNav"] a[href*="Project_Assistant"] {
-    display: none !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
 
 pg.run()
