@@ -54,7 +54,7 @@ _MODELS_DIR = _REPO_ROOT / "models"
 
 # ── Constants ────────────────────────────────────────────────────────────────
 MODEL       = "meta-llama/llama-3.3-70b-instruct"
-MAX_HISTORY = 4          # reduced from 10 to cut token usage ~50%
+MAX_HISTORY = 6          # reduced from 10 to cut token usage ~50%
 POLLUTANTS  = ["PM2.5", "PM10", "NO2", "SO2"]
 WEATHER_VARS = ["Temperature", "Humidity", "Precipitation", "WindSpeed", "WindDirection"]
 
@@ -594,6 +594,8 @@ def build_system_prompt(digest: str, stations: list[str]) -> str:
         "GROUND RULES:\n"
         "- Always use tools to answer data questions — never invent numbers.\n"
         "- For GIS features use exact column names: green_pct_1000m, industrial_pct_1000m,\n"
+        "- Give structured answers: use bullet points or short paragraphs.\n"
+        "- If unsure, say so — never fabricate data.\n"
         "  elev_point_m, dist_petronor_m, dist_port_bilbao_m, road_density_1000m.\n"
         f"- Station codes: {stations}\n"
         "- Respond in the same language the user writes in (English, Spanish, or Persian/Farsi).\n"
@@ -636,8 +638,8 @@ def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, s
                 resp = client.chat.completions.create(
                     model=MODEL,
                     messages=messages,
-                    temperature=0.1,
-                    max_tokens=900,
+                    temperature=0.2,
+                    max_tokens=1200,
                     tools=schemas,
                     tool_choice="auto",
                 )
@@ -646,8 +648,8 @@ def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, s
                 resp = client.chat.completions.create(
                     model=MODEL,
                     messages=messages,
-                    temperature=0.1,
-                    max_tokens=900,
+                    temperature=0.2,
+                    max_tokens=1200,
                 )
                 return True, (resp.choices[0].message.content or "").strip()
 
@@ -684,7 +686,7 @@ def get_reply(history: list[dict], digest: str, tool_map: dict, schemas: list, s
                 })
 
         # Safety net
-        resp = client.chat.completions.create(model=MODEL, messages=messages, max_tokens=900)
+        resp = client.chat.completions.create(model=MODEL, messages=messages, max_tokens=1200)
         return True, (resp.choices[0].message.content or "").strip()
 
     except Exception as exc:
